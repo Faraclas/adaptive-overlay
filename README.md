@@ -25,7 +25,7 @@ Currently included packages:
 
 2. Add the overlay:
    ```bash
-   eselect repository add adaptive-overlay git https://github.com/YOUR_USERNAME/adaptive-overlay.git
+   eselect repository add adaptive-overlay git https://github.com/Faraclas/adaptive-overlay.git
    ```
 
 3. Sync the overlay:
@@ -37,7 +37,7 @@ Currently included packages:
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/adaptive-overlay.git /var/db/repos/adaptive-overlay
+   git clone https://github.com/Faraclas/adaptive-overlay.git /var/db/repos/adaptive-overlay
    ```
 
 2. Add the overlay to `/etc/portage/repos.conf/adaptive-overlay.conf`:
@@ -45,7 +45,7 @@ Currently included packages:
    [adaptive-overlay]
    location = /var/db/repos/adaptive-overlay
    sync-type = git
-   sync-uri = https://github.com/YOUR_USERNAME/adaptive-overlay.git
+   sync-uri = https://github.com/Faraclas/adaptive-overlay.git
    auto-sync = yes
    ```
 
