@@ -1,0 +1,112 @@
+name: Repackage Surge Release with Submodules
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Surge version to repackage (e.g., 1.3.4)'
+        required: true
+        type: string
+
+  # Optional: Run periodically to check for new releases
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+
+jobs:
+  repackage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Fetch latest release from upstream
+            LATEST=$(curl -s https://api.github.com/repos/surge-synthesizer/surge/releases/latest | jq -r .tag_name | sed 's/release_xt_//')
+            echo "VERSION=$LATEST" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if release already exists
+        id: check_release
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          # Check if we already have this version
+          if gh release view "surgext-${VERSION}" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Release surgext-${VERSION} already exists, skipping..."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Release surgext-${VERSION} does not exist, proceeding..."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone Surge with submodules
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Cloning Surge release_xt_${VERSION} with submodules..."
+          git clone --depth 1 --recurse-submodules --shallow-submodules \
+            --branch "release_xt_${VERSION}" \
+            https://github.com/surge-synthesizer/surge.git \
+            surge-${VERSION}
+
+          # Verify submodules were cloned
+          cd surge-${VERSION}
+          git submodule status
+
+      - name: Create tarball with submodules
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Creating tarball surgext-${VERSION}.tar.gz..."
+
+          # Create tarball excluding .git directories
+          tar -czf surgext-${VERSION}.tar.gz \
+            --exclude-vcs \
+            surge-${VERSION}
+
+          # Show tarball info
+          ls -lh surgext-${VERSION}.tar.gz
+          echo "Tarball created successfully!"
+
+      - name: Create Release
+        if: steps.check_release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: surgext-${{ steps.version.outputs.VERSION }}
+          name: SurgeXT ${{ steps.version.outputs.VERSION }} (repackaged)
+          body: |
+            Repackaged release of Surge XT ${{ steps.version.outputs.VERSION }} with submodules included.
+
+            This tarball contains the full source code including all git submodules,
+            suitable for use with Gentoo ebuilds and other package managers.
+
+            **Upstream Release:** https://github.com/surge-synthesizer/surge/releases/tag/release_xt_${{ steps.version.outputs.VERSION }}
+
+            **Contents:**
+            - Main Surge XT source code
+            - All git submodules recursively included
+            - Build system files (CMake, etc.)
+
+            **Usage in ebuild:**
+            ```
+            SRC_URI="https://github.com/Faraclas/adaptive-overlay/releases/download/surgext-${PV}/${P}.tar.gz"
+            S="${WORKDIR}/surge-${PV}"
+            ```
+          files: surgext-${{ steps.version.outputs.VERSION }}.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release already exists
+        if: steps.check_release.outputs.exists == 'true'
+        run: |
+          echo "::notice::Release surgext-${{ steps.version.outputs.VERSION }} already exists. Skipping repackaging."
