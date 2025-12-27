@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
 <pkgmetadata>
 	<maintainer type="person">
-		<email>your-email@example.com</email>
-		<name>Your Name</name>
+		<email>faraclas@gmail.com</email>
+		<name>Elias Faraclas</name>
 	</maintainer>
 	<longdescription lang="en">
 		Surge XT is a free and open-source hybrid synthesizer, originally
@@ -20,7 +20,12 @@
 	<use>
 		<flag name="clap">Install CLAP (CLever Audio Plugin) format plugins</flag>
 		<flag name="lv2">Install LV2 (LADSPA Version 2) format plugins</flag>
-		<flag name="vst3">Install VST3 (Virtual Studio Technology 3) format plugins</flag>
+		<flag
+            name="vst3"
+        >Install VST3 (Virtual Studio Technology 3) format plugins</flag>
+		<flag
+            name="standalone"
+        >Build standalone applications with JACK support. Also enables optional JUCE dependencies (libcurl, webkit-gtk, gtk+) which silence build warnings but are not required for Surge XT functionality</flag>
 	</use>
 	<upstream>
 		<remote-id type="github">surge-synthesizer/surge</remote-id>

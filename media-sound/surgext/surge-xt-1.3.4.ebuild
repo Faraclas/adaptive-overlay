@@ -3,88 +3,118 @@
 
 EAPI=8
 
+inherit cmake xdg
+
+MY_PN="surge"
+MY_P="${MY_PN}-${PV}"
+
 DESCRIPTION="Powerful and open-source hybrid synthesizer"
 HOMEPAGE="https://surge-synthesizer.github.io/"
-SRC_URI="https://github.com/surge-synthesizer/releases-xt/releases/download/${PV}/${PN}-linux-x86_64-${PV}.tar.gz"
+SRC_URI="https://github.com/surge-synthesizer/releases-xt/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="clap lv2 vst3"
-REQUIRED_USE="|| ( clap lv2 vst3 )"
+IUSE="+clap +lv2 +vst3 +standalone"
+REQUIRED_USE="|| ( clap lv2 vst3 standalone )"
 
-# Runtime dependencies for the synthesizer (from .deb package)
-RDEPEND="
-	>=sys-libs/glibc-2.27
+# Build dependencies
+DEPEND="
+	dev-util/cmake
 	x11-libs/cairo
+	x11-libs/libxkbcommon[X]
+	x11-libs/libxcb
+	x11-libs/xcb-util-cursor
+	x11-libs/xcb-util-keysyms
+	x11-libs/libXrandr
+	x11-libs/libXinerama
+	x11-libs/libXcursor
+	media-libs/alsa-lib
+	standalone? (
+		virtual/jack
+		net-misc/curl
+		net-libs/webkit-gtk:4
+		x11-libs/gtk+:3
+	)
+"
+
+# Runtime dependencies
+RDEPEND="
+	${DEPEND}
 	media-libs/fontconfig
 	media-libs/freetype
 	x11-libs/libX11
-	x11-libs/libxcb
-	x11-libs/xcb-util-cursor
-	x11-libs/libxkbcommon[X]
 	x11-misc/xdg-utils
 	x11-misc/xclip
 "
 
-S="${WORKDIR}/${PN}-linux-x86_64-${PV}"
-
-QA_PREBUILT="
-	usr/bin/*
-	usr/lib*/clap/*.clap
-	usr/lib*/lv2/*.lv2/*
-	usr/lib*/vst3/*.vst3/*
+BDEPEND="
+	dev-vcs/git
 "
 
+S="${WORKDIR}/releases-xt-${PV}"
+
+src_configure() {
+	local mycmakeargs=(
+		-DCMAKE_BUILD_TYPE=Release
+		-DSURGE_BUILD_LV2=$(usex lv2 ON OFF)
+	)
+
+	cmake_src_configure
+}
+
+src_compile() {
+	cmake_src_compile surge-staged-assets
+}
+
 src_install() {
-	# Install executables
-	exeinto /usr/bin
-	doexe "bin/Surge XT"
-	doexe "bin/Surge XT Effects"
-	doexe "bin/surge-xt-cli"
+	# Install standalone executables if built
+	if use standalone; then
+		exeinto /usr/bin
+		newexe "${BUILD_DIR}/surge_xt_products/Surge XT" "surge-xt"
+		newexe "${BUILD_DIR}/surge_xt_products/Surge XT Effects" "surge-xt-effects"
+		doexe "${BUILD_DIR}/surge_xt_products/surge-xt-cli"
+	fi
 
 	# Install plugin formats based on USE flags
 	if use clap; then
-		exeinto /usr/$(get_libdir)/clap
-		doexe lib/clap/"Surge XT.clap"
-		doexe lib/clap/"Surge XT Effects.clap"
+		insinto /usr/$(get_libdir)/clap
+		doins "${BUILD_DIR}/surge_xt_products/Surge XT.clap"
+		doins "${BUILD_DIR}/surge_xt_products/Surge XT Effects.clap"
 	fi
 
 	if use lv2; then
 		insinto /usr/$(get_libdir)/lv2
-		doins -r lib/lv2/"Surge XT.lv2"
-		doins -r lib/lv2/"Surge XT Effects.lv2"
-		# Make the .so files executable
-		fperms +x /usr/$(get_libdir)/lv2/"Surge XT.lv2"/Surge_XT.so
-		fperms +x /usr/$(get_libdir)/lv2/"Surge XT Effects.lv2"/Surge_XT_Effects.so
+		doins -r "${BUILD_DIR}/surge_xt_products/Surge XT.lv2"
+		doins -r "${BUILD_DIR}/surge_xt_products/Surge XT Effects.lv2"
 	fi
 
 	if use vst3; then
 		insinto /usr/$(get_libdir)/vst3
-		doins -r lib/vst3/"Surge XT.vst3"
-		doins -r lib/vst3/"Surge XT Effects.vst3"
-		# Make the .so files executable
-		fperms +x /usr/$(get_libdir)/vst3/"Surge XT.vst3"/Contents/x86_64-linux/Surge_XT.so
-		fperms +x /usr/$(get_libdir)/vst3/"Surge XT Effects.vst3"/Contents/x86_64-linux/Surge_XT_Effects.so
+		doins -r "${BUILD_DIR}/surge_xt_products/Surge XT.vst3"
+		doins -r "${BUILD_DIR}/surge_xt_products/Surge XT Effects.vst3"
 	fi
 
-	# Install desktop files
-	domenu share/applications/Surge-XT.desktop
-	domenu share/applications/Surge-XT-FX.desktop
+	# Install desktop files for standalone
+	if use standalone; then
+		domenu "${BUILD_DIR}/surge_xt_products/Surge-XT.desktop"
+		domenu "${BUILD_DIR}/surge_xt_products/Surge-XT-FX.desktop"
+	fi
 
 	# Install icons
 	insinto /usr/share/icons
-	doins -r share/icons/hicolor
-	doins -r share/icons/scalable
+	doins -r "${S}/resources/data/surge-xt.iconset"
 
 	# Install shared data (presets, skins, wavetables, etc.)
 	insinto /usr/share/surge-xt
-	doins -r share/surge-xt/*
+	doins -r "${S}/resources/data"/*
 
 	# Install documentation
-	dodoc share/surge-xt/doc/Changelog_*.md
-	dodoc share/surge-xt/doc/copyright
-	dodoc share/surge-xt/"WHERE TO PLACE USER DATA.txt"
+	dodoc README.md
+	dodoc AUTHORS
+	if [[ -f "${S}/doc/Changelog.md" ]]; then
+		dodoc "${S}/doc/Changelog.md"
+	fi
 }
 
 pkg_postinst() {
@@ -92,11 +122,13 @@ pkg_postinst() {
 
 	elog "Surge XT has been installed successfully!"
 	elog ""
-	elog "The following components are available:"
-	elog "  - Surge XT (full synthesizer)"
-	elog "  - Surge XT Effects (effects-only version)"
-	elog "  - surge-xt-cli (command-line interface)"
-	elog ""
+	if use standalone; then
+		elog "The following standalone components are available:"
+		elog "  - surge-xt (full synthesizer)"
+		elog "  - surge-xt-effects (effects-only version)"
+		elog "  - surge-xt-cli (command-line interface)"
+		elog ""
+	fi
 	elog "Plugin formats installed:"
 	use clap && elog "  - CLAP: /usr/$(get_libdir)/clap/"
 	use lv2 && elog "  - LV2: /usr/$(get_libdir)/lv2/"
@@ -104,9 +136,8 @@ pkg_postinst() {
 	elog ""
 	elog "Factory content is located at: /usr/share/surge-xt/"
 	elog ""
-	elog "For information about where to place user data (custom presets,"
-	elog "patches, skins, etc.), see:"
-	elog "  /usr/share/doc/${PF}/WHERE TO PLACE USER DATA.txt"
+	elog "User data (custom presets, patches, skins, etc.) should be placed in:"
+	elog "  ~/.local/share/surge-xt/"
 }
 
 pkg_postrm() {
