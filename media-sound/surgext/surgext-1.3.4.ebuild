@@ -10,7 +10,7 @@ MY_P="${MY_PN}-${PV}"
 
 DESCRIPTION="Powerful and open-source hybrid synthesizer"
 HOMEPAGE="https://surge-synthesizer.github.io/"
-SRC_URI="https://github.com/surge-synthesizer/releases-xt/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/surge-synthesizer/surge/archive/refs/tags/release_xt_${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"
@@ -52,7 +52,7 @@ BDEPEND="
 	dev-vcs/git
 "
 
-S="${WORKDIR}/releases-xt-${PV}"
+S="${WORKDIR}/surge-release_xt_${PV}"
 
 src_configure() {
 	local mycmakeargs=(
