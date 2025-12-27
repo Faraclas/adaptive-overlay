@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>your-email@example.com</email>
+		<name>Your Name</name>
+	</maintainer>
+	<longdescription lang="en">
+		Surge XT is a free and open-source hybrid synthesizer, originally
+		written by Claes Johanson. It is a versatile and powerful instrument
+		for music production, featuring three oscillator sections, an
+		extremely flexible modulation engine, a state-of-the-art stereo
+		effect engine, and much more.
+
+		Surge XT includes a large library of factory presets, wavetables,
+		effects, and modulation presets. It supports modern plugin formats
+		and can be used as a standalone application or as a plugin in your
+		favorite DAW.
+	</longdescription>
+	<use>
+		<flag name="clap">Install CLAP (CLever Audio Plugin) format plugins</flag>
+		<flag name="lv2">Install LV2 (LADSPA Version 2) format plugins</flag>
+		<flag name="vst3">Install VST3 (Virtual Studio Technology 3) format plugins</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">surge-synthesizer/surge</remote-id>
+		<bugs-to>https://github.com/surge-synthesizer/surge/issues</bugs-to>
+		<doc lang="en">https://surge-synthesizer.github.io/manual-xt/</doc>
+	</upstream>
+</pkgmetadata>
