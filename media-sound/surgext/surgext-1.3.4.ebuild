@@ -37,7 +37,7 @@ DEPEND="
 	standalone? (
 		virtual/jack
 		net-misc/curl
-		net-libs/webkit-gtk:4
+		net-libs/webkit-gtk:4.1
 		x11-libs/gtk+:3
 	)
 "
