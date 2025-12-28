@@ -172,6 +172,7 @@ src_install() {
 
 pkg_postinst() {
 	xdg_icon_cache_update
+	xdg_desktop_database_update
 
 	elog "Surge XT has been installed successfully!"
 	elog ""
@@ -195,4 +196,5 @@ pkg_postinst() {
 
 pkg_postrm() {
 	xdg_icon_cache_update
+	xdg_desktop_database_update
 }
