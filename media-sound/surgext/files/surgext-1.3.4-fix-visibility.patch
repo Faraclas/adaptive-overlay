@@ -1,0 +1,24 @@
+--- a/libs/eurorack/CMakeLists.txt
++++ b/libs/eurorack/CMakeLists.txt
+@@ -64,5 +64,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
+ endif()
+ 
+ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_NAME} special_include)
++set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET default)
++set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET default)
++set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN OFF)
+ add_library(surge::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+ 
+--- a/libs/libsamplerate/src/CMakeLists.txt
++++ b/libs/libsamplerate/src/CMakeLists.txt
+@@ -39,6 +39,10 @@ if (LIBSAMPLERATE_EXAMPLES)
+ 	add_subdirectory (examples)
+ endif ()
+ 
++set_property(TARGET samplerate PROPERTY C_VISIBILITY_PRESET default)
++set_property(TARGET samplerate PROPERTY CXX_VISIBILITY_PRESET default)
++set_property(TARGET samplerate PROPERTY VISIBILITY_INLINES_HIDDEN OFF)
++
+ #
+ # Testing
+ #

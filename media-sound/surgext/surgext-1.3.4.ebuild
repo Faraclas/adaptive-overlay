@@ -5,6 +5,10 @@ EAPI=8
 
 inherit cmake xdg
 
+PATCHES=(
+	"${FILESDIR}/${P}-fix-visibility.patch"
+)
+
 MY_PN="surge"
 MY_P="${MY_PN}-${PV}"
 
