@@ -58,6 +58,7 @@ src_configure() {
 	local mycmakeargs=(
 		-DCMAKE_BUILD_TYPE=Release
 		-DSURGE_BUILD_LV2=$(usex lv2 ON OFF)
+		-DSST_PLUGININFRA_FILESYSTEM_FORCE_PLATFORM=ON
 	)
 
 	cmake_src_configure
