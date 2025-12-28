@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit cmake xdg
+inherit cmake desktop xdg
 
 PATCHES=(
 	"${FILESDIR}/${P}-fix-visibility.patch"
@@ -102,13 +102,15 @@ src_install() {
 
 	# Install desktop files for standalone
 	if use standalone; then
-		domenu "${BUILD_DIR}/surge_xt_products/Surge-XT.desktop"
-		domenu "${BUILD_DIR}/surge_xt_products/Surge-XT-FX.desktop"
+		domenu "${S}/scripts/installer_linux/assets/applications/Surge-XT.desktop"
+		domenu "${S}/scripts/installer_linux/assets/applications/Surge-XT-FX.desktop"
 	fi
 
 	# Install icons
-	insinto /usr/share/icons
-	doins -r "${S}/resources/data/surge-xt.iconset"
+	local icon_sizes=(16 32 48 64 128 256 384 512)
+	for size in "${icon_sizes[@]}"; do
+		newicon -s ${size} "${S}/scripts/installer_linux/assets/icons/hicolor/${size}x${size}/apps/surge-xt.png" surge-xt.png
+	done
 
 	# Install shared data (presets, skins, wavetables, etc.)
 	insinto /usr/share/surge-xt
