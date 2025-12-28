@@ -24,7 +24,7 @@ REQUIRED_USE="|| ( clap lv2 vst3 standalone )"
 
 # Build dependencies
 DEPEND="
-	dev-util/cmake
+	dev-build/cmake
 	x11-libs/cairo
 	x11-libs/libxkbcommon[X]
 	x11-libs/libxcb
