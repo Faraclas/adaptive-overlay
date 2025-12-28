@@ -1,6 +1,6 @@
 --- a/libs/eurorack/CMakeLists.txt
 +++ b/libs/eurorack/CMakeLists.txt
-@@ -64,5 +64,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
+@@ -77,5 +77,8 @@ if(MSVC)
  endif()
  
  target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_NAME} special_include)
@@ -11,14 +11,14 @@
  
 --- a/libs/libsamplerate/src/CMakeLists.txt
 +++ b/libs/libsamplerate/src/CMakeLists.txt
-@@ -39,6 +39,10 @@ if (LIBSAMPLERATE_EXAMPLES)
- 	add_subdirectory (examples)
- endif ()
+@@ -38,6 +38,10 @@ add_library(samplerate
+ # ALIAS to use if libsamplerate is included from other project with add_subdirectory()
+ add_library(SampleRate::samplerate ALIAS samplerate)
  
 +set_property(TARGET samplerate PROPERTY C_VISIBILITY_PRESET default)
 +set_property(TARGET samplerate PROPERTY CXX_VISIBILITY_PRESET default)
 +set_property(TARGET samplerate PROPERTY VISIBILITY_INLINES_HIDDEN OFF)
 +
- #
- # Testing
- #
+ # CMake generates wrong DLL names for MinGW and Cygwin, fix it
+ if(BUILD_SHARED_LIBS AND WIN32)
+   if(LIBSAMPLERATE_COMPATIBLE_NAME)
