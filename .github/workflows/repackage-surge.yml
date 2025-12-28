@@ -1,21 +1,74 @@
 name: Repackage Surge Release with Submodules
 
 on:
-  # Manual trigger
+  # Manual trigger for repackaging
   workflow_dispatch:
     inputs:
       version:
-        description: 'Surge version to repackage (e.g., 1.3.4)'
+        description: "Surge version to repackage (e.g., 1.3.4)"
         required: true
         type: string
 
-  # Optional: Run periodically to check for new releases
+  # Run weekly to check for new releases
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+    - cron: "0 0 * * 0" # Weekly on Sunday at midnight UTC
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest upstream version
+        id: upstream
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/surge-synthesizer/surge/releases/latest | jq -r .tag_name | sed 's/release_xt_//')
+          echo "VERSION=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest upstream version: $LATEST"
+
+      - name: Check if we have this version
+        id: check
+        run: |
+          VERSION="${{ steps.upstream.outputs.VERSION }}"
+          if gh release view "surgext-${VERSION}" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "We already have version ${VERSION}"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "New version ${VERSION} detected!"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send email notification
+        if: steps.check.outputs.exists == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: New Surge XT version ${{ steps.upstream.outputs.VERSION }} available
+          to: ${{ secrets.MAIL_TO }}
+          from: GitHub Actions
+          body: |
+            A new version of Surge XT has been released!
+
+            Version: ${{ steps.upstream.outputs.VERSION }}
+            Upstream: https://github.com/surge-synthesizer/surge/releases/tag/release_xt_${{ steps.upstream.outputs.VERSION }}
+
+            To repackage this version, run the workflow manually:
+            https://github.com/${{ github.repository }}/actions/workflows/repackage-surge.yml
+
+            Or use the gh CLI:
+            gh workflow run repackage-surge.yml -f version=${{ steps.upstream.outputs.VERSION }}
+
   repackage:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -24,19 +77,12 @@ jobs:
       - name: Set version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            # Fetch latest release from upstream
-            LATEST=$(curl -s https://api.github.com/repos/surge-synthesizer/surge/releases/latest | jq -r .tag_name | sed 's/release_xt_//')
-            echo "VERSION=$LATEST" >> $GITHUB_OUTPUT
-          fi
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Check if release already exists
         id: check_release
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          # Check if we already have this version
           if gh release view "surgext-${VERSION}" &>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Release surgext-${VERSION} already exists, skipping..."
