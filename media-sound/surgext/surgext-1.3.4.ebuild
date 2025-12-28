@@ -143,6 +143,10 @@ src_install() {
 		dodoc "${S}/doc/Changelog.md"
 	fi
 
+	# Fix RPATHs on internal libraries first
+	patchelf --force-rpath --set-rpath "${surgext_libdir}" "${ED}${surgext_libdir}/libsurge-common.so" || die
+	patchelf --force-rpath --set-rpath "${surgext_libdir}" "${ED}${surgext_libdir}/libfmt.so.9" || die
+
 	# Fix RPATHs to find internal libraries
 	if use standalone; then
 		patchelf --force-rpath --set-rpath "${surgext_libdir}" "${ED}/usr/bin/surge-xt" || die
