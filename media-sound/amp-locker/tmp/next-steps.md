@@ -42,15 +42,23 @@ This stages files to `/var/tmp/portage/media-sound/amp-locker-1.4.4/image/` - **
 find /var/tmp/portage/media-sound/amp-locker-1.4.4/image/ -type f
 
 # Browse directory structure
+tree /var/tmp/portage/media-sound/amp-locker-1.4.4/image/
+# or
 ls -R /var/tmp/portage/media-sound/amp-locker-1.4.4/image/
 ```
 
 Check that:
-- Files are staged to `/usr/share/amp-locker/`
-- Setup script is in `/usr/bin/amp-locker-setup`
-- Uninstall script is in `/usr/bin/amp-locker-uninstall`
-- AmpLockerData directory is present
-- LV2 and VST3 plugins are present (if USE flags enabled)
+- LV2 plugin is in `usr/lib64/lv2/Amp Locker.lv2/`
+- VST3 plugin is in `usr/lib64/vst3/Amp Locker.vst3/`
+- Standalone binary is in `opt/bin/audioassault/amplocker/Amp Locker Standalone`
+- AmpLockerData folder is in `opt/bin/audioassault/amplocker/AmpLockerData/`
+- The `amplocker` script is in `usr/bin/amplocker`
+- AmpLockerData has proper permissions (0777)
+
+```bash
+# Check AmpLockerData permissions
+stat /var/tmp/portage/media-sound/amp-locker-1.4.4/image/opt/bin/audioassault/amplocker/AmpLockerData/
+```
 
 ## 6. Clean Up Test Files
 
@@ -63,56 +71,101 @@ This removes the temporary build directory.
 ## 7. Install to Live System (if all looks good)
 
 ```bash
-emerge amp-locker
+# Install with default USE flags (lv2 and vst3 enabled)
+sudo emerge amp-locker
+
+# Or install with only LV2 (no VST3)
+sudo USE="-vst3" emerge amp-locker
+
+# Or install with only VST3 (no LV2)
+sudo USE="-lv2" emerge amp-locker
 ```
 
-Or with specific USE flags:
+## 8. Verify System Installation
 
 ```bash
-# Install with only LV2 (no VST3)
-USE="-vst3" emerge amp-locker
+# Check that files were installed
+ls -la /usr/lib64/lv2/Amp\ Locker.lv2/
+ls -la /usr/lib64/vst3/Amp\ Locker.vst3/
+ls -la /opt/bin/audioassault/amplocker/
+stat /opt/bin/audioassault/amplocker/AmpLockerData/
 
-# Install everything (default)
-emerge amp-locker
+# Check that amplocker script is available
+which amplocker
+amplocker --help
 ```
 
-## 8. Run User Setup
+## 9. Install to User Home Directory
 
-After the system installation, each user needs to run:
+Each user who wants to use Amp Locker should run:
 
 ```bash
-amp-locker-setup
+amplocker --install
 ```
 
-This will copy the files to the user's home directory:
+This will copy files to:
 - `~/bin/amp-locker-standalone`
 - `~/.lv2/Amp Locker.lv2/`
 - `~/.vst3/Amp Locker.vst3/`
 - `~/Audio Assault/PluginData/Audio Assault/AmpLockerData/`
 
-## 9. Test the Installation
+## 10. Test the Installation
 
 ```bash
-# Launch standalone
-amp-locker-standalone
+# Launch standalone (no parameters)
+amplocker
+
+# Or launch standalone from ~/bin
+~/bin/amp-locker-standalone
 
 # Check that data directory was created
 ls -la ~/Audio\ Assault/PluginData/Audio\ Assault/AmpLockerData/
 
-# Verify plugin paths
+# Verify user plugin paths
 ls -la ~/.lv2/Amp\ Locker.lv2/
 ls -la ~/.vst3/Amp\ Locker.vst3/
 
 # Check ~/bin is in PATH
-echo $PATH | grep -o "${HOME}/bin"
+echo $PATH | grep "${HOME}/bin"
 ```
 
-## 10. Uninstalling from Home Directory
+## 11. Test in a DAW
+
+- Open your DAW (Reaper, Ardour, Bitwig, etc.)
+- Scan for plugins
+- Both system-wide plugins (`/usr/lib64/lv2` and `/usr/lib64/vst3`) and user-local plugins (`~/.lv2` and `~/.vst3`) should be detected
+- Load the Amp Locker plugin to verify it works
+
+## 12. Uninstalling from Home Directory
 
 To remove Amp Locker from your home directory (while keeping the system files):
 
 ```bash
-amp-locker-uninstall
+amplocker --uninstall
 ```
 
-This will prompt you whether to remove user data (presets, IRs, etc.).
+This will:
+- Remove the standalone from `~/bin`
+- Remove LV2 and VST3 plugins from `~/.lv2` and `~/.vst3`
+- Ask whether to remove plugin data (presets, IRs, etc.)
+
+## 13. Complete System Uninstall
+
+To completely remove Amp Locker from the system:
+
+```bash
+# First uninstall from home directory
+amplocker --uninstall
+
+# Then uninstall system package
+sudo emerge --unmerge amp-locker
+```
+
+## Notes
+
+- The system installation to `/usr/lib64/lv2` and `/usr/lib64/vst3` means most DAWs will find the plugins automatically without user installation
+- User installation with `amplocker --install` is optional but recommended for:
+  - Having a local copy you can modify
+  - Having the standalone in `~/bin`
+  - Having plugin data in your home directory
+- The AmpLockerData folder at `/opt/bin/audioassault/amplocker/AmpLockerData/` has 0777 permissions to allow user modifications

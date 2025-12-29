@@ -1,0 +1,154 @@
+#!/bin/bash
+# Amp Locker wrapper script
+
+INSTALL_DIR="/opt/bin/audioassault/amplocker"
+STANDALONE="${INSTALL_DIR}/Amp Locker Standalone"
+USER_BIN="${HOME}/bin"
+USER_LV2="${HOME}/.lv2"
+USER_VST3="${HOME}/.vst3"
+USER_DATA="${HOME}/Audio Assault/PluginData/Audio Assault/AmpLockerData"
+
+show_help() {
+	cat <<HELP
+Usage: amplocker [OPTION]
+
+Options:
+  (no option)       Launch Amp Locker Standalone
+  -i, --install     Install Amp Locker files to your home directory
+  -u, --uninstall   Remove Amp Locker files from your home directory
+  -h, --help        Show this help message
+
+Installation copies:
+  - LV2 plugin to ~/.lv2/
+  - VST3 plugin to ~/.vst3/
+  - Standalone to ~/bin/
+  - Plugin data to ~/Audio Assault/PluginData/Audio Assault/AmpLockerData/
+
+HELP
+}
+
+install_user() {
+	echo "Installing Amp Locker to your home directory..."
+	echo ""
+
+	# Create directories
+	mkdir -p "${USER_BIN}"
+	mkdir -p "${USER_DATA}"
+
+	# Copy standalone
+	if [ -f "${STANDALONE}" ]; then
+		cp "${STANDALONE}" "${USER_BIN}/amp-locker-standalone"
+		chmod +x "${USER_BIN}/amp-locker-standalone"
+		echo "✓ Installed standalone to ${USER_BIN}/amp-locker-standalone"
+	else
+		echo "✗ Standalone binary not found at ${STANDALONE}"
+	fi
+
+	# Copy AmpLockerData
+	if [ -d "${INSTALL_DIR}/AmpLockerData" ]; then
+		cp -r "${INSTALL_DIR}/AmpLockerData"/* "${USER_DATA}/"
+		echo "✓ Installed plugin data to ${USER_DATA}"
+	else
+		echo "✗ AmpLockerData not found"
+	fi
+
+	# Copy LV2 plugin
+	if [ -d "/usr/lib64/lv2/Amp Locker.lv2" ]; then
+		mkdir -p "${USER_LV2}"
+		cp -r "/usr/lib64/lv2/Amp Locker.lv2" "${USER_LV2}/"
+		echo "✓ Installed LV2 plugin to ${USER_LV2}/"
+	fi
+
+	# Copy VST3 plugin
+	if [ -d "/usr/lib64/vst3/Amp Locker.vst3" ]; then
+		mkdir -p "${USER_VST3}"
+		cp -r "/usr/lib64/vst3/Amp Locker.vst3" "${USER_VST3}/"
+		echo "✓ Installed VST3 plugin to ${USER_VST3}/"
+	fi
+
+	echo ""
+	echo "Installation complete!"
+	echo ""
+	echo "==============================================================================="
+	echo "IMPORTANT: Make sure ${USER_BIN} is in your PATH!"
+	echo ""
+	echo "Add this to your ~/.bashrc or ~/.zshrc if not already present:"
+	echo '  export PATH="${HOME}/bin:${PATH}"'
+	echo ""
+	echo "Then reload your shell configuration:"
+	echo "  source ~/.bashrc    # or source ~/.zshrc"
+	echo "==============================================================================="
+	echo ""
+	echo "Ensure your DAW is configured to scan:"
+	echo "  - ${USER_LV2} (for LV2 plugins)"
+	echo "  - ${USER_VST3} (for VST3 plugins)"
+}
+
+uninstall_user() {
+	echo "Removing Amp Locker from your home directory..."
+	echo ""
+
+	# Remove standalone
+	if [ -f "${USER_BIN}/amp-locker-standalone" ]; then
+		rm -f "${USER_BIN}/amp-locker-standalone"
+		echo "✓ Removed standalone from ${USER_BIN}"
+	fi
+
+	# Remove LV2 plugin
+	if [ -d "${USER_LV2}/Amp Locker.lv2" ]; then
+		rm -rf "${USER_LV2}/Amp Locker.lv2"
+		echo "✓ Removed LV2 plugin"
+	fi
+
+	# Remove VST3 plugin
+	if [ -d "${USER_VST3}/Amp Locker.vst3" ]; then
+		rm -rf "${USER_VST3}/Amp Locker.vst3"
+		echo "✓ Removed VST3 plugin"
+	fi
+
+	# Ask about plugin data
+	if [ -d "${USER_DATA}" ]; then
+		read -p "Remove plugin data (presets, IRs, cabs)? [y/N] " -n 1 -r
+		echo
+		if [[ $REPLY =~ ^[Yy]$ ]]; then
+			rm -rf "${USER_DATA}"
+			# Try to remove parent directories if empty
+			rmdir "${HOME}/Audio Assault/PluginData/Audio Assault" 2>/dev/null
+			rmdir "${HOME}/Audio Assault/PluginData" 2>/dev/null
+			rmdir "${HOME}/Audio Assault" 2>/dev/null
+			echo "✓ Removed plugin data"
+		else
+			echo "  Keeping plugin data at ${USER_DATA}"
+		fi
+	fi
+
+	echo ""
+	echo "Uninstallation complete!"
+}
+
+# Parse command line arguments
+case "${1}" in
+	-i|--install)
+		install_user
+		;;
+	-u|--uninstall)
+		uninstall_user
+		;;
+	-h|--help)
+		show_help
+		;;
+	"")
+		# No arguments - launch standalone
+		if [ -f "${STANDALONE}" ]; then
+			exec "${STANDALONE}" "$@"
+		else
+			echo "Error: Amp Locker Standalone not found at ${STANDALONE}"
+			exit 1
+		fi
+		;;
+	*)
+		echo "Unknown option: ${1}"
+		echo "Use 'amplocker --help' for usage information"
+		exit 1
+		;;
+esac
