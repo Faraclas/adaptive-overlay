@@ -23,7 +23,7 @@ RDEPEND="
 
 BDEPEND="app-arch/unzip"
 
-S="${WORKDIR}/AmpLockerLinux"
+S="${WORKDIR}"
 
 QA_PREBUILT="
 	opt/bin/audioassault/amplocker/Amp*Locker*Standalone
