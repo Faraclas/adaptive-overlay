@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>elias@example.com</email>
+		<name>Elias</name>
+	</maintainer>
+	<longdescription>
+		Drum Locker is a drum machine plugin by Audio Assault.
+		It provides a collection of drum samples, presets, and kits for
+		drum programming and production. Available as LV2 and VST3 plugins.
+	</longdescription>
+	<use>
+		<flag name="lv2">Install LV2 plugin format (enabled by default)</flag>
+		<flag name="vst3">Install VST3 plugin format (enabled by default)</flag>
+	</use>
+	<upstream>
+		<remote-id type="homepage">https://audioassault.mx/drumlocker.php</remote-id>
+	</upstream>
+</pkgmetadata>

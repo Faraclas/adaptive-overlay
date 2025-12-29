@@ -16,9 +16,7 @@ RESTRICT="bindist mirror strip"
 RDEPEND="
 	media-libs/alsa-lib
 	media-libs/freetype
-	x11-libs/libX11
-	x11-libs/libXext
-	x11-libs/libXinerama
+	net-misc/curl
 "
 
 BDEPEND="app-arch/unzip"
