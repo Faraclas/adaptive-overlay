@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>elias@example.com</email>
+		<name>Elias</name>
+	</maintainer>
+	<longdescription>
+		Amp Locker is a guitar amplifier simulator plugin by Audio Assault.
+		It provides a collection of amp models, cabinet simulations, impulse
+		responses, and NAM (Neural Amp Modeler) profiles for guitar tone shaping.
+		Available as LV2, VST3, and standalone application.
+	</longdescription>
+	<use>
+		<flag name="lv2">Install LV2 plugin format (enabled by default)</flag>
+		<flag name="vst3">Install VST3 plugin format (enabled by default)</flag>
+	</use>
+	<upstream>
+		<remote-id type="homepage">https://audioassault.mx/amplocker.php</remote-id>
+	</upstream>
+</pkgmetadata>
