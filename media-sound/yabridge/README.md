@@ -14,15 +14,6 @@ way to use Windows VST2, VST3, and CLAP audio plugins on Linux.
 This ebuild builds yabridge from source using the Meson build system. It differs
 from the binary `yabridge-bin` package by compiling everything locally.
 
-### "The Gentoo Way" ✅
-
-This ebuild follows Gentoo best practices:
-- ✅ All sources downloaded via `SRC_URI` (including VST3 SDK submodules)
-- ✅ Full network-sandbox support for completely offline builds
-- ✅ All sources verified with Manifest checksums
-- ✅ No git dependency required
-- ✅ Reproducible builds from checksummed sources
-
 ## USE Flags
 
 - `bitbridge` (enabled by default): Build 32-bit plugin host to support legacy
@@ -75,12 +66,14 @@ yabridgectl sync
 
 ## Known Issues
 
-- Wine 9.22 and later have known compatibility issues with GUI rendering (mouse cursor offset). It's recommended to use Wine 9.21 or earlier until this is resolved.
+- Wine 9.22 and later have known compatibility issues with GUI rendering (mouse cursor offset).
+  It's recommended to use Wine 9.21 or earlier until this is resolved.
 - See: https://github.com/robbert-vdh/yabridge/issues/382
 
 ## Building Notes
 
 The ebuild uses the following Meson configuration:
+
 - Cross-compilation using Wine's winegcc via `cross-wine.conf`
 - Optional bitbridge support (enabled by default via USE flag)
 - Build type and optimization flags are handled automatically by the meson eclass
@@ -102,28 +95,36 @@ uses standard Gentoo meson eclass defaults.
 
 ### Updating to New Versions
 
-When updating yabridge to a new version, you need to check if the subproject dependencies have changed:
+When updating yabridge to a new version, you need to check if the subproject
+dependencies have changed:
 
-1. **Check subproject versions**: Extract the new yabridge tarball and examine the `.wrap` files in `subprojects/` to see if any dependency versions or commit hashes have changed.
+1. **Check subproject versions**: Extract the new yabridge tarball and examine the
+  `.wrap` files in `subprojects/` to see if any dependency versions or commit hashes have changed.
 
-2. **VST3 SDK submodules**: The VST3 SDK uses git submodules that are NOT included in GitHub archive downloads. Check `subprojects/vst3.wrap` for the git revision and submodule commit hashes:
+2. **VST3 SDK submodules**: The VST3 SDK uses git submodules that are NOT included
+  in GitHub archive downloads. Check `subprojects/vst3.wrap` for the git revision and submodule commit hashes:
    - If the `revision` (tag) has changed, update the SRC_URI for the main vst3sdk tarball
    - If the submodule commit hashes have changed, update the SRC_URI entries for:
-     - `vst3_base` submodule
-     - `vst3_pluginterfaces` submodule  
-     - `vst3_public_sdk` submodule
+    - `vst3_base` submodule
+    - `vst3_pluginterfaces` submodule  
+    - `vst3_public_sdk` submodule
    - Also update the `mv` commands in `src_prepare()` with the new commit hashes
 
-3. **Other dependencies**: Check if commit hashes for asio, bitsery, clap, function2, ghc_filesystem, tomlplusplus, or reflink have changed in their respective `.wrap` files or `Cargo.toml`. Update SRC_URI entries and paths in `src_prepare()` accordingly.
+3. **Other dependencies**: Check if commit hashes for asio, bitsery, clap,
+  function2, ghc_filesystem, tomlplusplus, or reflink have changed in their respective
+  `.wrap` files or `Cargo.toml`. Update SRC_URI entries and paths in `src_prepare()` accordingly.
 
 4. **Regenerate Manifest**: After updating SRC_URI, regenerate the Manifest:
+
    ```bash
    ebuild yabridge-X.Y.Z.ebuild manifest
    ```
 
-5. **Test the build**: Always test compile the ebuild after updating to ensure all dependencies are properly fetched and linked.
+5. **Test the build**: Always test compile the ebuild after updating to ensure
+all dependencies are properly fetched and linked.
 
 Example of checking for changes:
+
 ```bash
 # Extract new version
 tar -xzf yabridge-X.Y.Z.tar.gz
@@ -137,12 +138,9 @@ cat asio.wrap bitsery.wrap clap.wrap function2.wrap ghc_filesystem.wrap tomlplus
 ```
 
 Alternatively, use the provided helper script:
+
 ```bash
 ./check-dependencies.sh yabridge-X.Y.Z.tar.gz
 ```
 
 This will display all dependency versions and URLs, making it easy to spot changes.
-
-## Maintainer
-
-Elias Faraclas <faraclas@gmail.com>
