@@ -122,6 +122,9 @@ SRC_URI="
 	https://github.com/gulrak/filesystem/archive/8a2edd6d92ed820521d42c94d179462bf06b5ed3.tar.gz -> ghc_filesystem-1.5.14.tar.gz
 	https://github.com/marzer/tomlplusplus/archive/30172438cee64926dc41fdd9c11fb3ba5b2ba9de.tar.gz -> tomlplusplus-3.4.0.tar.gz
 	https://github.com/robbert-vdh/vst3sdk/archive/refs/tags/v3.7.7_build_19-patched.tar.gz -> vst3sdk-3.7.7_build_19-patched.tar.gz
+	https://github.com/steinbergmedia/vst3_base/archive/ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz -> vst3_base-ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz
+	https://github.com/steinbergmedia/vst3_pluginterfaces/archive/bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz -> vst3_pluginterfaces-bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz
+	https://github.com/steinbergmedia/vst3_public_sdk/archive/bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz -> vst3_public_sdk-bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz
 	https://github.com/nicokoch/reflink/archive/e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz -> reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz
 	$(cargo_crate_uris)
 "
@@ -152,14 +155,10 @@ RDEPEND="
 
 BDEPEND="
 	>=dev-build/meson-0.56
-	dev-vcs/git
 "
 
 QA_PREBUILT="/usr/*"
 QA_TEXTRELS="usr/bin/yabridge-host-32.exe.so"
-
-# VST3 SDK submodules require network access during prepare phase
-RESTRICT="network-sandbox"
 
 src_prepare() {
 	default
@@ -181,32 +180,28 @@ src_prepare() {
 	ln -s "${WORKDIR}/tomlplusplus-30172438cee64926dc41fdd9c11fb3ba5b2ba9de" \
 		"${S}/subprojects/tomlplusplus" || die
 
-	# VST3 SDK requires git submodules which aren't included in GitHub archives
-	# We need to manually clone them during prepare phase
+	# VST3 SDK requires submodules which aren't included in the main tarball
+	# We download them as separate tarballs and move them into place
 	#
 	# MAINTAINER NOTE: When updating yabridge, check subprojects/vst3.wrap in the
 	# new version's source to see if these commit hashes have changed. The wrap file
-	# specifies which commits to use for each submodule. Update the git clone
-	# commands below if the hashes in the wrap file are different.
+	# specifies which commits to use for each submodule. Update the SRC_URI entries
+	# above if the hashes in the wrap file are different.
 	#
 	# Current version (v3.7.7_build_19-patched) uses:
 	#   base:           ea2bac9a109cce69ced21833fa6ff873dd6e368a
 	#   pluginterfaces: bc5ff0f87aaa3cd28c114810f4f03c384421ad2c
 	#   public.sdk:     bbb0538535b171e805c8a8b612c2cd8a5f95738b
-	einfo "Cloning VST3 SDK submodules (this requires network access)..."
+	einfo "Setting up VST3 SDK submodules from downloaded tarballs..."
 	cd "${WORKDIR}/vst3sdk-3.7.7_build_19-patched" || die
 
 	# Remove empty directories that come from the tarball
 	rm -rf base pluginterfaces public.sdk || die
 
-	# Clone submodules to specific commits
-	# We can't use --depth 1 because we need to fetch specific commit hashes
-	git clone https://github.com/steinbergmedia/vst3_base.git base || die
-	git clone https://github.com/steinbergmedia/vst3_pluginterfaces.git pluginterfaces || die
-	git clone https://github.com/steinbergmedia/vst3_public_sdk.git public.sdk || die
-	(cd base && git checkout ea2bac9a109cce69ced21833fa6ff873dd6e368a && rm -rf .git) || die
-	(cd pluginterfaces && git checkout bc5ff0f87aaa3cd28c114810f4f03c384421ad2c && rm -rf .git) || die
-	(cd public.sdk && git checkout bbb0538535b171e805c8a8b612c2cd8a5f95738b && rm -rf .git) || die
+	# Move extracted submodule directories into place
+	mv "${WORKDIR}/vst3_base-ea2bac9a109cce69ced21833fa6ff873dd6e368a" base || die
+	mv "${WORKDIR}/vst3_pluginterfaces-bc5ff0f87aaa3cd28c114810f4f03c384421ad2c" pluginterfaces || die
+	mv "${WORKDIR}/vst3_public_sdk-bbb0538535b171e805c8a8b612c2cd8a5f95738b" public.sdk || die
 	cd "${S}" || die
 
 	ln -s "${WORKDIR}/vst3sdk-3.7.7_build_19-patched" \

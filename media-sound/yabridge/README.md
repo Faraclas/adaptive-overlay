@@ -14,6 +14,15 @@ way to use Windows VST2, VST3, and CLAP audio plugins on Linux.
 This ebuild builds yabridge from source using the Meson build system. It differs
 from the binary `yabridge-bin` package by compiling everything locally.
 
+### "The Gentoo Way" ✅
+
+This ebuild follows Gentoo best practices:
+- ✅ All sources downloaded via `SRC_URI` (including VST3 SDK submodules)
+- ✅ Full network-sandbox support for completely offline builds
+- ✅ All sources verified with Manifest checksums
+- ✅ No git dependency required
+- ✅ Reproducible builds from checksummed sources
+
 ## USE Flags
 
 - `bitbridge` (enabled by default): Build 32-bit plugin host to support legacy
@@ -83,7 +92,7 @@ uses standard Gentoo meson eclass defaults.
 ## Files
 
 - `yabridge-5.1.1.ebuild` - Main ebuild file
-- `Manifest` - Checksums for source tarball
+- `Manifest` - Checksums for all source tarballs
 - `metadata.xml` - Package metadata and USE flag descriptions
 - `README.md` - This file
 - `check-dependencies.sh` - Helper script to check subproject dependency versions
@@ -98,15 +107,21 @@ When updating yabridge to a new version, you need to check if the subproject dep
 1. **Check subproject versions**: Extract the new yabridge tarball and examine the `.wrap` files in `subprojects/` to see if any dependency versions or commit hashes have changed.
 
 2. **VST3 SDK submodules**: The VST3 SDK uses git submodules that are NOT included in GitHub archive downloads. Check `subprojects/vst3.wrap` for the git revision and submodule commit hashes:
-   - If the `revision` (tag) has changed, update the SRC_URI
-   - If the wrap file has changed, update the git checkout commands in `src_prepare()` with the new commit hashes for:
-     - `base` submodule
-     - `pluginterfaces` submodule  
-     - `public.sdk` submodule
+   - If the `revision` (tag) has changed, update the SRC_URI for the main vst3sdk tarball
+   - If the submodule commit hashes have changed, update the SRC_URI entries for:
+     - `vst3_base` submodule
+     - `vst3_pluginterfaces` submodule  
+     - `vst3_public_sdk` submodule
+   - Also update the `mv` commands in `src_prepare()` with the new commit hashes
 
-3. **Other dependencies**: Check if commit hashes for asio, bitsery, clap, function2, ghc_filesystem, or tomlplusplus have changed in their respective `.wrap` files. Update SRC_URI entries and symlink paths in `src_prepare()` accordingly.
+3. **Other dependencies**: Check if commit hashes for asio, bitsery, clap, function2, ghc_filesystem, tomlplusplus, or reflink have changed in their respective `.wrap` files or `Cargo.toml`. Update SRC_URI entries and paths in `src_prepare()` accordingly.
 
-4. **Test the build**: Always test compile the ebuild after updating to ensure all dependencies are properly fetched and linked.
+4. **Regenerate Manifest**: After updating SRC_URI, regenerate the Manifest:
+   ```bash
+   ebuild yabridge-X.Y.Z.ebuild manifest
+   ```
+
+5. **Test the build**: Always test compile the ebuild after updating to ensure all dependencies are properly fetched and linked.
 
 Example of checking for changes:
 ```bash
