@@ -134,7 +134,7 @@ IUSE="+bitbridge"
 DEPEND="
 	>=sys-devel/gcc-10
 	x11-libs/libxcb
-	virtual/wine[staging]
+	>=app-emulation/wine-staging-9.0
 	bitbridge? (
 		x11-libs/libxcb[abi_x86_32]
 	)
@@ -148,7 +148,6 @@ RDEPEND="
 	x11-libs/libXau
 	x11-libs/libxcb
 	x11-libs/libXdmcp
-	virtual/wine
 "
 
 BDEPEND="
