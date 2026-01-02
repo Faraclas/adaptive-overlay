@@ -154,7 +154,6 @@ RDEPEND="
 BDEPEND="
 	>=dev-build/meson-0.56
 	dev-vcs/git
-	virtual/rust
 "
 
 QA_PREBUILT="/usr/*"
