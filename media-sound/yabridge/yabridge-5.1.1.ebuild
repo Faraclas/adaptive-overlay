@@ -158,6 +158,9 @@ BDEPEND="
 QA_PREBUILT="/usr/*"
 QA_TEXTRELS="usr/bin/yabridge-host-32.exe.so"
 
+# VST3 SDK submodules require network access during prepare phase
+RESTRICT="network-sandbox"
+
 src_prepare() {
 	default
 
