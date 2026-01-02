@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>faraclas@gmail.com</email>
+		<name>Elias Faraclas</name>
+	</maintainer>
+	<longdescription lang="en">
+		Yabridge is a modern and transparent way to use Windows VST2, VST3,
+		and CLAP audio plugins on Linux. It seamlessly supports both 32-bit
+		and 64-bit Windows plugins in 64-bit Linux plugin hosts as if they
+		were native plugins.
+
+		Yabridge uses Wine to run Windows plugins and features a concurrent
+		architecture with a focus on transparency, allowing it to be both
+		fast and highly compatible while staying easy to debug and maintain.
+		It supports plugin groups for VST2 plugins to enable inter-plugin
+		communication and quick startup times.
+
+		The package includes yabridgectl, a companion utility that manages
+		yabridge installations and automatically sets up bridged plugins.
+	</longdescription>
+	<use>
+		<flag name="bitbridge">Build 32-bit plugin host to support legacy 32-bit Windows plugins in 64-bit Linux hosts</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">robbert-vdh/yabridge</remote-id>
+		<bugs-to>https://github.com/robbert-vdh/yabridge/issues</bugs-to>
+		<doc lang="en">https://github.com/robbert-vdh/yabridge/blob/master/README.md</doc>
+	</upstream>
+</pkgmetadata>
