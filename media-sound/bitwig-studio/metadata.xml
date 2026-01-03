@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>faraclas@gmail.com</email>
+		<name>Elias Faraclas</name>
+	</maintainer>
+	<longdescription lang="en">
+		Bitwig Studio is a professional multi-platform music-creation system
+		for production, performance, and DJing. It features a modern interface
+		with a focus on flexible editing tools and a super-fast workflow.
+
+		Key features include:
+		- Advanced audio and MIDI editing
+		- Hybrid track concept combining audio, instrument, and effect tracks
+		- Modular device system with The Grid for custom instruments and effects
+		- Advanced clip launcher for live performance
+		- Comprehensive mixing and mastering tools
+		- Native Linux support with JACK and ALSA
+		- Support for VST2, VST3, and CLAP plugins
+		- Built-in devices, effects, and instruments
+		- Multi-display and touch support
+	</longdescription>
+	<use>
+		<flag
+            name="abi_x86_32"
+        >Enable 32-bit plugin bridging support for loading 32-bit VST plugins in the 64-bit application</flag>
+		<flag
+            name="ffmpeg"
+        >Use system ffmpeg instead of bundled version (recommended for security updates and reduced disk usage)</flag>
+		<flag
+            name="jack-client"
+        >Use JACK2 as the audio backend (traditional JACK implementation)</flag>
+		<flag
+            name="jack-sdk"
+        >Use PipeWire with JACK SDK as the audio backend (modern, recommended)</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">bitwig/bitwig-studio</remote-id>
+		<bugs-to>https://github.com/bitwig/bitwig-studio/issues</bugs-to>
+		<doc lang="en">https://www.bitwig.com/support/</doc>
+	</upstream>
+</pkgmetadata>
