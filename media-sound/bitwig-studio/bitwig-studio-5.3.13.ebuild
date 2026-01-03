@@ -34,7 +34,7 @@ RDEPEND="${DEPEND}
 	x11-libs/libXfixes
 	x11-libs/libXrender
 	x11-libs/libxcb[abi_x86_32?]
-	x11-libs/libxcb-wm[abi_x86_32?]
+	x11-libs/xcb-util-wm[abi_x86_32?]
 	x11-libs/libxkbcommon[X,abi_x86_32?]
 	x11-libs/pixman[abi_x86_32?]
 	x11-libs/xcb-imdkit

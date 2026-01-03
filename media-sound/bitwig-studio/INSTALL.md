@@ -58,7 +58,7 @@ echo "x11-libs/libX11 abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/libXau abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/libXdmcp abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/libxcb abi_x86_32" >> /etc/portage/package.use/bitwig-studio
-echo "x11-libs/libxcb-wm abi_x86_32" >> /etc/portage/package.use/bitwig-studio
+echo "x11-libs/xcb-util-wm abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/libxkbcommon abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/pixman abi_x86_32" >> /etc/portage/package.use/bitwig-studio
 echo "x11-libs/xcb-util abi_x86_32" >> /etc/portage/package.use/bitwig-studio
