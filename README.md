@@ -10,7 +10,12 @@ This overlay provides additional packages and versions not available in the main
 
 Currently included packages:
 
+- **media-sound/amp-locker** - Audio plugin locker
+- **media-sound/bitwig-studio** - Digital audio workstation
 - **media-sound/carla** - Audio plugin host
+- **media-sound/drum-locker** - Drum sample locker
+- **media-sound/surgext** - Surge synthesizer extras
+- **media-sound/yabridge** - VST bridge for Linux
 - **net-vpn/forticlient** - Fortinet VPN client
 - **net-vpn/openfortivpn** - Open-source Fortinet VPN client
 
