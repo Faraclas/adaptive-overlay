@@ -1,0 +1,25 @@
+Remove -lssp from Windows bridge linker flags.
+
+The mingw64-toolchain package in Gentoo does not include libssp (Stack
+Smashing Protector library). The GCC libssp USE flag is masked by default
+since it's usually provided by libc, but msvcrt (Windows C runtime) does
+not provide it.
+
+The proper solution is to use crossdev with libssp enabled:
+  https://wiki.gentoo.org/wiki/Mingw#libssp
+
+However, for users of dev-util/mingw64-toolchain (the simpler all-in-one
+package for building Wine), we remove this flag to allow building. Stack
+protection is not critical for these Wine-sandboxed bridge binaries.
+
+--- a/source/bridges-plugin/Makefile
++++ b/source/bridges-plugin/Makefile
+@@ -118,7 +118,7 @@ endif
+ endif
+ 
+ ifeq ($(WINDOWS),true)
+-EXTRA_LINK_FLAGS   += -lole32 -lssp -mwindows
++EXTRA_LINK_FLAGS   += -lole32 -mwindows
+ endif
+ 
+ # ---------------------------------------------------------------------------------------------------------------------

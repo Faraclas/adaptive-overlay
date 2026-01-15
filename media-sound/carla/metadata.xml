@@ -18,5 +18,7 @@
 		<flag name="rdf">Enable RDF support via <pkg>dev-python/rdflib</pkg> for enhanced LV2 plugin metadata</flag>
 		<flag name="sf2">Enable SoundFont2 support via <pkg>media-sound/fluidsynth</pkg></flag>
 		<flag name="sndfile">Enable audio file loading support via <pkg>media-libs/libsndfile</pkg></flag>
+		<flag name="wine">Build Windows 64-bit bridge (carla-bridge-win64.exe) for running 64-bit Windows VST plugins via Wine. Requires <pkg>dev-util/mingw64-toolchain</pkg></flag>
+		<flag name="wine32">Build Windows 32-bit bridge (carla-bridge-win32.exe) for running 32-bit Windows VST plugins via Wine. Requires <pkg>dev-util/mingw64-toolchain</pkg></flag>
 	</use>
 </pkgmetadata>
