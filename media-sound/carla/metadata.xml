@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>elias@example.com</email>
+		<name>Elias</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">falkTX/Carla</remote-id>
+		<bugs-to>https://github.com/falkTX/Carla/issues</bugs-to>
+	</upstream>
+	<use>
+		<flag name="abi_x86_32">Build the Linux 32-bit bridge (carla-bridge-posix32) for running 32-bit Linux plugins on a 64-bit system</flag>
+		<flag name="alsa">Enable ALSA audio driver support</flag>
+		<flag name="gtk">Enable GTK+ 3 UI support for plugins</flag>
+		<flag name="osc">Enable OSC (Open Sound Control) support via <pkg>media-libs/liblo</pkg></flag>
+		<flag name="qt5">Build the Qt5-based theme and enable Qt5 UI support</flag>
+		<flag name="rdf">Enable RDF support via <pkg>dev-python/rdflib</pkg> for enhanced LV2 plugin metadata</flag>
+		<flag name="sf2">Enable SoundFont2 support via <pkg>media-sound/fluidsynth</pkg></flag>
+		<flag name="sndfile">Enable audio file loading support via <pkg>media-libs/libsndfile</pkg></flag>
+	</use>
+</pkgmetadata>

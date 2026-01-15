@@ -15,8 +15,11 @@ S="${WORKDIR}/${MY_P}"
 LICENSE="GPL-2 LGPL-3"
 SLOT="0"
 KEYWORDS="amd64 x86"
-IUSE="alsa gtk opengl osc pulseaudio qt5 rdf sf2 sndfile X"
-REQUIRED_USE="${PYTHON_REQUIRED_USE}"
+IUSE="+alsa +gtk +opengl osc +pulseaudio qt5 rdf +sf2 sndfile +X abi_x86_32"
+REQUIRED_USE="
+	${PYTHON_REQUIRED_USE}
+	abi_x86_32? ( !osc )
+"
 
 DEPEND="
 	${PYTHON_DEPS}
@@ -57,7 +60,7 @@ src_prepare() {
 }
 
 src_compile() {
-	myemakeargs=(
+	local myemakeargs=(
 		LIBDIR="/usr/$(get_libdir)"
 		SKIP_STRIPPING=true
 		HAVE_FFMPEG=false
@@ -77,12 +80,19 @@ src_compile() {
 	)
 
 	# Print which options are enabled/disabled
-	make features PREFIX="/usr" "${myemakeargs[@]}"
+	emake features PREFIX="/usr" "${myemakeargs[@]}"
 
+	# Build main native target
 	emake PREFIX="/usr" "${myemakeargs[@]}"
+
+	# Build Linux 32-bit bridge (for running 32-bit Linux plugins on 64-bit)
+	if use abi_x86_32; then
+		einfo "Building Linux 32-bit bridge (posix32)..."
+		emake posix32
+	fi
 }
 
 src_install() {
-	emake DESTDIR="${D}" PREFIX="/usr" "${myemakeargs[@]}" install
-	find "${D}/usr" -iname "carla-control*" | xargs rm
+	emake DESTDIR="${D}" PREFIX="/usr" LIBDIR="/usr/$(get_libdir)" install
+	find "${D}/usr" -iname "carla-control*" -delete
 }
