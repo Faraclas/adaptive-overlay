@@ -72,7 +72,7 @@ src_prepare() {
 }
 
 src_compile() {
-	local myemakeargs=(
+	myemakeargs=(
 		LIBDIR="/usr/$(get_libdir)"
 		SKIP_STRIPPING=true
 		HAVE_FFMPEG=false
@@ -139,6 +139,6 @@ src_compile() {
 }
 
 src_install() {
-	emake DESTDIR="${D}" PREFIX="/usr" LIBDIR="/usr/$(get_libdir)" install
+	emake DESTDIR="${D}" PREFIX="/usr" LIBDIR="/usr/$(get_libdir)" "${myemakeargs[@]}" install
 	find "${D}/usr" -iname "carla-control*" -delete
 }
