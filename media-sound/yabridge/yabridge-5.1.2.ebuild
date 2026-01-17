@@ -3,6 +3,14 @@
 
 EAPI=8
 
+# This ebuild builds from the new-wine10-embedding branch which contains
+# fixes for Wine 9.22+ and Wine 10 GUI embedding issues.
+# Tracking issue: https://github.com/robbert-vdh/yabridge/issues/409
+# Development branch: https://github.com/robbert-vdh/yabridge/tree/new-wine10-embedding
+
+# Commit SHA for new-wine10-embedding branch (2026-01-11)
+COMMIT="945528cd7f898d717d772b93f939343dad122d91"
+
 CRATES="
 	anstream-0.3.2
 	anstyle-1.0.1
@@ -114,8 +122,8 @@ inherit meson cargo
 DESCRIPTION="A modern and transparent way to use Windows VST2, VST3 and CLAP plugins on Linux"
 HOMEPAGE="https://github.com/robbert-vdh/yabridge"
 SRC_URI="
-	https://github.com/robbert-vdh/yabridge/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz
-	https://github.com/chriskohlhoff/asio/archive/7609450f71434bdc9fbd9491a9505b423c2a8496.tar.gz -> asio-1.28.2.tar.gz
+	https://github.com/robbert-vdh/yabridge/archive/${COMMIT}.tar.gz -> ${P}-wine10-embedding.tar.gz
+	https://github.com/chriskohlhoff/asio/archive/ed6aa8a13d51dfc6c00ae453fc9fb7df5d6ea963.tar.gz -> asio-1.34.2.tar.gz
 	https://github.com/fraillt/bitsery/archive/d1a47e06e2104b195a19c73b61f1d5c1dceaa228.tar.gz -> bitsery-5.2.3.tar.gz
 	https://github.com/free-audio/clap/archive/094bb76c85366a13cc6c49292226d8608d6ae50c.tar.gz -> clap-1.1.9.tar.gz
 	https://github.com/Naios/function2/archive/9e303865d14f1204f09379e37bbeb30c4375139a.tar.gz -> function2-4.2.3.tar.gz
@@ -128,6 +136,9 @@ SRC_URI="
 	https://github.com/nicokoch/reflink/archive/e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz -> reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz
 	$(cargo_crate_uris)
 "
+
+# Source directory uses commit hash instead of version
+S="${WORKDIR}/yabridge-${COMMIT}"
 
 LICENSE="GPL-3"
 SLOT="0"
@@ -167,7 +178,7 @@ src_prepare() {
 	# This is necessary because Gentoo disables network access during builds
 	# The asio tarball extracts to asio-<hash>/asio/ but the meson.build expects
 	# to find asio/include, so we link to the parent directory
-	ln -s "${WORKDIR}/asio-7609450f71434bdc9fbd9491a9505b423c2a8496" \
+	ln -s "${WORKDIR}/asio-ed6aa8a13d51dfc6c00ae453fc9fb7df5d6ea963" \
 		"${S}/subprojects/asio" || die
 	ln -s "${WORKDIR}/bitsery-d1a47e06e2104b195a19c73b61f1d5c1dceaa228" \
 		"${S}/subprojects/bitsery" || die
@@ -279,11 +290,17 @@ src_install() {
 
 pkg_postinst() {
 	#      12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	einfo "wine 9.22 and later have known compatibility issues, such as the mouse cursor"
-	einfo "being offset. You probably want to stick with wine 9.21 or below until a fix is"
-	einfo "available."
-	einfo ""
-	einfo "See: https://github.com/robbert-vdh/yabridge/issues/382"
+	ewarn "This is a DEVELOPMENT BUILD from the new-wine10-embedding branch."
+	ewarn "It includes experimental fixes for Wine 9.22+ and Wine 10 GUI embedding."
+	ewarn ""
+	ewarn "Known issues with this branch:"
+	ewarn "  - Plugin client area may be cropped when using DPI scaling"
+	ewarn "  - Cursor positions may still be offset in some hosts/desktop environments"
+	ewarn "  - Moving the plugin window slightly can work around offset issues"
+	ewarn ""
+	ewarn "For stable usage with Wine 9.21 or earlier, use yabridge-5.1.1 instead."
+	ewarn ""
+	ewarn "Tracking issue: https://github.com/robbert-vdh/yabridge/issues/409"
 	einfo ""
 	einfo "To set up yabridge for your Windows plugins:"
 	einfo ""
@@ -298,4 +315,7 @@ pkg_postinst() {
 	einfo "  VST2: ~/.vst/yabridge"
 	einfo "  VST3: ~/.vst3/yabridge"
 	einfo "  CLAP: ~/.clap/yabridge"
+	einfo ""
+	einfo "If you encounter issues, please report them at:"
+	einfo "  https://github.com/robbert-vdh/yabridge/issues/409"
 }
