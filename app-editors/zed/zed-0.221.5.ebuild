@@ -106,7 +106,7 @@ LICENSE+="
 	LGPL-3 MIT MIT-0 MPL-2.0 UoI-NCSA openssl Unicode-3.0 ZLIB
 "
 SLOT="0"
-IUSE="+clang lto"
+IUSE="+clang +lto"
 KEYWORDS="~amd64 ~arm64"
 CHECKREQS_DISK_BUILD="13G"
 CHECKREQS_MEMORY="8G"
