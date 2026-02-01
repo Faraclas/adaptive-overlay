@@ -131,6 +131,7 @@ DEPEND="
 	)
 	media-libs/alsa-lib
 	media-libs/fontconfig
+	media-libs/freetype
 	media-libs/vulkan-loader[X]
 	net-misc/curl
 	virtual/zlib:=
@@ -201,6 +202,8 @@ src_prepare() {
 	export APP_ARGS="%U"
 	export DO_STARTUP_NOTIFY="true"
 	envsubst < "crates/zed/resources/zed.desktop.in" > ${APP_ID}.desktop || die
+	printf '%s' stable > crates/zed/RELEASE_CHANNEL || die "Failed to set RELEASE_CHANNEL"
+	chmod 755 "${APP_ID}.desktop" || die "Failed to chmod desktop file"
 
 	# Cargo offline fetch workaround
 	local CALLOOP_COMMIT="eb6b4fd17b9af5ecc226546bdd04185391b3e265"
@@ -230,7 +233,7 @@ src_prepare() {
 }
 
 src_configure() {
-	cargo_src_configure --all-features
+	cargo_src_configure
 }
 
 src_compile() {
@@ -247,6 +250,7 @@ src_compile() {
 
 src_install() {
 	newbin $(cargo_target_dir)/cli ${APP_CLI}
+	dosym "${APP_CLI}" /usr/bin/zed
 	exeinto "/usr/libexec"
 	newexe $(cargo_target_dir)/zed zed-editor
 
