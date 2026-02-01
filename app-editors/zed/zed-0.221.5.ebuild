@@ -108,8 +108,8 @@ LICENSE+="
 SLOT="0"
 IUSE="+clang +lto"
 KEYWORDS="~amd64 ~arm64"
-CHECKREQS_DISK_BUILD="13G"
-CHECKREQS_MEMORY="8G"
+CHECKREQS_DISK_BUILD="16G"
+CHECKREQS_MEMORY="55G"
 
 DEPEND="
 	app-arch/zstd:=
@@ -171,11 +171,18 @@ pkg_setup() {
 		export CARGO_PROFILE_RELEASE_LTO="false"
 	fi
 
+	if use lto; then
+		CHECKREQS_MEMORY="55G"
+	else
+		CHECKREQS_MEMORY="10G"
+	fi
+
 	strip-unsupported-flags
 	# flags from upstream
 	export RUSTFLAGS="${RUSTFLAGS} -C symbol-mangling-version=v0 --cfg tokio_unstable -C link-args=-Wl,--disable-new-dtags,-rpath,\$ORIGIN/../lib"
 	# fix error in livekit-rust-sdks
 	export RUSTFLAGS="${RUSTFLAGS} -A unexpected_cfgs"
+	check-reqs_pkg_setup
 	llvm-r1_pkg_setup
 	rust_pkg_setup
 }
@@ -210,10 +217,15 @@ src_prepare() {
 	local WIN_CAP_GIT="windows-capture = { git = \"https://github.com/zed-industries/windows-capture.git\", rev = \"${WIN_CAP_COMMIT}\""
 	local WIN_CAP_PATH="windows-capture = \\{ path = \"${WORKDIR}/windows-capture-${WIN_CAP_COMMIT}\""
 
+	local ASYNC_TASK_COMMIT="b4486cd71e4e94fbda54ce6302444de14f4d190e"
+	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
+	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
+
 	sed -e "s#${CALLOOP_GIT}#${CALLOOP_PATH}#" \
 		-e "s#${NOTIFY_GIT}#${NOTIFY_PATH}#" \
 		-e "s#${NOTIFY_TYPES_GIT}#${NOTIFY_TYPES_PATH}#" \
 		-e "s#${WIN_CAP_GIT}#${WIN_CAP_PATH}#" \
+		-e "s#${ASYNC_TASK_GIT}#${ASYNC_TASK_PATH}#" \
 		-i "${S}/Cargo.toml" || die "Cargo fetch workaround failed"
 }
 
