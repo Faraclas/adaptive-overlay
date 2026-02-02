@@ -80,4 +80,5 @@ Bug reports and pull requests are welcome.
 
 ## License
 
-Individual packages maintain their respective licenses as specified in their ebuilds.
+Individual packages maintain their respective licenses as specified in their
+ebuilds
