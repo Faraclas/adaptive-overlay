@@ -11,6 +11,7 @@ main Gentoo repository.
 
 Currently included packages:
 
+- **app-editors/zed** - Fast, collaborative code editor
 - **media-sound/amp-locker** - Audio plugin locker
 - **media-sound/bitwig-studio** - Digital audio workstation
 - **media-sound/carla** - Audio plugin host
