@@ -6,6 +6,7 @@ CRATES="
 "
 
 declare -A GIT_CRATES=(
+	[alacritty_terminal]='https://github.com/zed-industries/alacritty;9d9640d4e56d67a09d049f9c0a300aae08d4f61e;alacritty-%commit%/alacritty_terminal'
 	[async-pipe]='https://github.com/zed-industries/async-pipe-rs;82d00a04211cf4e1236029aa03e6b6ce2a74c553;async-pipe-rs-%commit%'
 	[async-task]='https://github.com/smol-rs/async-task;b4486cd71e4e94fbda54ce6302444de14f4d190e;async-task-%commit%'
 	[calloop]='https://github.com/zed-industries/calloop;eb6b4fd17b9af5ecc226546bdd04185391b3e265;calloop-%commit%'
@@ -13,16 +14,16 @@ declare -A GIT_CRATES=(
 	[candle-nn]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-nn'
 	[candle-onnx]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-onnx'
 	[dap-types]='https://github.com/zed-industries/dap-types;1b461b310481d01e02b2603c16d7144b926339f8;dap-types-%commit%/dap-types'
-	[gh-workflow-macros]='https://github.com/zed-industries/gh-workflow;09acfdf2bd5c1d6254abefd609c808ff73547b2c;gh-workflow-%commit%/crates/gh-workflow-macros'
-	[gh-workflow]='https://github.com/zed-industries/gh-workflow;09acfdf2bd5c1d6254abefd609c808ff73547b2c;gh-workflow-%commit%/crates/gh-workflow'
+	[gh-workflow-macros]='https://github.com/zed-industries/gh-workflow;c9eac0ed361583e1072860d96776fa52775b82ac;gh-workflow-%commit%/crates/gh-workflow-macros'
+	[gh-workflow]='https://github.com/zed-industries/gh-workflow;c9eac0ed361583e1072860d96776fa52775b82ac;gh-workflow-%commit%/crates/gh-workflow'
 	[libwebrtc]='https://github.com/zed-industries/livekit-rust-sdks;5f04705ac3f356350ae31534ffbc476abc9ea83d;livekit-rust-sdks-%commit%/libwebrtc'
 	[livekit-api]='https://github.com/zed-industries/livekit-rust-sdks;5f04705ac3f356350ae31534ffbc476abc9ea83d;livekit-rust-sdks-%commit%/livekit-api'
 	[livekit-protocol]='https://github.com/zed-industries/livekit-rust-sdks;5f04705ac3f356350ae31534ffbc476abc9ea83d;livekit-rust-sdks-%commit%/livekit-protocol'
 	[livekit-runtime]='https://github.com/zed-industries/livekit-rust-sdks;5f04705ac3f356350ae31534ffbc476abc9ea83d;livekit-rust-sdks-%commit%/livekit-runtime'
 	[livekit]='https://github.com/zed-industries/livekit-rust-sdks;5f04705ac3f356350ae31534ffbc476abc9ea83d;livekit-rust-sdks-%commit%/livekit'
-	[lsp-types]='https://github.com/zed-industries/lsp-types;b71ab4eeb27d9758be8092020a46fe33fbca4e33;lsp-types-%commit%'
-	[notify-types]='https://github.com/zed-industries/notify;b4588b2e5aee68f4c0e100f140e808cbce7b1419;notify-%commit%/notify-types'
-	[notify]='https://github.com/zed-industries/notify;b4588b2e5aee68f4c0e100f140e808cbce7b1419;notify-%commit%/notify'
+	[lsp-types]='https://github.com/zed-industries/lsp-types;a4f410987660bf560d1e617cb78117c6b6b9f599;lsp-types-%commit%'
+	[notify-types]='https://github.com/zed-industries/notify;ce58c24cad542c28e04ced02e20325a4ec28a31d;notify-%commit%/notify-types'
+	[notify]='https://github.com/zed-industries/notify;ce58c24cad542c28e04ced02e20325a4ec28a31d;notify-%commit%/notify'
 	[nvim-rs]='https://github.com/KillTheMule/nvim-rs;764dd270c642f77f10f3e19d05cc178a6cbe69f3;nvim-rs-%commit%'
 	[pet-conda]='https://github.com/microsoft/python-environment-tools;d5b5bb0c4558a51d8cc76b514bc870fd1c042f16;python-environment-tools-%commit%/crates/pet-conda'
 	[pet-core]='https://github.com/microsoft/python-environment-tools;d5b5bb0c4558a51d8cc76b514bc870fd1c042f16;python-environment-tools-%commit%/crates/pet-core'
@@ -49,10 +50,8 @@ declare -A GIT_CRATES=(
 	[pet-windows-registry]='https://github.com/microsoft/python-environment-tools;d5b5bb0c4558a51d8cc76b514bc870fd1c042f16;python-environment-tools-%commit%/crates/pet-windows-registry'
 	[pet-windows-store]='https://github.com/microsoft/python-environment-tools;d5b5bb0c4558a51d8cc76b514bc870fd1c042f16;python-environment-tools-%commit%/crates/pet-windows-store'
 	[pet]='https://github.com/microsoft/python-environment-tools;d5b5bb0c4558a51d8cc76b514bc870fd1c042f16;python-environment-tools-%commit%/crates/pet'
-	[rodio]='https://github.com/RustAudio/rodio;e2074c6c2acf07b57cf717e076bdda7a9ac6e70b;rodio-%commit%'
-	[blade-graphics]='https://github.com/kvark/blade;e3cf011ca18a6dfd907d1dedd93e85e21f005fe3;blade-%commit%/blade-graphics'
-	[blade-macros]='https://github.com/kvark/blade;e3cf011ca18a6dfd907d1dedd93e85e21f005fe3;blade-%commit%/blade-macros'
-	[blade-util]='https://github.com/kvark/blade;e3cf011ca18a6dfd907d1dedd93e85e21f005fe3;blade-%commit%/blade-util'
+	[mermaid-rs-renderer]='https://github.com/zed-industries/mermaid-rs-renderer;9d8360d9cea10dc4bc86d7b8012cc6e9656e6cf2;mermaid-rs-renderer-%commit%'
+	[rodio]='https://github.com/RustAudio/rodio;e50e726ddd0292f6ef9de0dda6b90af4ed1fb66a;rodio-%commit%'
 	[tiktoken-rs]='https://github.com/zed-industries/tiktoken-rs;2570c4387a8505fb8f1d3f3557454b474f1e8271;tiktoken-rs-%commit%/tiktoken-rs'
 	[tree-sitter-cpp]='https://github.com/tree-sitter/tree-sitter-cpp;5cb9b693cfd7bfacab1d9ff4acac1a4150700609;tree-sitter-cpp-%commit%'
 	[tree-sitter-gitcommit]='https://github.com/zed-industries/tree-sitter-git-commit;88309716a69dd13ab83443721ba6e0b491d37ee9;tree-sitter-git-commit-%commit%'
@@ -74,11 +73,11 @@ declare -A GIT_CRATES=(
 )
 
 LLVM_COMPAT=( 21 )
-RUST_MIN_VER="1.92.0"
+RUST_MIN_VER="1.93.0"
 RUST_NEEDS_LLVM=1
 WEBRTC_COMMIT="b99fd2c-6"
 
-inherit cargo check-reqs desktop flag-o-matic llvm-r1 toolchain-funcs xdg
+inherit cargo check-reqs desktop flag-o-matic llvm-r1 xdg
 
 DESCRIPTION="The fast, collaborative code editor"
 HOMEPAGE="https://zed.dev https://github.com/zed-industries/zed"
@@ -103,10 +102,10 @@ LICENSE+="
 	LGPL-3 MIT MIT-0 MPL-2.0 UoI-NCSA openssl Unicode-3.0 ZLIB
 "
 SLOT="0"
-IUSE="+clang +lto"
+
 KEYWORDS="~amd64 ~arm64"
 CHECKREQS_DISK_BUILD="16G"
-CHECKREQS_MEMORY="55G"
+CHECKREQS_MEMORY="8G"
 
 DEPEND="
 	app-arch/zstd:=
@@ -151,35 +150,7 @@ BDEPEND="
 QA_FLAGS_IGNORED="usr/bin/zedit"
 
 pkg_setup() {
-	if use clang; then
-		export CC=clang
-		export CXX=clang++
-		export AR=llvm-ar
-		export NM=llvm-nm
-		export RANLIB=llvm-ranlib
-	fi
-
-	if use lto; then
-		if tc-is-gcc; then
-			export CARGO_PROFILE_RELEASE_LTO="true"
-		elif tc-is-clang; then
-			export CARGO_PROFILE_RELEASE_LTO="thin"
-		fi
-	else
-		export CARGO_PROFILE_RELEASE_LTO="false"
-	fi
-
-	if use lto; then
-		CHECKREQS_MEMORY="55G"
-	else
-		CHECKREQS_MEMORY="10G"
-	fi
-
 	strip-unsupported-flags
-	# flags from upstream
-	export RUSTFLAGS="${RUSTFLAGS} -C symbol-mangling-version=v0 --cfg tokio_unstable -C link-args=-Wl,--disable-new-dtags,-rpath,\$ORIGIN/../lib"
-	# fix error in livekit-rust-sdks
-	export RUSTFLAGS="${RUSTFLAGS} -A unexpected_cfgs"
 	check-reqs_pkg_setup
 	llvm-r1_pkg_setup
 	rust_pkg_setup
@@ -207,7 +178,7 @@ src_prepare() {
 	local CALLOOP_GIT="calloop = { git = \"https://github.com/zed-industries/calloop\""
 	local CALLOOP_PATH="calloop = \\{ path = \"${WORKDIR}/calloop-${CALLOOP_COMMIT}\""
 
-	local NOTIFY_COMMIT="b4588b2e5aee68f4c0e100f140e808cbce7b1419"
+	local NOTIFY_COMMIT="ce58c24cad542c28e04ced02e20325a4ec28a31d"
 	local NOTIFY_GIT="notify = { git = \"https://github.com/zed-industries/notify.git\", rev = \"${NOTIFY_COMMIT}\""
 	local NOTIFY_PATH="notify = \\{ path = \"${WORKDIR}/notify-${NOTIFY_COMMIT}/notify\""
 	local NOTIFY_TYPES_GIT="notify-types = { git = \"https://github.com/zed-industries/notify.git\", rev = \"${NOTIFY_COMMIT}\""
