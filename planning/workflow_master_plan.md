@@ -129,8 +129,8 @@ This separation keeps the overlay directory clean for human contributors and Gen
 | 2 | **Draft ebuild** | Agent | Generate a skeleton `.ebuild` following EAPI 8 conventions. Place it in `<category>/<package>/`. Generate `metadata.xml`. |
 | 3 | **Lint** | CI | Run `pkgcheck scan` and `pkgdev manifest` inside the Gentoo container. |
 | 4 | **Human review checkpoint** | Human | Agent opens a PR and requests review. If there are open questions (USE flags, optional deps, patches), the agent comments on the PR asking for input. |
-| 5 | **Build test** | CI | Inside a Gentoo container: iterate with `ebuild ./<name>-<version>.ebuild clean compile` until the build succeeds. Final integration test with `emerge` runs only in the container (see §5.4). Record build log as artifact. |
-| 6 | **Iterate** | Agent + Human | Address review feedback and test failures. Repeat steps 3–5. Agent must follow safety constraints (§8.4) — no system tool installation or file modification without permission. |
+| 5 | **Build test** | CI | Inside a Gentoo container: `ebuild ./<name>-<version>.ebuild clean compile`. If build fails, the agent fixes the ebuild and pushes a new commit to repeat steps 3–5 (see §5.4 for retry strategy). Final integration test with `emerge` runs only in the container. Record build log as artifact. |
+| 6 | **Iterate** | Agent + Human | Address review feedback and test failures across commits. Repeat steps 3–5. Agent must follow safety constraints (§8.4). |
 | 7 | **Merge** | Human | Final approval and merge. |
 
 ### 4.3 Human-in-the-Loop Mechanisms
@@ -199,7 +199,7 @@ Note: `current_versions` is intentionally omitted — the overlay tree itself is
 | 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
 | 6 | **Regenerate Manifest** | `cd <category>/<package> && pkgdev manifest` — fetches new source archives and updates checksums. |
 | 7 | **Lint** | `pkgcheck scan` on the package directory. |
-| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. Iterate with `ebuild` until compile succeeds (see §5.4). |
+| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. If build fails, the agent fixes the ebuild and re-runs (see §5.4 for retry strategy). |
 | 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
 | 10 | **Final integration test** | `emerge` the package inside a disposable container to confirm Portage integration (dependency resolution, slot handling, post-install actions). Never run on the host (see §5.4). |
 | 11 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
@@ -422,14 +422,14 @@ Agents operate under strict safety rules that protect the developer's system whi
 | **Local system** | Agents must **never** install system tools (via `emerge`, `apt`, `pip install --system`, etc.). All required tools are already present. |
 | **CI container** | Tool installation is permitted **only** if explicitly defined as part of the workflow (e.g. in the Dockerfile or a workflow step). Agents must not install ad-hoc tools without prior approval. |
 
-If an agent encounters a missing tool, it must **pause and request human guidance** rather than attempt to install it.
+If an agent encounters a missing tool, it must **pause and request human guidance** — post a PR comment describing the missing tool, apply the `waiting-for-human` label, and stop work on that step until the human responds.
 
 #### System file modification
 
 | Environment | Rule |
 |---|---|
-| **Local system** | Agents must **never** modify system files (e.g. `/etc/portage/*`, `/var/db/repos/*`, `/usr/*`) without explicit permission from the human. All agent work products should be confined to the overlay directory and designated temp workspaces. |
-| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Dockerfile). Even in containers, agents should seek approval before making system changes not already anticipated by the workflow. |
+| **Local system** | Agents must **never** modify system files (e.g. `/etc/portage/*`, `/var/db/repos/*`, `/usr/*`) without explicit permission from the human via a PR comment or issue thread. All agent work products should be confined to the overlay directory and designated temp workspaces. |
+| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Dockerfile). Even in containers, agents should seek approval via PR comment before making system changes not already anticipated by the workflow definition. |
 
 #### Rationale
 
