@@ -58,7 +58,7 @@ Files that agents reference during automated tasks — structured metadata, skil
 |---|---|
 | `.agent/packages.json` | Package registry with upstream tracking metadata (§5.2) |
 | `.agent/skills/` | Reusable agent skill documents (e.g. "how to upgrade a Cargo-based ebuild") |
-| `.agent/instructions/` | Per-package upgrade/creation instructions (e.g. the Zed update process) |
+| `.agent/instructions/<category>/<package>/` | Per-package upgrade/creation instructions, mirroring the overlay's directory structure (e.g. `.agent/instructions/app-editors/zed/upgrade.md`) |
 | `.agent/ebuild_guidelines.md` | Overlay-specific conventions for agents (USE flags, licensing, Manifest handling) |
 
 This separation keeps the overlay directory clean for human contributors and Gentoo tooling, while giving agents a well-known location to find structured context. The `.agent/` prefix signals that these files are machine-consumed and may be auto-generated or auto-updated.
@@ -406,7 +406,7 @@ Agents must always operate within the safety constraints defined in §8.4 — no
 To help agents produce high-quality ebuilds:
 
 * Maintain `.agent/ebuild_guidelines.md` describing overlay-specific conventions (preferred USE flags, licensing practices, Manifest handling, etc.).
-* Provide per-package upgrade instructions in `.agent/instructions/` (e.g. the Zed update process from §5.5 as `.agent/instructions/app-editors-zed.md`).
+* Provide per-package upgrade instructions in `.agent/instructions/<category>/<package>/`, mirroring the overlay's directory structure for easy navigation and correlation (e.g. the Zed update process from §5.5 as `.agent/instructions/app-editors/zed/upgrade.md`).
 * Store reusable agent skill documents in `.agent/skills/` (e.g. "how to upgrade a Cargo-based ebuild", "how to handle GIT_CRATES").
 * Include example ebuilds in the overlay that demonstrate common patterns (cmake-based, cargo-based, binary repackage, etc.).
 * `.agent/packages.json` provides structured upstream metadata the agent can consume for version checking and upgrade automation.
