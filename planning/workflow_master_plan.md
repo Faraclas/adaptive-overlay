@@ -13,8 +13,8 @@ Two primary workflows must be supported:
 
 Cross-cutting concerns that apply to both workflows:
 
-* Ebuild quality checks (repoman/pkgcheck linting, manifest verification)
-* Build & install testing inside a Gentoo container
+* Ebuild quality checks (pkgcheck linting, `pkgdev manifest` verification)
+* Build testing via `ebuild` command inside a Gentoo container
 * Runnable in GitHub Actions **and** locally
 * Pull-request-based review for every change
 
@@ -74,7 +74,7 @@ Current repo facts that inform workflow design:
 │  │  Gentoo Stage3 Container Image                               │   │
 │  │  • Pre-synced portage tree                                   │   │
 │  │  • Overlay mounted / synced                                  │   │
-│  │  • Supports: emerge, pkgcheck, repoman                       │   │
+│  │  • Supports: ebuild, pkgdev, pkgcheck, repoman               │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -94,9 +94,9 @@ Current repo facts that inform workflow design:
 |---|---|---|---|
 | 1 | **Gather upstream metadata** | Agent | Clone/inspect upstream repo. Determine: homepage, license, build system (cmake, meson, cargo, etc.), dependencies, SRC_URI pattern. |
 | 2 | **Draft ebuild** | Agent | Generate a skeleton `.ebuild` following EAPI 8 conventions. Place it in `<category>/<package>/`. Generate `metadata.xml`. |
-| 3 | **Lint** | CI | Run `pkgcheck scan` and `repoman manifest` inside the Gentoo container. |
+| 3 | **Lint** | CI | Run `pkgcheck scan` and `pkgdev manifest` inside the Gentoo container. |
 | 4 | **Human review checkpoint** | Human | Agent opens a PR and requests review. If there are open questions (USE flags, optional deps, patches), the agent comments on the PR asking for input. |
-| 5 | **Build test** | CI | Inside a Gentoo container: `emerge --pretend`, then `emerge` the package. Record build log as artifact. |
+| 5 | **Build test** | CI | Inside a Gentoo container: `ebuild ./<name>-<version>.ebuild clean compile` to build the package directly from the overlay source tree. Record build log as artifact. |
 | 6 | **Iterate** | Agent + Human | Address review feedback and test failures. Repeat steps 3–5. |
 | 7 | **Merge** | Human | Final approval and merge. |
 
@@ -155,15 +155,56 @@ This registry is the single source of truth for the scheduled version-check job.
 | # | Step | Details |
 |---|---|---|
 | 1 | **Detect new version** | Query upstream (GitHub Releases API, PyPI, etc.) and compare to `current_versions` in the package registry. |
-| 2 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
-| 3 | **Copy & update ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. Update `SRC_URI`, checksums, and any version-specific patches. |
-| 4 | **Regenerate Manifest** | Run `ebuild <name>-<new_version>.ebuild manifest` inside the container. |
-| 5 | **Lint** | `pkgcheck scan` on the package directory. |
-| 6 | **Build test** | `emerge =<category>/<name>-<new_version>` inside the Gentoo container. |
-| 7 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
-| 8 | **Notify** | Email / issue comment on failure. |
+| 2 | **Verify sources available** | Confirm the upstream source tarball (and any supplementary archives, e.g. crates tarballs) are downloadable before proceeding. |
+| 3 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
+| 4 | **Copy ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. |
+| 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
+| 6 | **Regenerate Manifest** | Run `pkgdev manifest` inside the package directory in the container. |
+| 7 | **Lint** | `pkgcheck scan` on the package directory. |
+| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. |
+| 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
+| 10 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
+| 11 | **Notify** | Email / issue comment on failure. |
 
-### 5.4 Source Repackaging
+### 5.4 Build & Test Tooling: `ebuild` over `emerge`
+
+The `ebuild` command is the **primary tool** for building and testing ebuilds in this workflow, both in CI and locally. Unlike `emerge` (Portage), `ebuild` operates directly on a single `.ebuild` file from the overlay source tree without interacting with the system package database. This provides:
+
+* **Isolation** — Clear separation between the development overlay and the installed system. No risk of polluting the host or system repo.
+* **Consistency** — The same `ebuild ./pkg-1.0.ebuild clean compile` command works identically in CI containers and on a developer's workstation.
+* **Granular control** — Individual phases (`clean`, `fetch`, `unpack`, `prepare`, `compile`, `install`) can be run and retried independently.
+* **Speed on retry** — After a compile-phase failure, re-running `ebuild ./pkg.ebuild compile` (without `clean`) reuses the already-unpacked and patched source tree, skipping the slow unpack/patch phase.
+
+The workflow uses `pkgdev manifest` (from `dev-util/pkgdev`) for Manifest generation rather than `ebuild manifest` or `repoman manifest`, as `pkgdev` is the modern replacement and handles fetching and hashing correctly.
+
+### 5.5 Dependency Change Detection (Upgrade Sub-Process)
+
+When upgrading an ebuild, always check for upstream dependency changes before considering the update complete. The exact checks depend on the build system:
+
+#### Cargo / Rust packages (e.g. `app-editors/zed`)
+
+Diff the upstream `Cargo.toml` between old and new versions and look for:
+
+| Change detected | Action |
+|---|---|
+| A git dependency's `rev =` changed | Update the commit hash in `GIT_CRATES` |
+| A new `{ git = "...", rev = "..." }` dependency appeared | Add a new entry to `GIT_CRATES` |
+| A git dependency was removed | Remove its entry from `GIT_CRATES` |
+| New workspace members added | Fetch their `Cargo.toml` files and scan for git deps |
+| `rust-version` changed | Update `RUST_MIN_VER` in the ebuild |
+| Crates.io version bumps | No action — handled by the crates tarball |
+
+Also check release notes for mentions of new system-level libraries that would affect `DEPEND`/`BDEPEND`.
+
+#### CMake / Meson packages
+
+Diff `CMakeLists.txt` or `meson.build` for changed `find_package()`, `dependency()`, or version requirements. Update `DEPEND`/`BDEPEND` accordingly.
+
+#### Binary repackage packages
+
+Typically no dependency changes, but verify runtime library requirements by checking `ldd` output after build.
+
+### 5.6 Source Repackaging
 
 Some packages (e.g. Surge XT) require source repackaging because upstream tarballs do not include git submodules. The existing `repackage-surge.yml` handles this for Surge XT.
 
@@ -198,7 +239,7 @@ FROM gentoo/stage3:latest
 RUN emerge-webrsync
 
 # Install overlay tooling
-RUN emerge --oneshot app-portage/repoman dev-util/pkgcheck
+RUN emerge --oneshot app-portage/repoman dev-util/pkgcheck dev-util/pkgdev
 
 # Configure the overlay mount point
 RUN mkdir -p /var/db/repos/adaptive-overlay
@@ -226,8 +267,8 @@ Developers can run the same container locally:
 # Quick lint check
 ./scripts/lint.sh media-sound/carla
 
-# Full build test
-./scripts/test-build.sh media-sound/carla-2.6.0
+# Full build test (runs: ebuild ./carla-2.6.0.ebuild clean compile)
+./scripts/test-build.sh media-sound/carla carla-2.6.0.ebuild
 ```
 
 These wrapper scripts invoke `docker run` (or `podman run`) with the correct bind mounts and arguments, matching what the GitHub Actions workflows do.
@@ -244,18 +285,18 @@ These wrapper scripts invoke `docker run` (or `podman run`) with the correct bin
 
 1. Start Gentoo container.
 2. Run `pkgcheck scan <package_dir>` — fail on errors, warn on warnings.
-3. Run `repoman manifest` to verify Manifest correctness.
+3. Run `pkgdev manifest` to verify Manifest correctness.
 4. Optionally run `shellcheck` on any helper scripts.
 
 ### 7.2 `test-ebuild` (Reusable Workflow)
 
-**Inputs:** `package_atom` (e.g. `=media-sound/carla-2.6.0`)
+**Inputs:** `package_dir` (e.g. `media-sound/carla`), `ebuild_file` (e.g. `carla-2.6.0.ebuild`)
 
 **Steps:**
 
-1. Start Gentoo container with cached portage tree and distfiles.
-2. `emerge --pretend <package_atom>` — verify dependency resolution.
-3. `emerge <package_atom>` — full compile and install.
+1. Start Gentoo container with cached portage tree and distfiles. Bind-mount the overlay source tree.
+2. `ebuild ./<ebuild_file> clean compile` — full build from source in the overlay directory.
+3. Verify build output: check expected binaries exist, confirm version strings, validate linkage with `ldd`.
 4. Upload build log as GitHub Actions artifact.
 5. Report pass/fail.
 
@@ -324,7 +365,7 @@ Create a `scripts/` directory with the following helpers:
 | Script | Purpose |
 |---|---|
 | `scripts/lint.sh <pkg_dir>` | Run pkgcheck inside the Gentoo container on the specified package. |
-| `scripts/test-build.sh <pkg_atom>` | Emerge the specified package inside the container. |
+| `scripts/test-build.sh <pkg_dir> <ebuild_file>` | Run `ebuild ./<file> clean compile` inside the container. |
 | `scripts/check-updates.sh` | Run the version-check logic locally, printing packages that have upstream updates. |
 | `scripts/new-ebuild.sh <cat> <name> <ver>` | Scaffold a new ebuild skeleton with metadata.xml. |
 
@@ -341,7 +382,7 @@ lint:
 	./scripts/lint.sh $(PKG)
 
 test:
-	./scripts/test-build.sh $(ATOM)
+	./scripts/test-build.sh $(PKG) $(EBUILD)
 
 check-updates:
 	./scripts/check-updates.sh
@@ -394,8 +435,8 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 | Item | Description |
 |---|---|
 | 4.1 | Create the `upgrade-ebuild.yml` workflow with dispatch inputs. |
-| 4.2 | Implement the copy-and-update ebuild logic (script or agent instructions). |
-| 4.3 | Integrate lint + build test into the upgrade workflow. |
+| 4.2 | Implement the copy-and-update ebuild logic including dependency change detection (§5.5). |
+| 4.3 | Integrate lint + `ebuild` build test into the upgrade workflow. |
 | 4.4 | Implement auto-PR creation with appropriate labels. |
 | 4.5 | Generalize `repackage-surge.yml` into a reusable `repackage-source.yml` workflow. |
 | 4.6 | Wire the version-check workflow to automatically trigger upgrades. |
