@@ -34,6 +34,39 @@ Current repo facts that inform workflow design:
 
 ---
 
+### 2.1 File Organization — Agent vs Human Files
+
+A Gentoo overlay has a well-defined directory structure that humans and tools like `pkgcheck` expect. Automation and agent-facing files should live separately from the standard overlay tree to avoid confusion.
+
+**Standard overlay directories** (human / Gentoo tooling):
+
+| Path | Contents |
+|---|---|
+| `<category>/<package>/` | Ebuilds, Manifest, metadata.xml — the overlay itself |
+| `metadata/` | Overlay-level metadata (`layout.conf`, etc.) |
+| `profiles/` | Profile configuration |
+| `licenses/` | Custom license files |
+| `.github/workflows/` | CI/CD workflow definitions |
+| `scripts/` | Helper scripts for local development (lint, test-build, etc.) |
+| `planning/` | Human-readable planning documents (this file, roadmaps, etc.) |
+
+**Agent-facing directory** (`.agent/`):
+
+Files that agents reference during automated tasks — structured metadata, skills, and per-package instructions — live in `.agent/` at the repo root:
+
+| Path | Purpose |
+|---|---|
+| `.agent/packages.json` | Package registry with upstream tracking metadata (§5.2) |
+| `.agent/skills/` | Reusable agent skill documents (e.g. "how to upgrade a Cargo-based ebuild") |
+| `.agent/instructions/` | Per-package upgrade/creation instructions (e.g. the Zed update process) |
+| `.agent/ebuild_guidelines.md` | Overlay-specific conventions for agents (USE flags, licensing, Manifest handling) |
+
+This separation keeps the overlay directory clean for human contributors and Gentoo tooling, while giving agents a well-known location to find structured context. The `.agent/` prefix signals that these files are machine-consumed and may be auto-generated or auto-updated.
+
+> **Note:** The `.agent/` directory is committed to the repo so agents can access it. It is not hidden from humans — anyone can read and edit these files — but its primary audience is automated tooling.
+
+---
+
 ## 3. Architecture Overview
 
 ```
@@ -120,19 +153,26 @@ Current repo facts that inform workflow design:
 
 ### 5.2 Package Registry
 
-A central file, `planning/packages.json` (or YAML), tracks each package the overlay provides:
+The overlay's directory structure is the canonical source of truth for package data — categories, names, and versions are all derivable from the ebuild file tree. However, some automation-specific metadata has no natural home in standard Gentoo overlay files:
+
+* **Upstream repo location** (`zed-industries/zed`) — needed to poll for new releases
+* **Version tag pattern** (`v(.*)`, `release_xt_(.*)`) — needed to extract versions from upstream tags
+* **Upstream type** (GitHub release, PyPI, crate, etc.) — determines which API to poll
+* **Repackage flag** — whether the package needs source repackaging before build
+* **Auto-upgrade eligibility** — whether a version bump can be auto-merged without human review
+
+This metadata lives in `.agent/packages.json` (see §2.1 for the `.agent/` directory rationale):
 
 ```jsonc
 [
   {
     "category": "app-editors",
     "name": "zed",
-    "upstream_repo": "zed-industries/zed",         // GitHub owner/repo
-    "upstream_type": "github-release",              // github-release | pypi | crate | custom
-    "version_pattern": "v(.*)",                     // regex to extract version from tag
-    "current_versions": ["0.226.5", "0.227.1"],
-    "repackage": false,                             // whether source needs repackaging
-    "auto_upgrade": true                            // whether fully autonomous upgrade is enabled
+    "upstream_repo": "zed-industries/zed",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "repackage": false,
+    "auto_upgrade": true
   },
   {
     "category": "media-sound",
@@ -140,21 +180,19 @@ A central file, `planning/packages.json` (or YAML), tracks each package the over
     "upstream_repo": "surge-synthesizer/surge",
     "upstream_type": "github-release",
     "version_pattern": "release_xt_(.*)",
-    "current_versions": ["1.3.4"],
     "repackage": true,
     "auto_upgrade": false
   }
-  // ...
 ]
 ```
 
-This registry is the single source of truth for the scheduled version-check job.
+Note: `current_versions` is intentionally omitted — the overlay tree itself is the source of truth for what versions exist. The version-check workflow derives current versions by scanning ebuild filenames at runtime.
 
 ### 5.3 Steps (Autonomous Upgrade)
 
 | # | Step | Details |
 |---|---|---|
-| 1 | **Detect new version** | Query upstream (GitHub Releases API, PyPI, etc.) and compare to `current_versions` in the package registry. |
+| 1 | **Detect new version** | Query upstream (GitHub Releases API, PyPI, etc.) using metadata from `.agent/packages.json`. Compare to versions found by scanning ebuild filenames in the overlay. |
 | 2 | **Verify sources available** | Confirm the upstream source tarball (and any supplementary archives, e.g. crates tarballs) are downloadable before proceeding. |
 | 3 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
 | 4 | **Copy ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. |
@@ -314,13 +352,14 @@ Generalization of the existing `repackage-surge.yml`.
 
 ### 7.4 `check-upstream-versions` (Reusable Workflow)
 
-**Inputs:** none (reads the package registry)
+**Inputs:** none (reads `.agent/packages.json` and scans the overlay tree)
 
 **Steps:**
 
-1. For each package in `packages.json`:
-   a. Query the upstream source for the latest version.
-   b. Compare to known versions in the registry.
+1. For each package in `.agent/packages.json`:
+   a. Derive current versions by scanning ebuild filenames in `<category>/<name>/`.
+   b. Query the upstream source for the latest version.
+   c. Compare to the versions found on disk.
 2. Output a list of packages that have new upstream versions.
 3. For each new version, dispatch the appropriate upgrade or repackage workflow.
 
@@ -332,7 +371,7 @@ Generalization of the existing `repackage-surge.yml`.
 
 The AI coding agent (e.g. GitHub Copilot) should be able to:
 
-* Read the package registry and ebuild templates.
+* Read `.agent/packages.json` and per-package instructions in `.agent/instructions/`.
 * Generate new ebuilds by inspecting upstream build systems.
 * Copy and modify existing ebuilds for version bumps.
 * Run lint and build workflows and interpret their output.
@@ -350,9 +389,11 @@ The AI coding agent (e.g. GitHub Copilot) should be able to:
 
 To help agents produce high-quality ebuilds:
 
-* Maintain a `planning/ebuild_guidelines.md` document describing overlay-specific conventions (preferred USE flags, licensing practices, Manifest handling, etc.).
-* Include example ebuilds in the repo that demonstrate common patterns (cmake-based, cargo-based, binary repackage, etc.).
-* The package registry provides structured metadata the agent can consume.
+* Maintain `.agent/ebuild_guidelines.md` describing overlay-specific conventions (preferred USE flags, licensing practices, Manifest handling, etc.).
+* Provide per-package upgrade instructions in `.agent/instructions/` (e.g. the Zed update process from §5.5 as `.agent/instructions/app-editors-zed.md`).
+* Store reusable agent skill documents in `.agent/skills/` (e.g. "how to upgrade a Cargo-based ebuild", "how to handle GIT_CRATES").
+* Include example ebuilds in the overlay that demonstrate common patterns (cmake-based, cargo-based, binary repackage, etc.).
+* `.agent/packages.json` provides structured upstream metadata the agent can consume for version checking and upgrade automation.
 
 ---
 
@@ -423,8 +464,8 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 3.1 | Create `packages.json` (or YAML) with metadata for all current packages. |
-| 3.2 | Create the `check-upstream-versions` workflow/script. |
+| 3.1 | Create `.agent/packages.json` with upstream tracking metadata for all current packages. |
+| 3.2 | Create the `check-upstream-versions` workflow/script (reads `.agent/packages.json`, scans overlay for current versions). |
 | 3.3 | Create `scripts/check-updates.sh` for local use. |
 | 3.4 | Set up scheduled cron trigger (e.g. twice weekly). |
 
@@ -447,11 +488,11 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 5.1 | Create `planning/ebuild_guidelines.md` — conventions and patterns for agents. |
+| 5.1 | Create `.agent/ebuild_guidelines.md` — conventions and patterns for agents. |
 | 5.2 | Create `scripts/new-ebuild.sh` — scaffold a new ebuild skeleton. |
 | 5.3 | Define the `new-ebuild.yml` workflow with issue/dispatch triggers. |
 | 5.4 | Implement the human-in-the-loop mechanism (labels, PR comments, review requests). |
-| 5.5 | Document the agent collaboration process. |
+| 5.5 | Document the agent collaboration process. Populate `.agent/skills/` and `.agent/instructions/` with initial content. |
 
 ### Phase 6 — Upstream Release Triggers
 
