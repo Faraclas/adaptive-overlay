@@ -281,7 +281,7 @@ The upgrade workflow will call the repackage workflow first when the package reg
 
 ### 6.2 Container Image
 
-Use the official `gentoo/stage3` Docker image as a base. Build a custom image on top:
+Use the official `gentoo/stage3` container image as a base. Build a custom image on top:
 
 ```dockerfile
 FROM gentoo/stage3:latest
@@ -306,7 +306,7 @@ At workflow runtime, the repo contents are bind-mounted into the container so th
 
 ### 6.3 Caching
 
-* The portage tree sync is expensive. Cache the synced tree as a Docker layer or GitHub Actions cache.
+* The portage tree sync is expensive. Cache the synced tree as a container layer or GitHub Actions cache.
 * `distfiles` (downloaded source tarballs) should be cached between runs to speed up repeated builds.
 * The custom container image should be published to GHCR (GitHub Container Registry) and rebuilt weekly or on portage tree updates.
 
@@ -322,7 +322,7 @@ Developers can run the same container locally:
 ./scripts/test-build.sh media-sound/carla carla-2.6.0.ebuild
 ```
 
-These wrapper scripts invoke `docker run` (or `podman run`) with the correct bind mounts and arguments, matching what the GitHub Actions workflows do.
+These wrapper scripts invoke `podman run` (or `docker run` as a fallback) with the correct bind mounts and arguments, matching what the GitHub Actions workflows do.
 
 ---
 
@@ -420,7 +420,7 @@ Agents operate under strict safety rules that protect the developer's system whi
 | Environment | Rule |
 |---|---|
 | **Local system** | Agents must **never** install system tools (via `emerge`, `apt`, `pip install --system`, etc.). All required tools are already present. |
-| **CI container** | Tool installation is permitted **only** if explicitly defined as part of the workflow (e.g. in the Dockerfile or a workflow step). Agents must not install ad-hoc tools without prior approval. |
+| **CI container** | Tool installation is permitted **only** if explicitly defined as part of the workflow (e.g. in the Containerfile or a workflow step). Agents must not install ad-hoc tools without prior approval. |
 
 If an agent encounters a missing tool, it must **pause and request human guidance** — post a PR comment describing the missing tool, apply the `waiting-for-human` label, and stop work on that step until the human responds.
 
@@ -429,14 +429,14 @@ If an agent encounters a missing tool, it must **pause and request human guidanc
 | Environment | Rule |
 |---|---|
 | **Local system** | Agents must **never** modify system files (e.g. `/etc/portage/*`, `/var/db/repos/*`, `/usr/*`) without explicit permission from the human via a PR comment or issue thread. All agent work products should be confined to the overlay directory and designated temp workspaces. |
-| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Dockerfile). Even in containers, agents should seek approval via PR comment before making system changes not already anticipated by the workflow definition. |
+| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Containerfile). Even in containers, agents should seek approval via PR comment before making system changes not already anticipated by the workflow definition. |
 
 #### Rationale
 
 These constraints allow:
 * **Full automation in CI/cloud** — Containers are disposable; workflow-defined system changes are safe and reproducible.
 * **Protection for local systems** — A developer's workstation is never used as an experimental testbed. The `ebuild` tool (§5.4) provides build/test capability without touching the system, and containers handle the final `emerge` integration test.
-* **Flexibility with guardrails** — When workflows evolve to need new tools or system changes, they are added to the workflow definition (Dockerfile, workflow YAML) with human review, not installed ad-hoc by agents.
+* **Flexibility with guardrails** — When workflows evolve to need new tools or system changes, they are added to the workflow definition (Containerfile, workflow YAML) with human review, not installed ad-hoc by agents.
 
 ---
 
@@ -455,7 +455,7 @@ Create a `scripts/` directory with the following helpers:
 
 ### 9.2 Container Runtime
 
-Scripts should support both Docker and Podman. Detect which is available and use it. The container image tag defaults to `ghcr.io/<OWNER>/adaptive-overlay-testenv:latest` (where `<OWNER>` is the GitHub repository owner, e.g. `faraclas`) and can be overridden via the `TESTENV_IMAGE` environment variable.
+Scripts should prefer Podman and fall back to Docker if Podman is not available. Detect which is present and use it (`podman` first, then `docker`). The container image tag defaults to `ghcr.io/<OWNER>/adaptive-overlay-testenv:latest` (where `<OWNER>` is the GitHub repository owner, e.g. `faraclas`) and can be overridden via the `TESTENV_IMAGE` environment variable.
 
 ### 9.3 Makefile / Taskfile (Optional)
 
@@ -484,7 +484,7 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 1.1 | Create `Dockerfile` for the Gentoo test environment. |
+| 1.1 | Create `Containerfile` for the Gentoo test environment. |
 | 1.2 | Set up GHCR publishing workflow for the container image (weekly rebuild). |
 | 1.3 | Create the `lint-ebuild` reusable workflow. |
 | 1.4 | Create `scripts/lint.sh` for local use. |
