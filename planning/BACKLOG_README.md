@@ -103,7 +103,23 @@ See `workflow_master_plan.md` Section 11 (Dependency Graph) for detailed depende
 After creating the issues, they can be added to the project board at:
 https://github.com/users/Faraclas/projects/1
 
-To add all created issues to the current iteration/backlog:
+### Automated: Using the Add Script
+
+Run the provided script to add all issues at once:
+
+```bash
+# First, ensure you have the project scope
+gh auth refresh -s project
+
+# Run the script with your project number (from the URL)
+./planning/add_issues_to_project.sh 1
+```
+
+The script will add all 31 issues (#7-#37) to your project board automatically.
+
+### Manual: Using GitHub Web Interface
+
+To add issues manually:
 
 1. Go to the project board
 2. Click "+ Add item" or use the command palette (Cmd/Ctrl+K)

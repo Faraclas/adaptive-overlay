@@ -69,6 +69,17 @@ python3 planning/create_issues_from_backlog.py
 ### After Creating Issues
 
 1. **Add to GitHub Project**: Visit https://github.com/users/Faraclas/projects/1
+
+   **Automated approach:**
+   ```bash
+   # Ensure you have project scope
+   gh auth refresh -s project
+
+   # Run the add script
+   ./planning/add_issues_to_project.sh 1
+   ```
+
+   **Manual approach:**
    - Use the "+ Add item" button or Cmd/Ctrl+K
    - Search for `label:phase-1` (and phase-2, phase-3, etc.)
    - Add all issues to the current iteration/backlog
