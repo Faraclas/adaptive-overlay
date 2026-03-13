@@ -13,7 +13,7 @@ Two primary workflows must be supported:
 
 Cross-cutting concerns that apply to both workflows:
 
-* Ebuild quality checks (pkgcheck linting, `pkgdev manifest` verification)
+* Ebuild quality checks (pkgcheck linting, `ebuild manifest` verification)
 * Build testing via `ebuild` command inside a Gentoo container
 * Runnable in GitHub Actions **and** locally
 * Pull-request-based review for every change
@@ -127,7 +127,7 @@ This separation keeps the overlay directory clean for human contributors and Gen
 |---|---|---|---|
 | 1 | **Gather upstream metadata** | Agent | Clone/inspect upstream repo. Determine: homepage, license, build system (cmake, meson, cargo, etc.), dependencies, SRC_URI pattern. |
 | 2 | **Draft ebuild** | Agent | Generate a skeleton `.ebuild` following EAPI 8 conventions. Place it in `<category>/<package>/`. Generate `metadata.xml`. |
-| 3 | **Lint** | CI | Run `pkgcheck scan` and `pkgdev manifest` inside the Gentoo container. |
+| 3 | **Lint** | CI | Run `pkgcheck scan` and `ebuild manifest` inside the Gentoo container. |
 | 4 | **Human review checkpoint** | Human | Agent opens a PR and requests review. If there are open questions (USE flags, optional deps, patches), the agent comments on the PR asking for input. |
 | 5 | **Build test** | CI | Inside a Gentoo container: `ebuild ./<name>-<version>.ebuild clean compile`. If build fails, the agent fixes the ebuild and pushes a new commit to repeat steps 3–5 (see §5.4 for retry strategy). Final integration test with `emerge` runs only in the container. Record build log as artifact. |
 | 6 | **Iterate** | Agent + Human | Address review feedback and test failures across commits. Repeat steps 3–5. Agent must follow safety constraints (§8.4). |
@@ -197,7 +197,7 @@ Note: `current_versions` is intentionally omitted — the overlay tree itself is
 | 3 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
 | 4 | **Copy ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. |
 | 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
-| 6 | **Regenerate Manifest** | `cd <category>/<package> && pkgdev manifest` — fetches new source archives and updates checksums. |
+| 6 | **Regenerate Manifest** | `ebuild ./<name>-<new_version>.ebuild manifest` — fetches new source archives and updates checksums. Falls back to `pkgdev manifest` if needed. |
 | 7 | **Lint** | `pkgcheck scan` on the package directory. |
 | 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. If build fails, the agent fixes the ebuild and re-runs (see §5.4 for retry strategy). |
 | 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
@@ -226,7 +226,7 @@ Once an ebuild compiles successfully with `ebuild`, a final `emerge` test inside
 
 **Important:** The existing toolchain, both locally and in the container, is assumed to be sufficient. Agents must follow the safety constraints in §8.4 regarding system tool installation and file modification.
 
-The workflow uses `pkgdev manifest` (from `dev-util/pkgdev`) for Manifest generation rather than `ebuild manifest` or `repoman manifest`, as `pkgdev` is the modern replacement and handles fetching and hashing correctly.
+The workflow uses `ebuild ./<file>.ebuild manifest` as the primary tool for Manifest generation — it is consistent with the `ebuild`-first approach used throughout development and handles fetching and hashing correctly. If `ebuild manifest` is unavailable or encounters issues, `pkgdev manifest` (from `dev-util/pkgdev`) serves as a fallback.
 
 ### 5.5 Dependency Change Detection (Upgrade Sub-Process)
 
@@ -336,7 +336,7 @@ These wrapper scripts invoke `podman run` (or `docker run` as a fallback) with t
 
 1. Start Gentoo container.
 2. Run `pkgcheck scan <package_dir>` — fail on errors, warn on warnings.
-3. Run `pkgdev manifest` to regenerate the Manifest (fetches sources and updates checksums).
+3. Run `ebuild ./<file>.ebuild manifest` to regenerate the Manifest (fetches sources and updates checksums). Fall back to `pkgdev manifest` if needed.
 4. Optionally run `shellcheck` on any helper scripts.
 
 ### 7.2 `test-ebuild` (Reusable Workflow)
