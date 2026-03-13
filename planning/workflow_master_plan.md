@@ -159,7 +159,7 @@ This registry is the single source of truth for the scheduled version-check job.
 | 3 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
 | 4 | **Copy ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. |
 | 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
-| 6 | **Regenerate Manifest** | Run `pkgdev manifest` inside the package directory in the container. |
+| 6 | **Regenerate Manifest** | `cd <category>/<package> && pkgdev manifest` — fetches new source archives and updates checksums. |
 | 7 | **Lint** | `pkgcheck scan` on the package directory. |
 | 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. |
 | 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
@@ -285,7 +285,7 @@ These wrapper scripts invoke `docker run` (or `podman run`) with the correct bin
 
 1. Start Gentoo container.
 2. Run `pkgcheck scan <package_dir>` — fail on errors, warn on warnings.
-3. Run `pkgdev manifest` to verify Manifest correctness.
+3. Run `pkgdev manifest` to regenerate the Manifest (fetches sources and updates checksums).
 4. Optionally run `shellcheck` on any helper scripts.
 
 ### 7.2 `test-ebuild` (Reusable Workflow)
