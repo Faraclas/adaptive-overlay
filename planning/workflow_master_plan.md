@@ -330,7 +330,7 @@ Create a `scripts/` directory with the following helpers:
 
 ### 9.2 Container Runtime
 
-Scripts should support both Docker and Podman. Detect which is available and use it. The container image tag defaults to `ghcr.io/faraclas/adaptive-overlay-testenv:latest` but can be overridden via environment variable.
+Scripts should support both Docker and Podman. Detect which is available and use it. The container image tag defaults to `ghcr.io/<OWNER>/adaptive-overlay-testenv:latest` (where `<OWNER>` is the GitHub repository owner, e.g. `faraclas`) and can be overridden via the `TESTENV_IMAGE` environment variable.
 
 ### 9.3 Makefile / Taskfile (Optional)
 
@@ -461,8 +461,10 @@ Phases 1–2 (container + testing) are prerequisites for everything else. Phase 
 |---|---|---|
 | `GITHUB_TOKEN` (default) | All workflows | Create PRs, releases, push branches |
 | `MAIL_USERNAME` | Version check, notifications | SMTP authentication for email alerts |
-| `MAIL_PASSWORD` | Version check, notifications | SMTP authentication for email alerts |
+| `MAIL_PASSWORD` | Version check, notifications | SMTP authentication for email alerts (must be stored as a GitHub encrypted secret — never commit to source) |
 | `MAIL_TO` | Version check, notifications | Notification recipient |
+
+> **Note on notifications:** Email is used for out-of-band alerts (matching the existing `repackage-surge.yml` pattern). For tighter GitHub integration, consider supplementing email with GitHub Issue comments or Discussions posts so that notification history is co-located with the code. Workflows can create issue comments using the default `GITHUB_TOKEN` without additional secrets.
 | GHCR write access | Container image workflow | Push the test environment image |
 
 ---
@@ -474,6 +476,7 @@ Phases 1–2 (container + testing) are prerequisites for everything else. Phase 
 | Gentoo container builds are slow | Long CI times | Aggressive caching of portage tree, distfiles, and compiled packages (binpkgs). Build only the package under test, not full `@world`. |
 | Upstream API rate limits | Version checks fail | Cache API responses. Use conditional requests (`If-None-Match`). Limit check frequency. |
 | Ebuild complexity varies widely | Agent may produce incorrect ebuilds | Provide clear guidelines and examples. Require human review for new ebuilds. Allow auto-merge only for version bumps of packages with `auto_upgrade: true`. |
+| Supply-chain attacks via upstream | Auto-merged bump includes malicious code | Even for `auto_upgrade` packages, the build-test step acts as a first gate. Add a checksum/signature verification step where upstream provides signed releases. Consider a brief hold period (e.g. 24 hours) before auto-merge to allow community detection of compromised releases. Security-critical packages should never be `auto_upgrade: true`. |
 | Container image staleness | Tests against outdated portage tree | Weekly automated rebuild of the container image. Allow manual rebuild dispatch. |
 | Flaky upstream sources | Build tests fail due to transient download errors | Retry logic in emerge. Cache distfiles. Use mirrors. |
 
