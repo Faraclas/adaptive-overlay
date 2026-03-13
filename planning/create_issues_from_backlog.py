@@ -48,7 +48,11 @@ def create_issue(repo: str, issue_data: Dict, token: str) -> Dict:
     else:
         print(f"✗ Failed to create issue: {issue_data['title']}")
         print(f"  Status: {response.status_code}")
-        print(f"  Response: {response.json().get('message', 'Unknown error')}")
+        try:
+            error_msg = response.json().get('message', 'Unknown error')
+            print(f"  Response: {error_msg}")
+        except:
+            print(f"  Response: {response.text[:200]}")
         return None
 
 def main():

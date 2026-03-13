@@ -4,7 +4,7 @@ This directory contains the structured backlog for implementing the workflow aut
 
 ## Files
 
-- **backlog_issues.json**: Complete list of all 33 implementation tasks from Section 10, structured as JSON. Each issue includes:
+- **backlog_issues.json**: Complete list of all 31 implementation tasks from Section 10, structured as JSON. Each issue includes:
   - Phase and item number
   - Title with phase prefix
   - Detailed body with implementation details
@@ -15,14 +15,44 @@ This directory contains the structured backlog for implementing the workflow aut
 
 ## Creating the Issues
 
+**Note**: Due to network restrictions in automated environments, the issue creation scripts need to be run locally or in an environment with direct GitHub API access.
+
 ### Prerequisites
 
-You'll need a GitHub personal access token with `repo` scope. Create one at:
-https://github.com/settings/tokens
+You'll need either:
+- A GitHub personal access token with `repo` scope (create at: https://github.com/settings/tokens), OR
+- The GitHub CLI (`gh`) installed and authenticated
 
-### Option 1: Using the Python Script
+### Recommended: Using gh CLI (Easiest)
+
+The simplest method is to use the provided bash script with gh CLI:
 
 ```bash
+# Install gh CLI if needed
+# - macOS: brew install gh
+# - Linux: see https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+
+# Authenticate
+gh auth login
+
+# Run the automated script
+./planning/create_issues_with_gh.sh
+```
+
+This script will:
+1. Verify gh CLI is available and authenticated
+2. Read all 33 issues from `backlog_issues.json`
+3. Create each issue with proper labels
+4. Print a summary of results
+
+### Alternative: Using Python Script
+
+If you have Python and the `requests` library:
+
+```bash
+# Install requests if needed
+pip3 install requests
+
 # Set your GitHub token
 export GITHUB_TOKEN=your_token_here
 
@@ -30,25 +60,23 @@ export GITHUB_TOKEN=your_token_here
 python3 planning/create_issues_from_backlog.py
 ```
 
-The script will:
-1. Read all issues from `backlog_issues.json`
-2. Create each issue in the `Faraclas/adaptive-overlay` repository
-3. Apply the appropriate labels
-4. Print a summary of created issues
+### Manual Creation (If Automation Fails)
 
-### Option 2: Manual Creation
+You can create issues manually using the GitHub web interface:
 
-You can also create issues manually by reading `backlog_issues.json` and creating them through the GitHub web interface or gh CLI.
+1. Go to https://github.com/Faraclas/adaptive-overlay/issues/new
+2. Open `planning/backlog_issues.json`
+3. For each item in the JSON array:
+   - Copy the `title` field
+   - Copy the `body` field
+   - Add the labels listed in the `labels` array
+   - Click "Submit new issue"
 
-### Option 3: Using gh CLI
+### Single Issue Example with gh CLI
 
-If you prefer using the GitHub CLI:
+To create just one issue (e.g., the first one):
 
 ```bash
-# Authenticate
-gh auth login
-
-# Create each issue (example for first issue)
 gh issue create \
   --repo Faraclas/adaptive-overlay \
   --title "[Phase 1.1] Create Containerfile for Gentoo test environment" \
@@ -93,4 +121,4 @@ To add all created issues to the current iteration/backlog:
 - **Phase 6**: 3 tasks (Upstream Release Triggers)
 - **Phase 7**: 4 tasks (Polish & Documentation)
 
-**Total**: 33 implementation tasks
+**Total**: 31 implementation tasks
