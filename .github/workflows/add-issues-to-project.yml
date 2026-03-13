@@ -1,0 +1,96 @@
+name: Add Issues to Project Board
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_number:
+        description: 'GitHub Projects V2 number (default: 1)'
+        required: false
+        default: '1'
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    steps:
+      - name: Get project node ID
+        id: get-project
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          PROJECT_NUMBER="${{ github.event.inputs.project_number }}"
+          echo "Looking up project #${PROJECT_NUMBER} for user Faraclas..."
+
+          PROJECT_ID=$(gh api graphql -f query='
+            query($login: String!, $number: Int!) {
+              user(login: $login) {
+                projectV2(number: $number) {
+                  id
+                  title
+                }
+              }
+            }' \
+            -f login="Faraclas" \
+            -F number="${PROJECT_NUMBER}" \
+            --jq '.data.user.projectV2.id')
+
+          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+            echo "ERROR: Could not access project #${PROJECT_NUMBER}. Check that PROJECT_TOKEN has 'project' scope."
+            exit 1
+          fi
+
+          PROJECT_TITLE=$(gh api graphql -f query='
+            query($login: String!, $number: Int!) {
+              user(login: $login) {
+                projectV2(number: $number) {
+                  title
+                }
+              }
+            }' \
+            -f login="Faraclas" \
+            -F number="${PROJECT_NUMBER}" \
+            --jq '.data.user.projectV2.title')
+
+          echo "project_id=${PROJECT_ID}" >> "$GITHUB_OUTPUT"
+          echo "Found project: ${PROJECT_TITLE} (${PROJECT_ID})"
+
+      - name: Add issues #7-#37 to project board
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ steps.get-project.outputs.project_id }}
+        run: |
+          REPO="Faraclas/adaptive-overlay"
+          SUCCESS=0
+          FAIL=0
+
+          for ISSUE_NUM in $(seq 7 37); do
+            NODE_ID=$(gh api "/repos/${REPO}/issues/${ISSUE_NUM}" --jq '.node_id' 2>/dev/null)
+            if [ -z "$NODE_ID" ] || [ "$NODE_ID" = "null" ]; then
+              echo "SKIP #${ISSUE_NUM}: could not retrieve node ID"
+              FAIL=$((FAIL + 1))
+              continue
+            fi
+
+            RESULT=$(gh api graphql -f query='
+              mutation($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                  item { id }
+                }
+              }' \
+              -f projectId="${PROJECT_ID}" \
+              -f contentId="${NODE_ID}" \
+              --jq '.data.addProjectV2ItemById.item.id' 2>&1)
+
+            echo "OK  #${ISSUE_NUM} -> item ${RESULT}"
+            SUCCESS=$((SUCCESS + 1))
+          done
+
+          echo ""
+          echo "=== Summary ==="
+          echo "Added/confirmed: ${SUCCESS}"
+          echo "Failed:          ${FAIL}"
+
+          if [ "$FAIL" -gt 0 ]; then
+            exit 1
+          fi
