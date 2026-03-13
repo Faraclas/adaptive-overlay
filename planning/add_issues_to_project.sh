@@ -19,6 +19,47 @@ REPO="adaptive-overlay"
 
 echo "Adding issues #7-#37 to project #${PROJECT_NUM}..."
 echo "=================================================="
+echo ""
+
+# First, verify the project is accessible
+echo "Verifying project access..."
+PROJECT_CHECK=$(gh api graphql -f query='
+query {
+  repository(owner: "'"${OWNER}"'", name: "'"${REPO}"'") {
+    projectsV2(first: 20) {
+      nodes {
+        number
+        title
+        url
+      }
+    }
+  }
+}' 2>&1)
+
+if echo "$PROJECT_CHECK" | grep -q "\"nodes\":\[\]"; then
+    echo "❌ ERROR: No repository-level projects found!"
+    echo ""
+    echo "The project at https://github.com/users/${OWNER}/projects/${PROJECT_NUM}"
+    echo "appears to be a USER-LEVEL project."
+    echo ""
+    echo "Bot integrations cannot access user-level projects."
+    echo "Please create a REPOSITORY-LEVEL project instead:"
+    echo ""
+    echo "  1. Go to: https://github.com/${OWNER}/${REPO}"
+    echo "  2. Click 'Projects' tab → 'Link a project' → 'New project'"
+    echo "  3. Create the project at the repository level"
+    echo "  4. Run this script again with the new project number"
+    echo ""
+    echo "See planning/BOT_ACCESS_SOLUTION.md for detailed instructions."
+    echo ""
+    exit 1
+fi
+
+echo "✓ Found repository projects:"
+echo "$PROJECT_CHECK" | grep -o '"number":[0-9]*' | cut -d: -f2 | while read num; do
+    echo "  - Project #${num}"
+done
+echo ""
 
 # Check if gh CLI is available
 if ! command -v gh &> /dev/null; then
