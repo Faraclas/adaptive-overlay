@@ -129,8 +129,8 @@ This separation keeps the overlay directory clean for human contributors and Gen
 | 2 | **Draft ebuild** | Agent | Generate a skeleton `.ebuild` following EAPI 8 conventions. Place it in `<category>/<package>/`. Generate `metadata.xml`. |
 | 3 | **Lint** | CI | Run `pkgcheck scan` and `pkgdev manifest` inside the Gentoo container. |
 | 4 | **Human review checkpoint** | Human | Agent opens a PR and requests review. If there are open questions (USE flags, optional deps, patches), the agent comments on the PR asking for input. |
-| 5 | **Build test** | CI | Inside a Gentoo container: `ebuild ./<name>-<version>.ebuild clean compile` to build the package directly from the overlay source tree. Record build log as artifact. |
-| 6 | **Iterate** | Agent + Human | Address review feedback and test failures. Repeat steps 3–5. |
+| 5 | **Build test** | CI | Inside a Gentoo container: iterate with `ebuild ./<name>-<version>.ebuild clean compile` until the build succeeds. Final integration test with `emerge` runs only in the container (see §5.4). Record build log as artifact. |
+| 6 | **Iterate** | Agent + Human | Address review feedback and test failures. Repeat steps 3–5. Agent must follow safety constraints (§8.4) — no system tool installation or file modification without permission. |
 | 7 | **Merge** | Human | Final approval and merge. |
 
 ### 4.3 Human-in-the-Loop Mechanisms
@@ -199,19 +199,32 @@ Note: `current_versions` is intentionally omitted — the overlay tree itself is
 | 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
 | 6 | **Regenerate Manifest** | `cd <category>/<package> && pkgdev manifest` — fetches new source archives and updates checksums. |
 | 7 | **Lint** | `pkgcheck scan` on the package directory. |
-| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. |
+| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. Iterate with `ebuild` until compile succeeds (see §5.4). |
 | 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
-| 10 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
-| 11 | **Notify** | Email / issue comment on failure. |
+| 10 | **Final integration test** | `emerge` the package inside a disposable container to confirm Portage integration (dependency resolution, slot handling, post-install actions). Never run on the host (see §5.4). |
+| 11 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
+| 12 | **Notify** | Email / issue comment on failure. |
 
-### 5.4 Build & Test Tooling: `ebuild` over `emerge`
+### 5.4 Build & Test Tooling: `ebuild` for Iteration, `emerge` for Final Testing
 
-The `ebuild` command is the **primary tool** for building and testing ebuilds in this workflow, both in CI and locally. Unlike `emerge` (Portage), `ebuild` operates directly on a single `.ebuild` file from the overlay source tree without interacting with the system package database. This provides:
+The build/test process uses a **two-tier approach**:
+
+**Tier 1 — `ebuild` (primary, used for development iteration):**
+
+The `ebuild` command is the primary tool for building and testing ebuilds during development, both in CI and locally. Unlike `emerge` (Portage), `ebuild` operates directly on a single `.ebuild` file from the overlay source tree without interacting with the system package database. This provides:
 
 * **Isolation** — Clear separation between the development overlay and the installed system. No risk of polluting the host or system repo.
 * **Consistency** — The same `ebuild ./pkg-1.0.ebuild clean compile` command works identically in CI containers and on a developer's workstation.
 * **Granular control** — Individual phases (`clean`, `fetch`, `unpack`, `prepare`, `compile`, `install`) can be run and retried independently.
 * **Speed on retry** — After a compile-phase failure, re-running `ebuild ./pkg.ebuild compile` (without `clean`) reuses the already-unpacked and patched source tree, skipping the slow unpack/patch phase.
+
+All iterative development — fixing dependency issues, adjusting USE flags, debugging compile failures — should use `ebuild`. This is the tool agents use for the vast majority of build/test cycles.
+
+**Tier 2 — `emerge` (final integration test, container only):**
+
+Once an ebuild compiles successfully with `ebuild`, a final `emerge` test inside a Gentoo container confirms that the package integrates correctly with Portage (dependency resolution, slot handling, post-install actions). This step is **never run on the host system** — it executes exclusively inside a disposable container to prevent any system modification.
+
+**Important:** The existing toolchain, both locally and in the container, is assumed to be sufficient. Agents must follow the safety constraints in §8.4 regarding system tool installation and file modification.
 
 The workflow uses `pkgdev manifest` (from `dev-util/pkgdev`) for Manifest generation rather than `ebuild manifest` or `repoman manifest`, as `pkgdev` is the modern replacement and handles fetching and hashing correctly.
 
@@ -333,10 +346,11 @@ These wrapper scripts invoke `docker run` (or `podman run`) with the correct bin
 **Steps:**
 
 1. Start Gentoo container with cached portage tree and distfiles. Bind-mount the overlay source tree.
-2. `ebuild ./<ebuild_file> clean compile` — full build from source in the overlay directory.
+2. `ebuild ./<ebuild_file> clean compile` — full build from source in the overlay directory. Iterate with `ebuild` on failures.
 3. Verify build output: check expected binaries exist, confirm version strings, validate linkage with `ldd`.
-4. Upload build log as GitHub Actions artifact.
-5. Report pass/fail.
+4. `emerge --oneshot <category>/<package>` — final integration test inside the container to confirm Portage-level correctness. This step runs only in the container, never on the host.
+5. Upload build log as GitHub Actions artifact.
+6. Report pass/fail.
 
 ### 7.3 `repackage-source` (Reusable Workflow)
 
@@ -377,6 +391,8 @@ The AI coding agent (e.g. GitHub Copilot) should be able to:
 * Run lint and build workflows and interpret their output.
 * Open PRs and interact via PR comments.
 
+Agents must always operate within the safety constraints defined in §8.4 — no system tool installation or system file modification without explicit approval.
+
 ### 8.2 Agent Entrypoints
 
 | Task | Entry point |
@@ -394,6 +410,33 @@ To help agents produce high-quality ebuilds:
 * Store reusable agent skill documents in `.agent/skills/` (e.g. "how to upgrade a Cargo-based ebuild", "how to handle GIT_CRATES").
 * Include example ebuilds in the overlay that demonstrate common patterns (cmake-based, cargo-based, binary repackage, etc.).
 * `.agent/packages.json` provides structured upstream metadata the agent can consume for version checking and upgrade automation.
+
+### 8.4 Agent Safety Constraints
+
+Agents operate under strict safety rules that protect the developer's system while still allowing full automation in controlled environments. The installed toolchain — both locally and in containers — is assumed to be sufficient for all workflow tasks.
+
+#### System tool installation
+
+| Environment | Rule |
+|---|---|
+| **Local system** | Agents must **never** install system tools (via `emerge`, `apt`, `pip install --system`, etc.). All required tools are already present. |
+| **CI container** | Tool installation is permitted **only** if explicitly defined as part of the workflow (e.g. in the Dockerfile or a workflow step). Agents must not install ad-hoc tools without prior approval. |
+
+If an agent encounters a missing tool, it must **pause and request human guidance** rather than attempt to install it.
+
+#### System file modification
+
+| Environment | Rule |
+|---|---|
+| **Local system** | Agents must **never** modify system files (e.g. `/etc/portage/*`, `/var/db/repos/*`, `/usr/*`) without explicit permission from the human. All agent work products should be confined to the overlay directory and designated temp workspaces. |
+| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Dockerfile). Even in containers, agents should seek approval before making system changes not already anticipated by the workflow. |
+
+#### Rationale
+
+These constraints allow:
+* **Full automation in CI/cloud** — Containers are disposable; workflow-defined system changes are safe and reproducible.
+* **Protection for local systems** — A developer's workstation is never used as an experimental testbed. The `ebuild` tool (§5.4) provides build/test capability without touching the system, and containers handle the final `emerge` integration test.
+* **Flexibility with guardrails** — When workflows evolve to need new tools or system changes, they are added to the workflow definition (Dockerfile, workflow YAML) with human review, not installed ad-hoc by agents.
 
 ---
 
