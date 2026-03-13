@@ -33,13 +33,32 @@ def create_issue(repo: str, issue_data: Dict, token: str) -> Dict:
         "Accept": "application/vnd.github.v3+json"
     }
 
+    # Create body with labels mentioned in the description
+    # (since we may not have permission to set labels directly)
+    labels_list = issue_data.get("labels", [])
+    body_with_labels = issue_data["body"]
+    if labels_list:
+        body_with_labels += f"\n\n---\n**Labels**: {', '.join(labels_list)}"
+
     payload = {
         "title": issue_data["title"],
-        "body": issue_data["body"],
-        "labels": issue_data.get("labels", [])
+        "body": body_with_labels
     }
 
+    # Try to add labels if we have permission
+    if labels_list:
+        payload["labels"] = labels_list
+
     response = requests.post(url, headers=headers, json=payload)
+
+    # If we get 403 due to labels, try again without labels
+    if response.status_code == 403 and labels_list:
+        print(f"  ⚠ Retrying without labels (permission issue)...")
+        payload_no_labels = {
+            "title": issue_data["title"],
+            "body": body_with_labels
+        }
+        response = requests.post(url, headers=headers, json=payload_no_labels)
 
     if response.status_code == 201:
         issue_number = response.json()["number"]
