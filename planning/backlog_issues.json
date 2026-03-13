@@ -1,0 +1,219 @@
+[
+  {
+    "phase": "1",
+    "item": "1.1",
+    "title": "[Phase 1.1] Create Containerfile for Gentoo test environment",
+    "body": "Create a `Containerfile` (Podman-style Dockerfile) that:\n- Starts from `gentoo/stage3:latest`\n- Syncs the portage tree using `emerge-webrsync`\n- Installs overlay tooling: `app-portage/repoman`, `dev-util/pkgcheck`, `dev-util/pkgdev`\n- Configures the overlay mount point at `/var/db/repos/adaptive-overlay`\n- Sets up `repos.conf` for the overlay\n\nReference: planning/workflow_master_plan.md §6.2",
+    "labels": ["phase-1", "infrastructure", "container"]
+  },
+  {
+    "phase": "1",
+    "item": "1.2",
+    "title": "[Phase 1.2] Set up GHCR publishing workflow for container image",
+    "body": "Create a GitHub Actions workflow that:\n- Builds the Gentoo test environment container image\n- Publishes it to GHCR (GitHub Container Registry)\n- Runs weekly to rebuild with updated portage tree\n- Supports manual dispatch for on-demand rebuilds\n\nReference: planning/workflow_master_plan.md §6.3",
+    "labels": ["phase-1", "infrastructure", "ci"]
+  },
+  {
+    "phase": "1",
+    "item": "1.3",
+    "title": "[Phase 1.3] Create lint-ebuild reusable workflow",
+    "body": "Create `.github/workflows/lint-ebuild.yml` as a reusable workflow that:\n- Accepts input parameter: `package_dir` (e.g., `media-sound/carla`)\n- Starts the Gentoo container\n- Runs `pkgcheck scan <package_dir>`\n- Runs `ebuild ./<file>.ebuild manifest` (with fallback to `pkgdev manifest`)\n- Reports lint errors and warnings\n\nReference: planning/workflow_master_plan.md §7.1",
+    "labels": ["phase-1", "workflow", "linting"]
+  },
+  {
+    "phase": "1",
+    "item": "1.4",
+    "title": "[Phase 1.4] Create scripts/lint.sh for local use",
+    "body": "Create `scripts/lint.sh` that:\n- Accepts a package directory as argument\n- Invokes the Gentoo container (Podman first, Docker fallback)\n- Runs pkgcheck inside the container\n- Works identically to the CI lint workflow for local development\n\nReference: planning/workflow_master_plan.md §9.1, §9.2",
+    "labels": ["phase-1", "script", "linting", "local-dev"]
+  },
+  {
+    "phase": "1",
+    "item": "1.5",
+    "title": "[Phase 1.5] Add CI workflow that lints changed ebuilds on every PR",
+    "body": "Create a CI workflow that:\n- Triggers on pull requests\n- Detects changed ebuild files\n- Calls the `lint-ebuild` reusable workflow for each changed package\n- Reports results as PR checks\n\nReference: planning/workflow_master_plan.md §7.1",
+    "labels": ["phase-1", "workflow", "ci", "pr-automation"]
+  },
+  {
+    "phase": "2",
+    "item": "2.1",
+    "title": "[Phase 2.1] Create test-ebuild reusable workflow",
+    "body": "Create `.github/workflows/test-ebuild.yml` as a reusable workflow that:\n- Accepts inputs: `package_dir`, `ebuild_file`\n- Starts Gentoo container with cached portage tree and distfiles\n- Runs `ebuild ./<ebuild_file> clean compile`\n- Verifies build output (binaries exist, version strings, `ldd` linkage)\n- Runs final integration test: `emerge --oneshot <category>/<package>` in container\n- Uploads build log as artifact\n\nReference: planning/workflow_master_plan.md §5.4, §7.2",
+    "labels": ["phase-2", "workflow", "testing"]
+  },
+  {
+    "phase": "2",
+    "item": "2.2",
+    "title": "[Phase 2.2] Create scripts/test-build.sh for local use",
+    "body": "Create `scripts/test-build.sh` that:\n- Accepts package directory and ebuild file as arguments\n- Invokes the Gentoo container (Podman/Docker)\n- Runs `ebuild ./<file> clean compile` inside the container\n- Matches the CI test-ebuild workflow behavior for local development\n\nReference: planning/workflow_master_plan.md §9.1, §9.2",
+    "labels": ["phase-2", "script", "testing", "local-dev"]
+  },
+  {
+    "phase": "2",
+    "item": "2.3",
+    "title": "[Phase 2.3] Integrate build testing into PR CI pipeline",
+    "body": "Extend the PR CI workflow to:\n- Detect changed ebuild files\n- Call the `test-ebuild` reusable workflow for each changed ebuild\n- Report build test results as PR checks\n\nReference: planning/workflow_master_plan.md §7.2",
+    "labels": ["phase-2", "workflow", "ci", "pr-automation"]
+  },
+  {
+    "phase": "2",
+    "item": "2.4",
+    "title": "[Phase 2.4] Implement distfiles and portage tree caching",
+    "body": "Optimize CI performance by:\n- Caching the portage tree between workflow runs\n- Caching downloaded distfiles (source tarballs)\n- Implementing cache invalidation strategy (weekly refresh)\n\nReference: planning/workflow_master_plan.md §6.3",
+    "labels": ["phase-2", "infrastructure", "optimization"]
+  },
+  {
+    "phase": "3",
+    "item": "3.1",
+    "title": "[Phase 3.1] Create .agent/packages.json with upstream metadata",
+    "body": "Create `.agent/packages.json` containing:\n- Upstream tracking metadata for all current packages\n- Fields: category, name, upstream_repo, upstream_type, version_pattern, repackage, auto_upgrade\n- Initial entries for: app-editors/zed, media-sound/surgext, and other existing packages\n\nReference: planning/workflow_master_plan.md §5.2, §2.1",
+    "labels": ["phase-3", "agent-infrastructure", "metadata"]
+  },
+  {
+    "phase": "3",
+    "item": "3.2",
+    "title": "[Phase 3.2] Create check-upstream-versions workflow",
+    "body": "Create a workflow/script that:\n- Reads `.agent/packages.json`\n- Scans the overlay tree to derive current versions from ebuild filenames\n- Queries upstream sources (GitHub Releases API, PyPI, etc.) for latest versions\n- Compares and reports packages with available updates\n\nReference: planning/workflow_master_plan.md §5.1, §7.4",
+    "labels": ["phase-3", "workflow", "version-check"]
+  },
+  {
+    "phase": "3",
+    "item": "3.3",
+    "title": "[Phase 3.3] Create scripts/check-updates.sh for local use",
+    "body": "Create `scripts/check-updates.sh` that:\n- Implements the version-check logic locally\n- Prints packages that have upstream updates\n- Works without requiring GitHub Actions environment\n\nReference: planning/workflow_master_plan.md §9.1",
+    "labels": ["phase-3", "script", "version-check", "local-dev"]
+  },
+  {
+    "phase": "3",
+    "item": "3.4",
+    "title": "[Phase 3.4] Set up scheduled cron trigger for version checking",
+    "body": "Configure scheduled workflow that:\n- Runs twice weekly (or configurable frequency)\n- Executes the check-upstream-versions workflow\n- Sends notifications on new versions found\n\nReference: planning/workflow_master_plan.md §5.1",
+    "labels": ["phase-3", "workflow", "automation", "scheduling"]
+  },
+  {
+    "phase": "4",
+    "item": "4.1",
+    "title": "[Phase 4.1] Create upgrade-ebuild.yml workflow with dispatch inputs",
+    "body": "Create `.github/workflows/upgrade-ebuild.yml` that:\n- Accepts workflow_dispatch inputs: package, version\n- Creates upgrade branch: `upgrade/<category>/<name>-<version>`\n- Orchestrates the autonomous upgrade process\n\nReference: planning/workflow_master_plan.md §5.1, §5.3",
+    "labels": ["phase-4", "workflow", "automation", "upgrades"]
+  },
+  {
+    "phase": "4",
+    "item": "4.2",
+    "title": "[Phase 4.2] Implement copy-and-update ebuild logic with dependency detection",
+    "body": "Implement the ebuild upgrade logic that:\n- Copies latest existing ebuild to new version\n- Detects dependency changes by diffing upstream manifests (Cargo.toml, CMakeLists.txt, etc.)\n- Updates GIT_CRATES for Rust packages\n- Updates DEPEND/BDEPEND as needed\n- Regenerates Manifest\n\nReference: planning/workflow_master_plan.md §5.3 (step 4-6), §5.5",
+    "labels": ["phase-4", "workflow", "upgrades", "dependency-management"]
+  },
+  {
+    "phase": "4",
+    "item": "4.3",
+    "title": "[Phase 4.3] Integrate lint + ebuild build test into upgrade workflow",
+    "body": "Enhance the upgrade-ebuild workflow to:\n- Run lint-ebuild reusable workflow\n- Run test-ebuild reusable workflow\n- Implement retry logic on build failures\n- Use `ebuild` for iteration, `emerge` only for final container test\n\nReference: planning/workflow_master_plan.md §5.3 (step 7-10), §5.4",
+    "labels": ["phase-4", "workflow", "upgrades", "testing"]
+  },
+  {
+    "phase": "4",
+    "item": "4.4",
+    "title": "[Phase 4.4] Implement auto-PR creation with appropriate labels",
+    "body": "Enhance the upgrade workflow to:\n- Open a PR when lint and build succeed\n- Apply appropriate labels (auto-upgrade, needs-review, etc.)\n- Implement auto-merge logic for packages with `auto_upgrade: true`\n- Send notifications on failure\n\nReference: planning/workflow_master_plan.md §5.3 (step 11-12)",
+    "labels": ["phase-4", "workflow", "automation", "pr-automation"]
+  },
+  {
+    "phase": "4",
+    "item": "4.5",
+    "title": "[Phase 4.5] Generalize repackage-surge.yml into reusable workflow",
+    "body": "Refactor the existing `repackage-surge.yml` into `.github/workflows/repackage-source.yml`:\n- Make it accept parameters: upstream_repo, version, tag_pattern, tarball_prefix, etc.\n- Clone upstream with submodules\n- Create tarball excluding .git directories\n- Create GitHub Release with tarball attached\n- Support packages with `repackage: true` in packages.json\n\nReference: planning/workflow_master_plan.md §5.6, §7.3",
+    "labels": ["phase-4", "workflow", "repackaging"]
+  },
+  {
+    "phase": "4",
+    "item": "4.6",
+    "title": "[Phase 4.6] Wire version-check to automatically trigger upgrades",
+    "body": "Connect the check-upstream-versions workflow to:\n- Automatically dispatch the upgrade-ebuild workflow for packages with new versions\n- Handle repackaging workflow first when `repackage: true`\n- Implement rate limiting and error handling\n\nReference: planning/workflow_master_plan.md §5.3, §7.4",
+    "labels": ["phase-4", "workflow", "automation", "integration"]
+  },
+  {
+    "phase": "5",
+    "item": "5.1",
+    "title": "[Phase 5.1] Create .agent/ebuild_guidelines.md",
+    "body": "Create `.agent/ebuild_guidelines.md` documenting:\n- Overlay-specific ebuild conventions\n- Preferred USE flags and naming patterns\n- Licensing practices\n- Manifest handling procedures\n- Examples of common ebuild patterns (cmake, cargo, binary repackage)\n\nReference: planning/workflow_master_plan.md §8.3",
+    "labels": ["phase-5", "agent-infrastructure", "documentation"]
+  },
+  {
+    "phase": "5",
+    "item": "5.2",
+    "title": "[Phase 5.2] Create scripts/new-ebuild.sh skeleton scaffolder",
+    "body": "Create `scripts/new-ebuild.sh` that:\n- Accepts category, package name, and version as arguments\n- Creates package directory structure\n- Generates skeleton ebuild file\n- Creates initial metadata.xml\n- Provides a starting point for new ebuild development\n\nReference: planning/workflow_master_plan.md §9.1",
+    "labels": ["phase-5", "script", "scaffolding", "local-dev"]
+  },
+  {
+    "phase": "5",
+    "item": "5.3",
+    "title": "[Phase 5.3] Define new-ebuild.yml workflow with issue/dispatch triggers",
+    "body": "Create `.github/workflows/new-ebuild.yml` that:\n- Triggers on issue assignment or workflow_dispatch\n- Accepts inputs: category, package_name, version, upstream_url\n- Orchestrates collaborative ebuild creation\n- Implements the agent workflow from planning/workflow_master_plan.md §4.2\n\nReference: planning/workflow_master_plan.md §4.1, §4.2",
+    "labels": ["phase-5", "workflow", "new-ebuild", "automation"]
+  },
+  {
+    "phase": "5",
+    "item": "5.4",
+    "title": "[Phase 5.4] Implement human-in-the-loop mechanism",
+    "body": "Implement collaboration mechanisms:\n- PR comment-based questions from agents\n- `waiting-for-human` label workflow\n- Issue thread discussions for design decisions\n- Workflow dispatch input overrides\n\nReference: planning/workflow_master_plan.md §4.3",
+    "labels": ["phase-5", "workflow", "agent-collaboration", "human-in-the-loop"]
+  },
+  {
+    "phase": "5",
+    "item": "5.5",
+    "title": "[Phase 5.5] Document agent collaboration & populate .agent/ directory",
+    "body": "Complete the agent infrastructure:\n- Create `.agent/skills/` directory with reusable skill documents\n- Create `.agent/instructions/<category>/<package>/` structure\n- Populate with initial instructions (e.g., `.agent/instructions/app-editors/zed/upgrade.md`)\n- Document the agent collaboration process\n\nReference: planning/workflow_master_plan.md §2.1, §8.3",
+    "labels": ["phase-5", "agent-infrastructure", "documentation"]
+  },
+  {
+    "phase": "6",
+    "item": "6.1",
+    "title": "[Phase 6.1] Evaluate upstream release trigger options",
+    "body": "Research and document:\n- `repository_dispatch` via external webhook approach\n- Polling workflow approach\n- Pros/cons of each\n- Recommendation for implementation\n\nReference: planning/workflow_master_plan.md §5.1",
+    "labels": ["phase-6", "research", "automation", "release-triggers"]
+  },
+  {
+    "phase": "6",
+    "item": "6.2",
+    "title": "[Phase 6.2] Implement chosen trigger mechanism for GitHub upstreams",
+    "body": "Implement the selected upstream release trigger mechanism:\n- Set up webhooks or polling infrastructure\n- Test with current packages\n- Document configuration process\n\nReference: planning/workflow_master_plan.md §5.1",
+    "labels": ["phase-6", "workflow", "automation", "release-triggers"]
+  },
+  {
+    "phase": "6",
+    "item": "6.3",
+    "title": "[Phase 6.3] Connect release triggers to upgrade workflow",
+    "body": "Wire the release trigger system to:\n- Parse upstream release events\n- Extract version information using patterns from packages.json\n- Dispatch the upgrade-ebuild workflow automatically\n\nReference: planning/workflow_master_plan.md §5.1",
+    "labels": ["phase-6", "workflow", "automation", "integration"]
+  },
+  {
+    "phase": "7",
+    "item": "7.1",
+    "title": "[Phase 7.1] Update README.md with CI/CD documentation",
+    "body": "Update `README.md` to include:\n- Overview of the CI/CD system\n- How to use local development scripts\n- Container environment documentation\n- Links to detailed workflow documentation\n\nReference: planning/workflow_master_plan.md §9",
+    "labels": ["phase-7", "documentation"]
+  },
+  {
+    "phase": "7",
+    "item": "7.2",
+    "title": "[Phase 7.2] Add CONTRIBUTING.md for human and agent contributors",
+    "body": "Create `CONTRIBUTING.md` that documents:\n- How to contribute as a human\n- How agents interact with the repository\n- Workflow for new ebuilds\n- Workflow for ebuild upgrades\n- Review and merge process\n\nReference: planning/workflow_master_plan.md",
+    "labels": ["phase-7", "documentation"]
+  },
+  {
+    "phase": "7",
+    "item": "7.3",
+    "title": "[Phase 7.3] Create optional Makefile or Taskfile.yml",
+    "body": "Add a `Makefile` or `Taskfile.yml` that provides:\n- Convenient aliases for common tasks\n- `make lint PKG=...`\n- `make test PKG=... EBUILD=...`\n- `make check-updates`\n\nReference: planning/workflow_master_plan.md §9.3",
+    "labels": ["phase-7", "tooling", "local-dev"]
+  },
+  {
+    "phase": "7",
+    "item": "7.4",
+    "title": "[Phase 7.4] Review and harden all workflows",
+    "body": "Security and robustness review:\n- Audit workflow permissions\n- Verify secrets handling\n- Improve error handling across all workflows\n- Add retry logic where appropriate\n- Document required secrets and permissions\n\nReference: planning/workflow_master_plan.md §12, §13",
+    "labels": ["phase-7", "security", "hardening"]
+  }
+]
