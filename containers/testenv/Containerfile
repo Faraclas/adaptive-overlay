@@ -1,0 +1,24 @@
+# Stage 1: portage tree snapshot
+FROM docker.io/gentoo/portage:latest AS portage
+
+# Stage 2: our test environment
+FROM docker.io/gentoo/stage3:latest
+
+# Copy the portage tree from the portage image
+COPY --from=portage /var/db/repos/gentoo /var/db/repos/gentoo
+
+# Install overlay tooling
+RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
+
+# Create the overlay mount point
+RUN mkdir -p /var/db/repos/adaptive-overlay
+
+# Tell portage about the overlay
+RUN mkdir -p /etc/portage/repos.conf && \
+    printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nauto-sync = no\n' \
+    > /etc/portage/repos.conf/adaptive-overlay.conf
+
+
+# Bake in overlay metadata and profiles so portage recognises the overlay
+COPY metadata/ /var/db/repos/adaptive-overlay/metadata/
+COPY profiles/ /var/db/repos/adaptive-overlay/profiles/
