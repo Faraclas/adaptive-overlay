@@ -1,0 +1,69 @@
+# Reusable workflow: lint a single ebuild package directory.
+#
+# Runs pkgcheck scan against the given package directory inside the
+# Gentoo test environment container. Fails the job on any pkgcheck
+# error-level result; warnings are reported but do not fail the job.
+#
+# Usage from a caller workflow:
+#
+#   jobs:
+#     lint:
+#       uses: ./.github/workflows/lint-ebuild.yml
+#       with:
+#         package_dir: media-sound/carla
+#
+# The container image is pulled from GHCR. Because the package is public
+# no extra credentials are required.
+
+on:
+  workflow_call:
+    inputs:
+      package_dir:
+        description: >
+          Package directory to lint, relative to repo root.
+          e.g. media-sound/carla or app-editors/zed
+        required: true
+        type: string
+
+jobs:
+  lint:
+    name: pkgcheck ${{ inputs.package_dir }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    container:
+      image: ghcr.io/faraclas/adaptive-overlay/testenv:latest
+      # Run as root inside the container — portage tooling expects it.
+      options: --user root
+
+    steps:
+      # Checkout into the path portage already knows about so the
+      # bind-mount pattern from local usage is mirrored exactly.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: overlay
+
+      # Symlink the checkout into the location the container's repos.conf
+      # points to, so pkgcheck finds the overlay at the expected path.
+      - name: Mount overlay into portage repo location
+        run: |
+          # Remove the empty directory baked into the image and replace
+          # it with a symlink to the checked-out source tree.
+          rm -rf /var/db/repos/adaptive-overlay
+          ln -s "${GITHUB_WORKSPACE}/overlay" /var/db/repos/adaptive-overlay
+
+      # pkgcheck exit codes:
+      #   0 — no results, or only results below the --exit threshold
+      #   1 — at least one result at or above the --exit threshold
+      #
+      # We use --exit error so that warnings (DeprecatedEclass, etc.)
+      # are surfaced in the log but do not block the PR.
+      - name: Run pkgcheck scan
+        run: |
+          pkgcheck scan \
+            --exit error \
+            -r adaptive-overlay \
+            "${{ inputs.package_dir }}"

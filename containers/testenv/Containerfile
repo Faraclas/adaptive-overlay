@@ -13,8 +13,13 @@ RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
 # Create the overlay mount point
 RUN mkdir -p /var/db/repos/adaptive-overlay
 
-# Tell portage about the overlay
+# Tell portage about both repos.
+# When /etc/portage/repos.conf/ exists as a directory, portage ignores the
+# system default at /usr/share/portage/config/repos.conf entirely, so we
+# must declare the gentoo repo here explicitly alongside our overlay.
 RUN mkdir -p /etc/portage/repos.conf && \
+    printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nauto-sync = no\n' \
+    > /etc/portage/repos.conf/gentoo.conf && \
     printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nauto-sync = no\n' \
     > /etc/portage/repos.conf/adaptive-overlay.conf
 

@@ -1,0 +1,96 @@
+name: Publish Gentoo Test Environment Image
+
+# Builds the Gentoo test environment container image and publishes it to GHCR.
+# Runs weekly to pick up portage tree and tooling updates.
+# Supports manual dispatch for on-demand rebuilds.
+#
+# Published image: ghcr.io/faraclas/adaptive-overlay/testenv:latest
+#
+# Required permissions (already provided by GITHUB_TOKEN for this repo):
+#   packages: write  — push to GHCR
+#   contents: read   — checkout the repo
+
+on:
+  # Weekly rebuild every Monday at 04:00 UTC (after weekend portage updates)
+  schedule:
+    - cron: "0 4 * * 1"
+
+  # On-demand rebuild with optional cache bypass
+  workflow_dispatch:
+    inputs:
+      no_cache:
+        description: "Rebuild from scratch (ignore layer cache)"
+        required: false
+        type: boolean
+        default: false
+
+  # Rebuild when the Containerfile itself changes
+  push:
+    paths:
+      - "containers/testenv/Containerfile"
+      - "metadata/**"
+      - "profiles/**"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Log in to GHCR using the automatic GITHUB_TOKEN — no extra secret needed.
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive image metadata (tags + labels) from repo context.
+      # Tags produced:
+      #   latest         — always updated on every successful build
+      #   YYYY-MM-DD     — date-stamped snapshot for reproducibility
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/testenv
+          tags: |
+            type=raw,value=latest
+            type=schedule,pattern={{date 'YYYY-MM-DD'}}
+            type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+
+      # Enable QEMU and buildx so we can use the advanced BuildKit cache backend.
+      # (amd64-only for now; extend matrix here when arm64 runners become available)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build and push.
+      #
+      # Context is the repo root so that the COPY directives in the Containerfile
+      # that reference metadata/ and profiles/ resolve correctly.
+      #
+      # Layer cache is stored in the GHCR registry itself (cache-to / cache-from)
+      # so that weekly scheduled runs only rebuild layers that actually changed
+      # (i.e. when the upstream portage or stage3 images have new digests).
+      - name: Build and push testenv image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/testenv/Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          no-cache: ${{ inputs.no_cache == true }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/testenv:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/testenv:buildcache,mode=max
+
+      - name: Image digest
+        run: |
+          echo "Published image digest: ${{ steps.meta.outputs.tags }}"
+          echo "::notice::testenv image successfully published to ghcr.io/${{ github.repository }}/testenv"

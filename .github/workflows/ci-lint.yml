@@ -1,0 +1,105 @@
+# PR Lint CI — runs pkgcheck on every ebuild package directory that was
+# touched in a pull request (or a direct push to main).
+#
+# For each changed package directory found, this workflow calls the
+# reusable lint-ebuild.yml workflow. Jobs run in parallel — one per
+# changed package.
+#
+# Phase 1.5 of the implementation plan.
+
+name: Lint Changed Ebuilds
+
+on:
+  pull_request:
+    paths:
+      - "**.ebuild"
+      - "**/metadata.xml"
+      - "**/Manifest"
+      - "**/files/**"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "**.ebuild"
+      - "**/metadata.xml"
+      - "**/Manifest"
+      - "**/files/**"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Detect which package directories have changed.
+  # Outputs a JSON array of unique category/package strings, e.g.:
+  #   ["media-sound/carla", "app-editors/zed"]
+  # -----------------------------------------------------------------------
+  detect-changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      packages: ${{ steps.changed.outputs.packages }}
+      any_changed: ${{ steps.changed.outputs.any_changed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch enough history to diff against the base commit.
+          fetch-depth: 0
+
+      - name: Find changed package directories
+        id: changed
+        run: |
+          # For a PR, diff against the base branch.
+          # For a push to main, diff against the previous commit.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+          fi
+
+          echo "Diffing ${BASE}..${HEAD}"
+
+          # Extract unique category/package directory paths from changed files.
+          # A file path like media-sound/carla/carla-2.5.10.ebuild becomes
+          # media-sound/carla.  We filter to paths that look like
+          # <category>/<package>/... (exactly two leading path components).
+          PACKAGES=$(git diff --name-only "${BASE}" "${HEAD}" \
+            | grep -E '^[^/]+/[^/]+/' \
+            | awk -F/ '{print $1"/"$2}' \
+            | sort -u \
+            | jq -R . | jq -sc .)
+
+          echo "Changed packages: ${PACKAGES}"
+          echo "packages=${PACKAGES}" >> "$GITHUB_OUTPUT"
+
+          if [ "${PACKAGES}" = "[]" ] || [ -z "${PACKAGES}" ]; then
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # -----------------------------------------------------------------------
+  # Run lint-ebuild for each changed package in parallel.
+  # The matrix is built from the JSON array produced above.
+  # -----------------------------------------------------------------------
+  lint:
+    name: Lint
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+
+    strategy:
+      # Run all packages even if one fails, so every issue is surfaced
+      # in a single PR run rather than one at a time.
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+
+    uses: ./.github/workflows/lint-ebuild.yml
+    with:
+      package_dir: ${{ matrix.package }}
