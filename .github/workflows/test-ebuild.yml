@@ -1,0 +1,180 @@
+# Reusable workflow: build-test a single ebuild inside the Gentoo container.
+#
+# Runs `ebuild clean compile` against the given ebuild file, captures the
+# build log as an artifact, and optionally runs a package-specific verify
+# script against the build image directory.
+#
+# Usage from a caller workflow:
+#
+#   jobs:
+#     test:
+#       uses: ./.github/workflows/test-ebuild.yml
+#       with:
+#         package_dir: app-editors/zed
+#         ebuild_file: zed-0.227.1.ebuild
+#         container_image: ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+#         verify_script: containers/testenv-rust/verify-zed.sh
+#
+# Minimal usage (no verification, default testenv image):
+#
+#   jobs:
+#     test:
+#       uses: ./.github/workflows/test-ebuild.yml
+#       with:
+#         package_dir: media-sound/carla
+#         ebuild_file: carla-2.5.10.ebuild
+
+on:
+  workflow_call:
+    inputs:
+      package_dir:
+        description: >
+          Package directory to test, relative to repo root.
+          e.g. media-sound/carla or app-editors/zed
+        required: true
+        type: string
+
+      ebuild_file:
+        description: >
+          Ebuild filename to build, e.g. carla-2.5.10.ebuild
+        required: true
+        type: string
+
+      container_image:
+        description: >
+          Container image to run the build in.
+          Defaults to the general testenv image. Use
+          ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+          for Rust/Zed builds.
+        required: false
+        type: string
+        default: ghcr.io/faraclas/adaptive-overlay/testenv:latest
+
+      verify_script:
+        description: >
+          Optional path (relative to repo root) to a shell script that
+          verifies the build output. The script is called with one
+          argument: the path to the package build image directory
+          (i.e. /var/tmp/portage/<cat>/<pkg>/image).
+          If not provided, verification is skipped.
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  test:
+    name: >
+      ebuild ${{ inputs.package_dir }}/${{ inputs.ebuild_file }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    container:
+      image: ${{ inputs.container_image }}
+      options: --user root
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: overlay
+
+      # Mirror the same symlink approach used in lint-ebuild.yml so the
+      # overlay is visible to portage at the expected path.
+      - name: Mount overlay into portage repo location
+        run: |
+          rm -rf /var/db/repos/adaptive-overlay
+          ln -s "${GITHUB_WORKSPACE}/overlay" /var/db/repos/adaptive-overlay
+
+      # Derive the package atom from the inputs, e.g.:
+      #   package_dir=app-editors/zed  ->  category=app-editors  name=zed
+      # The build image directory follows the portage convention:
+      #   /var/tmp/portage/<category>/<name>-<version>/image
+      # where <name>-<version> is the ebuild filename without the .ebuild
+      # extension.
+      - name: Set derived variables
+        id: vars
+        run: |
+          EBUILD_STEM="${{ inputs.ebuild_file }}"
+          EBUILD_STEM="${EBUILD_STEM%.ebuild}"
+          PKG_DIR="/var/db/repos/adaptive-overlay/${{ inputs.package_dir }}"
+          BUILD_IMAGE="/var/tmp/portage/${{ inputs.package_dir }}/${EBUILD_STEM}/image"
+
+          echo "ebuild_stem=${EBUILD_STEM}" >> "$GITHUB_OUTPUT"
+          echo "pkg_dir=${PKG_DIR}"         >> "$GITHUB_OUTPUT"
+          echo "build_image=${BUILD_IMAGE}" >> "$GITHUB_OUTPUT"
+
+          echo "Package dir : ${PKG_DIR}"
+          echo "Ebuild stem : ${EBUILD_STEM}"
+          echo "Build image : ${BUILD_IMAGE}"
+
+      # Run the full build inside the container. Output is tee'd to a log
+      # file so it can be uploaded as an artifact even on failure.
+      # The `ebuild` command is run from the package directory so relative
+      # paths inside the ebuild (e.g. ${FILESDIR}) resolve correctly.
+      - name: Build ebuild
+        id: build
+        run: |
+          mkdir -p /var/log/adaptive-overlay
+          LOG=/var/log/adaptive-overlay/build.log
+
+          echo "==> ebuild ${{ inputs.ebuild_file }} clean compile"
+          cd "${{ steps.vars.outputs.pkg_dir }}"
+
+          set +e
+          ebuild "./${{ inputs.ebuild_file }}" clean compile 2>&1 | tee "${LOG}"
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          echo "build_log=${LOG}"          >> "$GITHUB_OUTPUT"
+          echo "build_exit=${BUILD_EXIT}"  >> "$GITHUB_OUTPUT"
+
+          if [ "${BUILD_EXIT}" -ne 0 ]; then
+            echo "::error::ebuild compile failed with exit code ${BUILD_EXIT}"
+          else
+            echo "::notice::ebuild compile succeeded"
+          fi
+
+          # Always exit 0 here so the artifact upload step always runs.
+          # The build result is re-checked after upload.
+          exit 0
+
+      # Upload the build log regardless of whether the build passed or
+      # failed, so it is always available for inspection.
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ inputs.package_dir != '' && replace(inputs.package_dir, '/', '-') || 'unknown' }}-${{ inputs.ebuild_file }}
+          path: ${{ steps.build.outputs.build_log }}
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Fail the job now if the build failed, after the log is uploaded.
+      - name: Check build result
+        run: |
+          if [ "${{ steps.build.outputs.build_exit }}" -ne 0 ]; then
+            echo "Build failed — see uploaded build log artifact for details."
+            exit 1
+          fi
+
+      # Run the verify script if one was provided. The script receives the
+      # build image path as its first argument so it can inspect binaries
+      # and libraries without needing to know portage internals.
+      - name: Run verify script
+        if: inputs.verify_script != ''
+        run: |
+          SCRIPT="${GITHUB_WORKSPACE}/overlay/${{ inputs.verify_script }}"
+          BUILD_IMAGE="${{ steps.vars.outputs.build_image }}"
+
+          if [ ! -f "${SCRIPT}" ]; then
+            echo "::error::verify_script '${SCRIPT}' not found in repository"
+            exit 1
+          fi
+
+          chmod +x "${SCRIPT}"
+          echo "==> Running verify script: ${{ inputs.verify_script }}"
+          echo "    Build image: ${BUILD_IMAGE}"
+          echo ""
+          "${SCRIPT}" "${BUILD_IMAGE}"

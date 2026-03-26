@@ -20,7 +20,7 @@
 # this container after the Portage configuration was in place. If the
 # ebuild's dependencies change, rebuild with --no-cache and re-verify.
 
-FROM localhost/adaptive-overlay-testenv:local
+FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
 # -----------------------------------------------------------------------
 # Portage: disable sandbox features that fail in rootless containers

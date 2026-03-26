@@ -1,0 +1,173 @@
+# PR Build Test CI — runs ebuild compile + verify for each changed package
+# when the 'build-test' label is present on the pull request.
+#
+# This workflow is intentionally opt-in. The agent is expected to have
+# already validated the build locally using scripts/test-build.sh and
+# posted the results in the PR description. This workflow exists as an
+# independent CI confirmation for cases where you want extra confidence.
+#
+# To trigger: add the 'build-test' label to the PR.
+# To re-run after changes: remove and re-add the label.
+#
+# Phase 2.3 of the implementation plan.
+
+name: Build Test Changed Ebuilds
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+    paths:
+      - "**.ebuild"
+      - "**/metadata.xml"
+      - "**/Manifest"
+      - "**/files/**"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Gate: only proceed if the 'build-test' label is present.
+  # This is checked as a job condition rather than a workflow-level
+  # condition so that the workflow still appears in the PR checks UI
+  # (as skipped) even when the label is absent, making it discoverable.
+  # -----------------------------------------------------------------------
+  check-label:
+    name: Check for build-test label
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    outputs:
+      has_label: ${{ steps.label.outputs.has_label }}
+
+    steps:
+      - name: Check label
+        id: label
+        run: |
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          echo "PR labels: ${LABELS}"
+
+          if echo "${LABELS}" | jq -e '.[] | select(. == "build-test")' > /dev/null 2>&1; then
+            echo "has_label=true" >> "$GITHUB_OUTPUT"
+            echo "build-test label is present — proceeding with build tests"
+          else
+            echo "has_label=false" >> "$GITHUB_OUTPUT"
+            echo "build-test label not present — skipping build tests"
+            echo "::notice::Add the 'build-test' label to this PR to trigger build testing."
+          fi
+
+  # -----------------------------------------------------------------------
+  # Detect which package directories have changed.
+  # Outputs two things per changed package:
+  #   - package_dir:  e.g. app-editors/zed
+  #   - ebuild_file:  the newest .ebuild file in that directory
+  #
+  # We always pick the newest ebuild (by version sort) because that is
+  # the one being added or updated in the PR.
+  # -----------------------------------------------------------------------
+  detect-changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    needs: check-label
+    if: needs.check-label.outputs.has_label == 'true'
+
+    permissions:
+      contents: read
+
+    outputs:
+      packages: ${{ steps.changed.outputs.packages }}
+      any_changed: ${{ steps.changed.outputs.any_changed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed packages and their newest ebuilds
+        id: changed
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+
+          echo "Diffing ${BASE}..${HEAD}"
+
+          # Get unique changed package directories
+          CHANGED_DIRS=$(git diff --name-only "${BASE}" "${HEAD}" \
+            | grep -E '^[^/]+/[^/]+/' \
+            | awk -F/ '{print $1"/"$2}' \
+            | sort -u)
+
+          if [ -z "${CHANGED_DIRS}" ]; then
+            echo "packages=[]"      >> "$GITHUB_OUTPUT"
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # For each changed directory, find the newest ebuild file.
+          # Output a JSON array of objects:
+          #   [{"package_dir":"app-editors/zed","ebuild_file":"zed-0.227.1.ebuild"}, ...]
+          PACKAGES="["
+          FIRST=1
+          while IFS= read -r PKG_DIR; do
+            # Find all ebuild files in this directory, pick the newest by
+            # version sort on the filename.
+            NEWEST=$(ls "${PKG_DIR}"/*.ebuild 2>/dev/null \
+              | xargs -I{} basename {} \
+              | sort -V \
+              | tail -1)
+
+            if [ -z "${NEWEST}" ]; then
+              echo "Warning: no .ebuild files found in ${PKG_DIR}, skipping" >&2
+              continue
+            fi
+
+            # Determine which container image to use for this package.
+            # app-editors/zed requires the Rust/LLVM image.
+            if [ "${PKG_DIR}" = "app-editors/zed" ]; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
+              VERIFY="containers/testenv-rust/verify-zed.sh"
+            else
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
+              VERIFY=""
+            fi
+
+            [ "${FIRST}" -eq 0 ] && PACKAGES="${PACKAGES},"
+            PACKAGES="${PACKAGES}{\"package_dir\":\"${PKG_DIR}\",\"ebuild_file\":\"${NEWEST}\",\"container_image\":\"${IMAGE}\",\"verify_script\":\"${VERIFY}\"}"
+            FIRST=0
+          done <<< "${CHANGED_DIRS}"
+          PACKAGES="${PACKAGES}]"
+
+          echo "Changed packages: ${PACKAGES}"
+          echo "packages=${PACKAGES}" >> "$GITHUB_OUTPUT"
+
+          if [ "${PACKAGES}" = "[]" ]; then
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # -----------------------------------------------------------------------
+  # Run test-ebuild for each changed package in parallel.
+  # The matrix is built from the JSON array produced above, which
+  # includes the correct container image and verify script per package.
+  # -----------------------------------------------------------------------
+  build-test:
+    name: Build
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+
+    strategy:
+      # Run all packages even if one fails so all results are visible.
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+
+    uses: ./.github/workflows/test-ebuild.yml
+    with:
+      package_dir:      ${{ matrix.package.package_dir }}
+      ebuild_file:      ${{ matrix.package.ebuild_file }}
+      container_image:  ${{ matrix.package.container_image }}
+      verify_script:    ${{ matrix.package.verify_script }}
