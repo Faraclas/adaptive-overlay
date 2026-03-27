@@ -1212,11 +1212,13 @@ upgrade:
 
 **Local path test (can run immediately):**
 
-```/dev/null/test-local.sh#L1-4
-scripts/upgrade-ebuild.sh app-editors/zed \
-  --version 0.229.0 --apply --json \
-  > /tmp/zed-upgrade.json
-scripts/agent-finalize-ebuild.sh /tmp/zed-upgrade.json
+```/dev/null/test-local.sh#L1-2
+# Single command — runs upgrade, agent, manifest, lint:
+scripts/agent-finalize-ebuild.sh app-editors/zed
+
+# With specific version and build test:
+scripts/agent-finalize-ebuild.sh app-editors/zed \
+  --version 0.229.0 --build
 ```
 
 ### Files Summary

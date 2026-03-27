@@ -1,21 +1,26 @@
 #!/bin/bash
-# agent-finalize-ebuild.sh — pipe an upgrade report to GitHub Copilot CLI
-# for intelligent ebuild finalization, then run manifest + lint.
+# agent-finalize-ebuild.sh — end-to-end local upgrade pipeline: detect
+# upstream changes, apply mechanical updates, call GitHub Copilot CLI
+# for intelligent finalization, generate Manifest, lint, and optionally
+# build-test.
 #
-# Reads structured JSON output from upgrade-ebuild.sh, constructs a
-# prompt combining the skills doc + ebuild content + change report, and
-# pipes it to the Copilot CLI. The edited ebuild is written back to disk,
-# followed by manifest generation and linting.
+# This is the single entry point for the local upgrade path. It calls
+# upgrade-ebuild.sh internally, so you do not need to run it separately.
 #
 # Usage:
-#   scripts/agent-finalize-ebuild.sh <json-file>
-#   scripts/agent-finalize-ebuild.sh /tmp/upgrade-result.json
-#
-# The JSON file must be output from:
-#   scripts/upgrade-ebuild.sh <cat/pkg> --apply --json
+#   scripts/agent-finalize-ebuild.sh <category/package>
+#   scripts/agent-finalize-ebuild.sh app-editors/zed
+#   scripts/agent-finalize-ebuild.sh app-editors/zed --version 0.229.0
+#   scripts/agent-finalize-ebuild.sh app-editors/zed --build
+#   scripts/agent-finalize-ebuild.sh --json /path/to/upgrade.json
 #
 # Options:
+#   --version <ver>  Target a specific upstream version instead of
+#                    auto-detecting the latest release.
+#   --json <file>    Skip the upgrade script and use a pre-existing
+#                    JSON report file instead.
 #   --model <name>   Model to use (default: claude-sonnet-4.6)
+#   --build          Run a build test after manifest + lint
 #   --skip-manifest  Skip manifest generation after agent edits
 #   --skip-lint      Skip lint after agent edits
 #   --dry-run        Print the prompt but do not call Copilot
@@ -24,13 +29,17 @@
 # Must be run from the root of the adaptive-overlay repo, or set
 # OVERLAY_DIR to point to it explicitly:
 #   OVERLAY_DIR=~/code/repos/adaptive-overlay \
-#     scripts/agent-finalize-ebuild.sh /tmp/upgrade.json
+#     scripts/agent-finalize-ebuild.sh app-editors/zed
 #
 # Environment variables:
 #   OVERLAY_DIR    Path to the adaptive-overlay repo root.
 #                  Defaults to the current working directory.
+#   GITHUB_TOKEN   Optional GitHub API token for higher rate
+#                  limits (passed through to upgrade-ebuild.sh).
 #
 # Requirements: bash (4+), jq, copilot (GitHub Copilot CLI)
+#
+# Phase 4 of the implementation plan.
 
 set -euo pipefail
 
@@ -41,7 +50,10 @@ set -euo pipefail
 MODEL="claude-sonnet-4.6"
 SKIP_MANIFEST=0
 SKIP_LINT=0
+DO_BUILD=0
 DRY_RUN=0
+PACKAGE_DIR=""
+TARGET_VERSION=""
 JSON_FILE=""
 
 # =========================================================================
@@ -55,6 +67,22 @@ show_help() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --version)
+            shift
+            TARGET_VERSION="${1:-}"
+            if [[ -z "${TARGET_VERSION}" ]]; then
+                echo "error: --version requires a value." >&2
+                exit 1
+            fi
+            ;;
+        --json)
+            shift
+            JSON_FILE="${1:-}"
+            if [[ -z "${JSON_FILE}" ]]; then
+                echo "error: --json requires a file path." >&2
+                exit 1
+            fi
+            ;;
         --model)
             shift
             MODEL="${1:-}"
@@ -63,6 +91,7 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             ;;
+        --build)         DO_BUILD=1 ;;
         --skip-manifest) SKIP_MANIFEST=1 ;;
         --skip-lint)     SKIP_LINT=1 ;;
         --dry-run)       DRY_RUN=1 ;;
@@ -72,8 +101,8 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            if [[ -z "${JSON_FILE}" ]]; then
-                JSON_FILE="$1"
+            if [[ -z "${PACKAGE_DIR}" ]]; then
+                PACKAGE_DIR="$1"
             else
                 echo "error: unexpected argument: $1" >&2
                 exit 1
@@ -83,14 +112,33 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-if [[ -z "${JSON_FILE}" ]]; then
-    echo "Usage: $(basename "$0") <json-file> [options]" >&2
-    echo "  e.g. $(basename "$0") /tmp/upgrade-result.json" >&2
+# Validate: need either a package or a JSON file, not both.
+if [[ -n "${JSON_FILE}" && -n "${PACKAGE_DIR}" ]]; then
+    echo "error: specify either <category/package> or" \
+         "--json <file>, not both." >&2
     exit 1
 fi
 
-if [[ ! -f "${JSON_FILE}" ]]; then
+if [[ -z "${JSON_FILE}" && -z "${PACKAGE_DIR}" ]]; then
+    echo "Usage: $(basename "$0") <category/package> [options]" >&2
+    echo "       $(basename "$0") --json <file> [options]" >&2
+    echo "" >&2
+    echo "Examples:" >&2
+    echo "  $(basename "$0") app-editors/zed" >&2
+    echo "  $(basename "$0") app-editors/zed --version 0.229.0" >&2
+    echo "  $(basename "$0") app-editors/zed --build" >&2
+    echo "  $(basename "$0") --json /path/to/report.json" >&2
+    exit 1
+fi
+
+if [[ -n "${JSON_FILE}" && ! -f "${JSON_FILE}" ]]; then
     echo "error: JSON file not found: ${JSON_FILE}" >&2
+    exit 1
+fi
+
+if [[ -n "${JSON_FILE}" && -n "${TARGET_VERSION}" ]]; then
+    echo "error: --version cannot be used with --json" \
+         "(version is already in the JSON)." >&2
     exit 1
 fi
 
@@ -108,27 +156,52 @@ if [[ ! -f "${OVERLAY_DIR}/metadata/layout.conf" ]]; then
 fi
 
 # =========================================================================
-# Verify copilot CLI is available
+# Verify copilot CLI is available (skip for dry-run)
 # =========================================================================
 
-if ! command -v copilot &>/dev/null; then
-    echo "error: 'copilot' (GitHub Copilot CLI) not found" \
-         "in PATH." >&2
-    echo "  Install it or check your PATH." >&2
-    exit 1
+if [[ "${DRY_RUN}" -eq 0 ]]; then
+    if ! command -v copilot &>/dev/null; then
+        echo "error: 'copilot' (GitHub Copilot CLI) not" \
+             "found in PATH." >&2
+        echo "  Install it or check your PATH." >&2
+        exit 1
+    fi
 fi
 
 # =========================================================================
-# Parse the upgrade JSON
+# Step 1: Run upgrade-ebuild.sh (or read existing JSON)
 # =========================================================================
 
-echo "==> Reading upgrade report: ${JSON_FILE}"
+if [[ -n "${JSON_FILE}" ]]; then
+    echo "==> Reading existing upgrade report: ${JSON_FILE}"
+    JSON=$(cat "${JSON_FILE}")
+else
+    UPGRADE_ARGS=("${PACKAGE_DIR}" "--apply" "--json")
+    if [[ -n "${TARGET_VERSION}" ]]; then
+        UPGRADE_ARGS+=("--version" "${TARGET_VERSION}")
+    fi
 
-JSON=$(cat "${JSON_FILE}")
+    echo "==> Running: scripts/upgrade-ebuild.sh" \
+         "${UPGRADE_ARGS[*]}"
+    echo ""
+
+    JSON=$(bash "${OVERLAY_DIR}/scripts/upgrade-ebuild.sh" \
+        "${UPGRADE_ARGS[@]}")
+
+    echo ""
+    echo "==> Upgrade script output:"
+    echo "${JSON}" | jq .
+fi
+
+# =========================================================================
+# Step 2: Parse the upgrade JSON
+# =========================================================================
 
 STATUS=$(echo "${JSON}" | jq -r '.status')
+
 if [[ "${STATUS}" == "up-to-date" ]]; then
-    echo "    Package is already up to date — nothing to do."
+    echo ""
+    echo "==> Package is already up to date — nothing to do."
     exit 0
 fi
 
@@ -143,8 +216,12 @@ EBUILD_PATH=$(echo "${JSON}" | jq -r '.ebuild_path')
 UPSTREAM=$(echo "${JSON}" | jq -r '.upstream')
 CURRENT=$(echo "${JSON}" | jq -r '.current')
 
-# Resolve ebuild path relative to overlay root.
-FULL_EBUILD_PATH="${OVERLAY_DIR}/${EBUILD_PATH}"
+# Resolve ebuild path — handle both absolute and relative.
+if [[ "${EBUILD_PATH}" == /* ]]; then
+    FULL_EBUILD_PATH="${EBUILD_PATH}"
+else
+    FULL_EBUILD_PATH="${OVERLAY_DIR}/${EBUILD_PATH}"
+fi
 
 if [[ ! -f "${FULL_EBUILD_PATH}" ]]; then
     echo "error: ebuild not found: ${FULL_EBUILD_PATH}" >&2
@@ -152,16 +229,18 @@ if [[ ! -f "${FULL_EBUILD_PATH}" ]]; then
     exit 1
 fi
 
+echo ""
+echo "==> Upgrade prepared"
 echo "    Package  : ${PACKAGE}"
 echo "    Version  : ${CURRENT} → ${UPSTREAM}"
 echo "    Ebuild   : ${EBUILD_PATH}"
 
 # =========================================================================
-# Resolve the skills doc
+# Step 3: Resolve the skills doc
 # =========================================================================
 
-# Map package to skills doc. Currently only zed has one; this can be
-# extended with a lookup table or packages.json field as needed.
+# Map package to skills doc. Currently only zed has one;
+# extend with a lookup table or packages.json field as needed.
 SKILLS_DOC=""
 case "${PACKAGE}" in
     app-editors/zed)
@@ -182,19 +261,21 @@ else
 fi
 
 # =========================================================================
-# Read current ebuild content
+# Step 4: Read current ebuild content
 # =========================================================================
 
 EBUILD_CONTENT=$(cat "${FULL_EBUILD_PATH}")
 
+# Save a copy for diffing later.
+EBUILD_BEFORE="${EBUILD_CONTENT}"
+
 # =========================================================================
-# Construct the prompt
+# Step 5: Construct the prompt
 # =========================================================================
 
 echo ""
 echo "==> Constructing prompt for Copilot (model: ${MODEL})"
 
-# Build the prompt in parts for clarity.
 PROMPT="You are an expert Gentoo Linux ebuild developer. Your task is
 to finalize an ebuild upgrade by applying the changes described in the
 upgrade report below.
@@ -257,7 +338,7 @@ Focus on:
 Output the complete ebuild file. Nothing else."
 
 # =========================================================================
-# Dry-run: print prompt and exit
+# Step 6: Dry-run — print prompt and exit
 # =========================================================================
 
 if [[ "${DRY_RUN}" -eq 1 ]]; then
@@ -275,7 +356,7 @@ if [[ "${DRY_RUN}" -eq 1 ]]; then
 fi
 
 # =========================================================================
-# Call Copilot CLI
+# Step 7: Call Copilot CLI
 # =========================================================================
 
 echo "==> Calling Copilot CLI..."
@@ -298,7 +379,7 @@ if [[ -z "${RESULT}" ]]; then
 fi
 
 # =========================================================================
-# Post-process the response
+# Step 8: Post-process the response
 # =========================================================================
 
 echo "==> Post-processing Copilot response..."
@@ -307,7 +388,7 @@ echo "==> Post-processing Copilot response..."
 # Handles ```bash, ```ebuild, ```sh, or bare ``` at start/end.
 CLEANED="${RESULT}"
 
-# Remove leading code fence (```<optional-lang> followed by newline).
+# Remove leading code fence (```<optional-lang> + newline).
 if echo "${CLEANED}" | head -1 | grep -qE '^\s*```'; then
     CLEANED=$(echo "${CLEANED}" | tail -n +2)
 fi
@@ -322,61 +403,64 @@ fi
 CLEANED=$(echo "${CLEANED}" \
     | tr -d '\000-\010\013\014\016-\037')
 
+# Strip leading preamble — LLMs sometimes emit reasoning or
+# commentary before the actual ebuild content. An ebuild must
+# start with a comment (#) or EAPI declaration. Drop all lines
+# before the first line that starts with '#' or 'EAPI'.
+FIRST_EBUILD_LINE=$(echo "${CLEANED}" \
+    | grep -n '^\(#\|EAPI\)' | head -1 | cut -d: -f1)
+if [[ -n "${FIRST_EBUILD_LINE}" \
+    && "${FIRST_EBUILD_LINE}" -gt 1 ]]; then
+    STRIPPED=$((FIRST_EBUILD_LINE - 1))
+    echo "    Stripped ${STRIPPED} leading preamble line(s)"
+    CLEANED=$(echo "${CLEANED}" | tail -n +"${FIRST_EBUILD_LINE}")
+fi
+
 # Sanity check: the result should look like an ebuild.
 if ! echo "${CLEANED}" | head -5 | grep -q 'EAPI'; then
     echo "error: Copilot output does not look like a" \
-         "valid ebuild (no EAPI found in first 5 lines)." >&2
-    echo ""
-    echo "==> Raw output (first 20 lines):"
-    echo "${RESULT}" | head -20
-    echo ""
-    echo "The raw output has been saved to:" \
-         "/tmp/agent-finalize-raw-output.txt"
-    echo "${RESULT}" > /tmp/agent-finalize-raw-output.txt
+         "valid ebuild (no EAPI found in first" \
+         "5 lines)." >&2
+    echo "" >&2
+    echo "==> Raw output (first 20 lines):" >&2
+    echo "${RESULT}" | head -20 >&2
     exit 1
 fi
 
 # =========================================================================
-# Write the edited ebuild back
+# Step 9: Write the edited ebuild back
 # =========================================================================
 
 echo "==> Writing finalized ebuild: ${EBUILD_PATH}"
 
-# Back up the original.
-cp "${FULL_EBUILD_PATH}" "${FULL_EBUILD_PATH}.bak"
-echo "    Backup: ${EBUILD_PATH}.bak"
-
 echo "${CLEANED}" > "${FULL_EBUILD_PATH}"
 
-# Show a quick diff summary.
+# Show diff against the pre-agent version.
 echo ""
 echo "==> Changes made by agent:"
-if diff -u "${FULL_EBUILD_PATH}.bak" "${FULL_EBUILD_PATH}" \
-    > /tmp/agent-finalize-diff.txt 2>&1; then
+DIFF_OUTPUT=$(diff -u \
+    <(echo "${EBUILD_BEFORE}") \
+    <(cat "${FULL_EBUILD_PATH}") || true)
+
+if [[ -z "${DIFF_OUTPUT}" ]]; then
     echo "    (no differences — ebuild unchanged)"
 else
-    # Print a compact summary: count of lines added/removed.
-    ADDED=$(grep -c '^+[^+]' /tmp/agent-finalize-diff.txt \
-        || true)
-    REMOVED=$(grep -c '^-[^-]' /tmp/agent-finalize-diff.txt \
-        || true)
+    ADDED=$(echo "${DIFF_OUTPUT}" | grep -c '^+[^+]' || true)
+    REMOVED=$(echo "${DIFF_OUTPUT}" | grep -c '^-[^-]' || true)
     echo "    +${ADDED} / -${REMOVED} lines"
     echo ""
-    cat /tmp/agent-finalize-diff.txt
+    echo "${DIFF_OUTPUT}"
 fi
 
-# Clean up the backup.
-rm -f "${FULL_EBUILD_PATH}.bak"
-
 # =========================================================================
-# Manifest generation
+# Step 10: Manifest generation
 # =========================================================================
 
 if [[ "${SKIP_MANIFEST}" -eq 0 ]]; then
     echo ""
     echo "==> Running manifest generation..."
     if ! bash "${OVERLAY_DIR}/scripts/manifest.sh" "${PACKAGE}"; then
-        echo ""
+        echo "" >&2
         echo "error: manifest generation failed." >&2
         echo "  The agent edits may have introduced" \
              "invalid URIs or commit hashes." >&2
@@ -391,14 +475,14 @@ else
 fi
 
 # =========================================================================
-# Lint
+# Step 11: Lint
 # =========================================================================
 
 if [[ "${SKIP_LINT}" -eq 0 ]]; then
     echo ""
     echo "==> Running lint..."
     if ! bash "${OVERLAY_DIR}/scripts/lint.sh" "${PACKAGE}"; then
-        echo ""
+        echo "" >&2
         echo "warning: lint reported issues." >&2
         echo "  Review the output above and fix if" \
              "needed." >&2
@@ -414,19 +498,63 @@ else
 fi
 
 # =========================================================================
+# Step 12: Build test (optional)
+# =========================================================================
+
+if [[ "${DO_BUILD}" -eq 1 ]]; then
+    echo ""
+    echo "==> Running build test (this may take a while)..."
+    TO_EBUILD=$(echo "${JSON}" | jq -r '.to_ebuild // empty')
+    if ! bash "${OVERLAY_DIR}/scripts/test-build.sh" \
+        "${PACKAGE}" "${TO_EBUILD}"; then
+        echo "" >&2
+        echo "error: build test failed." >&2
+        echo "  Review the output above for errors." >&2
+        echo "  Re-run:" >&2
+        echo "    scripts/test-build.sh ${PACKAGE}" \
+             "${TO_EBUILD}" >&2
+        exit 1
+    fi
+    echo "    ✓ Build test passed."
+fi
+
+# =========================================================================
 # Summary
 # =========================================================================
 
 echo ""
+echo "==========================================="
 echo "==> Agent finalization complete."
+echo "==========================================="
 echo ""
 echo "    Package : ${PACKAGE}"
 echo "    Version : ${CURRENT} → ${UPSTREAM}"
 echo "    Ebuild  : ${EBUILD_PATH}"
 echo "    Model   : ${MODEL}"
 echo ""
-echo "==> Next steps:"
-echo "    1. Review the ebuild: ${EBUILD_PATH}"
-echo "    2. Build test (optional):"
-echo "       scripts/test-build.sh ${PACKAGE}"
-echo "    3. Commit and push."
+
+# Report what was run.
+STEPS_RUN="upgrade → agent"
+if [[ "${SKIP_MANIFEST}" -eq 0 ]]; then
+    STEPS_RUN="${STEPS_RUN} → manifest ✓"
+fi
+if [[ "${SKIP_LINT}" -eq 0 ]]; then
+    STEPS_RUN="${STEPS_RUN} → lint ✓"
+fi
+if [[ "${DO_BUILD}" -eq 1 ]]; then
+    STEPS_RUN="${STEPS_RUN} → build ✓"
+fi
+echo "    Pipeline: ${STEPS_RUN}"
+echo ""
+
+if [[ "${DO_BUILD}" -eq 0 ]]; then
+    echo "==> Next steps:"
+    echo "    1. Review the ebuild: ${EBUILD_PATH}"
+    echo "    2. Build test (optional):"
+    echo "       scripts/test-build.sh ${PACKAGE}"
+    echo "    3. Commit and push."
+else
+    echo "==> Next steps:"
+    echo "    1. Review the ebuild: ${EBUILD_PATH}"
+    echo "    2. Commit and push."
+fi
