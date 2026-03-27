@@ -1,0 +1,254 @@
+# Automated Ebuild Upgrade — creates a PR with a version-bumped ebuild.
+#
+# Triggered manually via workflow_dispatch, or called from other
+# workflows (e.g. the scheduled version-check workflow).
+#
+# Runs scripts/upgrade-ebuild.sh to detect upstream changes, copy the
+# ebuild, and apply dependency updates (GIT_CRATES, RUST_MIN_VER, etc.)
+# automatically. The result is committed to a branch and a PR is opened.
+#
+# Note: pkgdev manifest is NOT run in CI — it requires network access to
+# fetch distfiles and Gentoo tooling not present on the runner. Manifest
+# generation must happen locally or in a Gentoo container.
+#
+# Phase 4 of the implementation plan.
+
+name: Upgrade Ebuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: >
+          Package to upgrade (category/name), e.g. app-editors/zed
+        required: true
+        type: string
+      version:
+        description: >
+          Target version (leave empty to auto-detect latest upstream)
+        required: false
+        type: string
+        default: ""
+
+  workflow_call:
+    inputs:
+      package:
+        description: >
+          Package to upgrade (category/name), e.g. app-editors/zed
+        required: true
+        type: string
+      version:
+        description: >
+          Target version (leave empty to auto-detect latest upstream)
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Job 1: Run the upgrade script, commit the result, and open a PR.
+  # -----------------------------------------------------------------------
+  upgrade:
+    name: Upgrade ${{ inputs.package }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    outputs:
+      version: ${{ steps.run-upgrade.outputs.version }}
+      current: ${{ steps.run-upgrade.outputs.current }}
+      package: ${{ steps.run-upgrade.outputs.package }}
+      to_ebuild: ${{ steps.run-upgrade.outputs.to_ebuild }}
+      status: ${{ steps.run-upgrade.outputs.status }}
+      changes_summary: ${{ steps.run-upgrade.outputs.changes_summary }}
+      pr_created: ${{ steps.check-changes.outputs.has_changes == 'true' && steps.create-pr.outputs.pull-request-number != '' }}
+      branch: upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: overlay
+
+      - name: Compute branch name
+        id: branch-name
+        run: |
+          # Replace slashes in package name for the branch.
+          PACKAGE="${{ inputs.package }}"
+          PKG_SLUG="${PACKAGE//\//-}"
+          echo "slug=${PKG_SLUG}" >> "$GITHUB_OUTPUT"
+
+      - name: Run upgrade-ebuild.sh
+        id: run-upgrade
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        working-directory: overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ARGS=("${{ inputs.package }}" "--apply" "--json")
+
+          if [[ -n "${{ inputs.version }}" ]]; then
+            ARGS+=("--version" "${{ inputs.version }}")
+          fi
+
+          echo "==> Running: scripts/upgrade-ebuild.sh ${ARGS[*]}"
+
+          # Capture JSON output. The script exits 0 on success (including
+          # "up-to-date"), non-zero on errors.
+          OUTPUT=$(bash scripts/upgrade-ebuild.sh "${ARGS[@]}")
+          echo "${OUTPUT}" | jq .
+
+          # Parse key fields from the JSON.
+          STATUS=$(echo "${OUTPUT}" | jq -r '.status')
+          VERSION=$(echo "${OUTPUT}" | jq -r '.upstream')
+          CURRENT=$(echo "${OUTPUT}" | jq -r '.current')
+          PACKAGE=$(echo "${OUTPUT}" | jq -r '.package')
+          TO_EBUILD=$(echo "${OUTPUT}" | jq -r '.to_ebuild // empty')
+
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "package=${PACKAGE}" >> "$GITHUB_OUTPUT"
+          echo "to_ebuild=${TO_EBUILD}" >> "$GITHUB_OUTPUT"
+
+          # Build a human-readable change summary for the PR body.
+          CHANGES_DETECTED=$(echo "${OUTPUT}" | jq -r '.changes_detected // [] | .[]')
+          CHANGES_APPLIED=$(echo "${OUTPUT}" | jq -r '.changes_applied // [] | .[]')
+          MANIFEST=$(echo "${OUTPUT}" | jq -r '.manifest // empty')
+
+          {
+            echo 'changes_summary<<CHANGES_EOF'
+
+            if [[ -n "${CHANGES_DETECTED}" ]]; then
+              echo "### Changes Detected"
+              echo ""
+              echo "${CHANGES_DETECTED}" | while IFS= read -r line; do
+                echo "- ${line}"
+              done
+              echo ""
+            else
+              echo "No dependency changes detected — straightforward version bump."
+              echo ""
+            fi
+
+            if [[ -n "${CHANGES_APPLIED}" ]]; then
+              echo "### Changes Applied"
+              echo ""
+              echo "${CHANGES_APPLIED}" | while IFS= read -r line; do
+                echo "- ${line}"
+              done
+              echo ""
+            fi
+
+            if [[ -n "${MANIFEST}" ]]; then
+              echo "Manifest: \`${MANIFEST}\`"
+              echo ""
+            fi
+
+            echo 'CHANGES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          # Save the full JSON for reference.
+          echo "${OUTPUT}" > /tmp/upgrade-result.json
+
+      - name: Check if upgrade produced changes
+        id: check-changes
+        run: |
+          if [[ "${{ steps.run-upgrade.outputs.status }}" == "up-to-date" ]]; then
+            echo "Package is already up to date — nothing to do."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload new ebuild as artifact
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ebuild-${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
+          path: overlay/${{ inputs.package }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create Pull Request
+        id: create-pr
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: overlay
+          branch: upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
+          commit-message: "Upgrade ${{ inputs.package }} to ${{ steps.run-upgrade.outputs.version }}"
+          title: "Upgrade ${{ inputs.package }} to ${{ steps.run-upgrade.outputs.version }}"
+          labels: upgrade,automated
+          body: |
+            ## Automated Ebuild Upgrade
+
+            | Field | Value |
+            |-------|-------|
+            | **Package** | `${{ inputs.package }}` |
+            | **Previous version** | `${{ steps.run-upgrade.outputs.current }}` |
+            | **New version** | `${{ steps.run-upgrade.outputs.version }}` |
+            | **New ebuild** | `${{ steps.run-upgrade.outputs.to_ebuild }}` |
+            | **Status** | `${{ steps.run-upgrade.outputs.status }}` |
+
+            ${{ steps.run-upgrade.outputs.changes_summary }}
+
+            ### ⚠️ Manifest Generation Required
+
+            `pkgdev manifest` was **not** run in CI (it requires network access to
+            fetch distfiles and Gentoo tooling). You must generate the Manifest
+            locally or in a Gentoo container before merging:
+
+            ```
+            cd ${{ inputs.package }}
+            pkgdev manifest
+            ```
+
+            ### 🔨 Build Testing
+
+            Build tests are **not** triggered automatically (they can take 30+ minutes
+            for large packages like Zed). To trigger a build test:
+
+            1. Add the `build-test` label to this PR.
+            2. The `ci-build.yml` workflow will pick it up and run the build.
+
+            ---
+            *This PR was created automatically by the `upgrade-ebuild` workflow.*
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Upgrade Ebuild Results"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **Package** | \`${{ inputs.package }}\` |"
+            echo "| **Version** | \`${{ steps.run-upgrade.outputs.version }}\` |"
+            echo "| **Status** | \`${{ steps.run-upgrade.outputs.status }}\` |"
+
+            if [[ "${{ steps.check-changes.outputs.has_changes }}" == "true" ]]; then
+              echo "| **PR** | #${{ steps.create-pr.outputs.pull-request-number }} |"
+              echo "| **Branch** | \`upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}\` |"
+            else
+              echo "| **PR** | _(none — already up to date)_ |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # -----------------------------------------------------------------------
+  # Job 2: Lint the upgraded ebuild.
+  # Only runs if the upgrade job created changes.
+  # -----------------------------------------------------------------------
+  lint:
+    name: Lint
+    needs: upgrade
+    if: needs.upgrade.outputs.pr_created == 'true'
+    uses: ./.github/workflows/lint-ebuild.yml
+    with:
+      package_dir: ${{ needs.upgrade.outputs.package }}

@@ -2,19 +2,24 @@
 
 ## 1. Purpose & Goals
 
-This document defines the automation strategy for the **adaptive-overlay** Gentoo overlay repository. The overlay provides ebuilds that are missing from other repos, track upstream more closely, or expose additional build features.
+This document defines the automation strategy for the
+**adaptive-overlay** Gentoo overlay repository. The overlay
+provides ebuilds that are missing from other repos, track
+upstream more closely, or expose additional build features.
 
 Two primary workflows must be supported:
 
 | Workflow | Autonomy Level | Trigger |
 |---|---|---|
 | **New ebuild creation** | Collaborative (agent + human) | On-demand |
-| **Ebuild upgrades** | Mostly/fully autonomous | On-demand, scheduled, or upstream-release |
+| **Ebuild upgrades** | Mostly/fully autonomous | On-demand, scheduled, upstream |
 
 Cross-cutting concerns that apply to both workflows:
 
-* Ebuild quality checks (pkgcheck linting, `ebuild manifest` verification)
-* Build testing via `ebuild` command inside a Gentoo container
+* Ebuild quality checks (pkgcheck linting,
+  `ebuild manifest` verification)
+* Build testing via `ebuild` command inside a Gentoo
+  container
 * Runnable in GitHub Actions **and** locally
 * Pull-request-based review for every change
 
@@ -29,20 +34,30 @@ Current repo facts that inform workflow design:
 | EAPI | 8 |
 | Masters | gentoo |
 | Manifests | thin-manifests, unsigned |
-| Existing CI | `repackage-surge.yml` — weekly check + manual dispatch for Surge XT tarball repackaging |
 | Package categories | `app-editors`, `media-sound`, `net-vpn` |
+| Container images | `testenv` (base) + `testenv-rust` (Zed) on GHCR |
+| CI — lint | `ci-lint.yml` — pkgcheck on changed ebuilds |
+| CI — build | `ci-build.yml` — opt-in build test |
+| CI — versions | `ci-version-check.yml` — scheduled check |
+| CI — containers | `publish-testenv{,-rust}.yml` — weekly |
+| CI — repackage | `repackage-surge.yml` — Surge XT tarball |
+| CI — project | `add-issues-to-project.yml` |
+| Reusable | `lint-ebuild`, `test-ebuild`, `check-upstream-versions` |
 
 ---
 
 ### 2.1 File Organization — Agent vs Human Files
 
-A Gentoo overlay has a well-defined directory structure that humans and tools like `pkgcheck` expect. Automation and agent-facing files should live separately from the standard overlay tree to avoid confusion.
+A Gentoo overlay has a well-defined directory structure
+that humans and tools like `pkgcheck` expect. Automation
+and agent-facing files should live separately from the
+standard overlay tree to avoid confusion.
 
 **Standard overlay directories** (human / Gentoo tooling):
 
 | Path | Contents |
 |---|---|
-| `<category>/<package>/` | Ebuilds, Manifest, metadata.xml — the overlay itself |
+| `<category>/<package>/` | Ebuilds, Manifest, metadata.xml |
 | `metadata/` | Overlay-level metadata (`layout.conf`, etc.) |
 | `profiles/` | Profile configuration |
 | `licenses/` | Custom license files |
@@ -52,18 +67,29 @@ A Gentoo overlay has a well-defined directory structure that humans and tools li
 
 **Agent-facing directory** (`.agent/`):
 
-Files that agents reference during automated tasks — structured metadata, skills, and per-package instructions — live in `.agent/` at the repo root:
+Files that agents reference during automated tasks —
+structured metadata, skills, and per-package
+instructions — live in `.agent/` at the repo root:
 
 | Path | Purpose |
 |---|---|
-| `.agent/packages.json` | Package registry with upstream tracking metadata (§5.2) |
-| `.agent/skills/` | Reusable agent skill documents (e.g. "how to upgrade a Cargo-based ebuild") |
-| `.agent/instructions/<category>/<package>/` | Per-package upgrade/creation instructions, mirroring the overlay's directory structure (e.g. `.agent/instructions/app-editors/zed/upgrade.md`) |
-| `.agent/ebuild_guidelines.md` | Overlay-specific conventions for agents (USE flags, licensing, Manifest handling) |
+| `.agent/packages.json` | Package registry with upstream metadata (§5.2) |
+| `.agent/skills/` | Reusable agent skill documents |
+| `.agent/skills/update-zed-editor.md` | Zed-specific update procedure for agents |
+| `.agent/instructions/general.md` | Agent safety rules and repo conventions |
+| `.agent/instructions/<cat>/<pkg>/` | Per-package upgrade/creation notes |
+| `.agent/ebuild_guidelines.md` | Overlay-specific conventions for agents |
 
-This separation keeps the overlay directory clean for human contributors and Gentoo tooling, while giving agents a well-known location to find structured context. The `.agent/` prefix signals that these files are machine-consumed and may be auto-generated or auto-updated.
+This separation keeps the overlay directory clean for human
+contributors and Gentoo tooling, while giving agents a
+well-known location to find structured context. The
+`.agent/` prefix signals that these files are
+machine-consumed and may be auto-generated or auto-updated.
 
-> **Note:** The `.agent/` directory is committed to the repo so agents can access it. It is not hidden from humans — anyone can read and edit these files — but its primary audience is automated tooling.
+> **Note:** The `.agent/` directory is committed to the
+> repo so agents can access it. It is not hidden from
+> humans — anyone can read and edit these files — but its
+> primary audience is automated tooling.
 
 ---
 
@@ -94,9 +120,12 @@ This separation keeps the overlay directory clean for human contributors and Gen
 │                                                                      │
 │  ┌────────────────┐ ┌──────────────────┐ ┌────────────────────────┐ │
 │  │ lint-ebuild    │ │ test-ebuild      │ │ repackage-source       │ │
-│  │ (pkgcheck /    │ │ (container build │ │ (tarball creation for  │ │
-│  │  repoman)      │ │  & install)      │ │  submodule projects)   │ │
+│  │ (pkgcheck)     │ │ (container build │ │ (tarball creation for  │ │
+│  │                │ │  + verify script)│ │  submodule projects)   │ │
 │  └────────────────┘ └──────────────────┘ └────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ check-upstream-versions (version checking + issue creation)   │  │
+│  └────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
             │                  │
             ▼                  ▼
@@ -107,7 +136,8 @@ This separation keeps the overlay directory clean for human contributors and Gen
 │  │  Gentoo Stage3 Container Image                               │   │
 │  │  • Pre-synced portage tree                                   │   │
 │  │  • Overlay mounted / synced                                  │   │
-│  │  • Supports: ebuild, pkgdev, pkgcheck, repoman               │   │
+│  │  • Supports: ebuild, pkgdev, pkgcheck                        │   │
+│  │  • Variants: testenv (base), testenv-rust (Zed/LLVM)        │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -118,26 +148,33 @@ This separation keeps the overlay directory clean for human contributors and Gen
 
 ### 4.1 Trigger
 
-* A GitHub Issue is filed (manually or by an agent) requesting a new ebuild.
-* The `new-ebuild.yml` workflow can also be dispatched manually with inputs: `category`, `package_name`, `version`, and `upstream_url`.
+* A GitHub Issue is filed (manually or by an agent)
+  requesting a new ebuild.
+* The `new-ebuild.yml` workflow can also be dispatched
+  manually with inputs: `category`, `package_name`,
+  `version`, and `upstream_url`.
 
 ### 4.2 Steps
 
 | # | Step | Actor | Details |
 |---|---|---|---|
-| 1 | **Gather upstream metadata** | Agent | Clone/inspect upstream repo. Determine: homepage, license, build system (cmake, meson, cargo, etc.), dependencies, SRC_URI pattern. |
-| 2 | **Draft ebuild** | Agent | Generate a skeleton `.ebuild` following EAPI 8 conventions. Place it in `<category>/<package>/`. Generate `metadata.xml`. |
-| 3 | **Lint** | CI | Run `pkgcheck scan` and `ebuild manifest` inside the Gentoo container. |
-| 4 | **Human review checkpoint** | Human | Agent opens a PR and requests review. If there are open questions (USE flags, optional deps, patches), the agent comments on the PR asking for input. |
-| 5 | **Build test** | CI | Inside a Gentoo container: `ebuild ./<name>-<version>.ebuild clean compile`. If build fails, the agent fixes the ebuild and pushes a new commit to repeat steps 3–5 (see §5.4 for retry strategy). Final integration test with `emerge` runs only in the container. Record build log as artifact. |
-| 6 | **Iterate** | Agent + Human | Address review feedback and test failures across commits. Repeat steps 3–5. Agent must follow safety constraints (§8.4). |
+| 1 | **Gather metadata** | Agent | Clone/inspect upstream. Determine homepage, license, build system, deps, SRC_URI. |
+| 2 | **Draft ebuild** | Agent | Generate skeleton `.ebuild` (EAPI 8) + `metadata.xml`. |
+| 3 | **Lint** | CI | `pkgcheck scan` + `ebuild manifest` in container. |
+| 4 | **Review** | Human | Agent opens PR, requests review, posts questions. |
+| 5 | **Build test** | CI | `ebuild clean compile` in container. Agent fixes failures. `emerge` integration test in container only. |
+| 6 | **Iterate** | Both | Address feedback. Repeat 3–5. Safety constraints (§8.4). |
 | 7 | **Merge** | Human | Final approval and merge. |
 
 ### 4.3 Human-in-the-Loop Mechanisms
 
-* **PR comments**: The agent posts questions as PR comments and labels the PR `waiting-for-human`.
-* **Issue threads**: For broader design decisions, discussion happens in the originating issue.
-* **Workflow dispatch inputs**: Humans can supply overrides (USE flags, patches, SRC_URI) via workflow dispatch inputs or PR comments that the agent parses.
+* **PR comments**: The agent posts questions as PR
+  comments and labels the PR `waiting-for-human`.
+* **Issue threads**: For broader design decisions,
+  discussion happens in the originating issue.
+* **Workflow dispatch inputs**: Humans can supply
+  overrides (USE flags, patches, SRC_URI) via workflow
+  dispatch inputs or PR comments that the agent parses.
 
 ---
 
@@ -147,21 +184,31 @@ This separation keeps the overlay directory clean for human contributors and Gen
 
 | Trigger | Mechanism |
 |---|---|
-| **On-demand** | `workflow_dispatch` with inputs `package` (e.g. `media-sound/carla`) and `version` (e.g. `2.6.0` or `latest`). |
-| **Scheduled** | Cron job (e.g. twice weekly) runs a version-check job across all tracked packages. |
-| **Upstream release** | GitHub webhook via `repository_dispatch` or a watcher workflow that polls GitHub Releases API (extending the pattern already used in `repackage-surge.yml`). |
+| **On-demand** | `workflow_dispatch` with inputs `package` and `version`. |
+| **Scheduled** | Cron (twice weekly) version-check across tracked packages. |
+| **Upstream release** | Webhook or watcher polling GitHub Releases/Tags API. |
 
 ### 5.2 Package Registry
 
-The overlay's directory structure is the canonical source of truth for package data — categories, names, and versions are all derivable from the ebuild file tree. However, some automation-specific metadata has no natural home in standard Gentoo overlay files:
+The overlay's directory structure is the canonical source
+of truth for package data — categories, names, and
+versions are all derivable from the ebuild file tree.
+However, some automation-specific metadata has no natural
+home in standard Gentoo overlay files:
 
-* **Upstream repo location** (`zed-industries/zed`) — needed to poll for new releases
-* **Version tag pattern** (`v(.*)`, `release_xt_(.*)`) — needed to extract versions from upstream tags
-* **Upstream type** (GitHub release, PyPI, crate, etc.) — determines which API to poll
-* **Repackage flag** — whether the package needs source repackaging before build
-* **Auto-upgrade eligibility** — whether a version bump can be auto-merged without human review
+* **Upstream repo location** (`zed-industries/zed`) —
+  needed to poll for new releases
+* **Version tag pattern** (`v(.*)`, `release_xt_(.*)`) —
+  needed to extract versions from upstream tags
+* **Upstream type** (`github-release`, `github-tag`,
+  `manual`, etc.) — determines which API to poll
+* **Repackage flag** — whether the package needs source
+  repackaging before build
+* **Auto-upgrade eligibility** — whether a version bump
+  can be auto-merged without human review
 
-This metadata lives in `.agent/packages.json` (see §2.1 for the `.agent/` directory rationale):
+This metadata lives in `.agent/packages.json` (see §2.1
+for the `.agent/` directory rationale):
 
 ```jsonc
 [
@@ -172,94 +219,151 @@ This metadata lives in `.agent/packages.json` (see §2.1 for the `.agent/` direc
     "upstream_type": "github-release",
     "version_pattern": "v(.*)",
     "repackage": false,
-    "auto_upgrade": true
+    "auto_upgrade": false,
+    "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks..."
   },
   {
     "category": "media-sound",
     "name": "surgext",
     "upstream_repo": "surge-synthesizer/surge",
-    "upstream_type": "github-release",
+    "upstream_type": "github-tag",
     "version_pattern": "release_xt_(.*)",
     "repackage": true,
-    "auto_upgrade": false
+    "auto_upgrade": false,
+    "notes": "Stable releases are tags only (no GitHub Release objects)..."
   }
 ]
 ```
 
-Note: `current_versions` is intentionally omitted — the overlay tree itself is the source of truth for what versions exist. The version-check workflow derives current versions by scanning ebuild filenames at runtime.
+**Upstream types:**
+
+| `upstream_type` | API Used | Notes |
+|---|---|---|
+| `github-release` | GitHub Releases API | For projects that create GitHub Release objects for stable versions. Tags that don't match `version_pattern` (e.g. "Nightly") are skipped. |
+| `github-tag` | GitHub Tags API | For projects that publish stable versions as tags only, without creating Release objects (e.g. Surge XT uses `release_xt_*` tags). |
+| `manual` | None | No public release API. Updates must be checked manually. |
+
+**Fields:**
+
+* `notes` — free-text field for human and agent context
+  (upgrade caveats, special handling, etc.)
+
+Note: `current_versions` is intentionally omitted — the
+overlay tree itself is the source of truth for what versions
+exist. The version-check workflow derives current versions by
+scanning ebuild filenames at runtime.
 
 ### 5.3 Steps (Autonomous Upgrade)
 
 | # | Step | Details |
 |---|---|---|
-| 1 | **Detect new version** | Query upstream (GitHub Releases API, PyPI, etc.) using metadata from `.agent/packages.json`. Compare to versions found by scanning ebuild filenames in the overlay. |
-| 2 | **Verify sources available** | Confirm the upstream source tarball (and any supplementary archives, e.g. crates tarballs) are downloadable before proceeding. |
+| 1 | **Detect new version** | Query upstream using `.agent/packages.json`. Compare to ebuild filenames in overlay. |
+| 2 | **Verify sources** | Confirm upstream tarball (and supplementary archives) are downloadable. |
 | 3 | **Create branch** | `upgrade/<category>/<name>-<new_version>` |
-| 4 | **Copy ebuild** | Copy the latest existing ebuild to `<name>-<new_version>.ebuild`. |
-| 5 | **Check for dependency changes** | Diff upstream build manifests between old and new versions (see §5.5). Update the ebuild as needed. |
-| 6 | **Regenerate Manifest** | `ebuild ./<name>-<new_version>.ebuild manifest` — fetches new source archives and updates checksums. Falls back to `pkgdev manifest` if needed. |
+| 4 | **Copy ebuild** | Copy latest existing ebuild to `<name>-<new_version>.ebuild`. |
+| 5 | **Check deps** | Diff upstream build manifests (§5.5). Update ebuild as needed. |
+| 6 | **Regen Manifest** | `ebuild manifest` — fetches sources, updates checksums. Fallback: `pkgdev manifest`. |
 | 7 | **Lint** | `pkgcheck scan` on the package directory. |
-| 8 | **Build test** | `ebuild ./<name>-<new_version>.ebuild clean compile` inside the Gentoo container. If build fails, the agent fixes the ebuild and re-runs (see §5.4 for retry strategy). |
-| 9 | **Verify build output** | Check that expected binaries exist in the build image, verify version strings, and confirm dynamic linkage is sane (`ldd`). |
-| 10 | **Final integration test** | `emerge` the package inside a disposable container to confirm Portage integration (dependency resolution, slot handling, post-install actions). Never run on the host (see §5.4). |
-| 11 | **Open PR** | If lint and build succeed, open a PR. If `auto_upgrade` is true and all checks pass, the PR can be auto-merged. |
+| 8 | **Build test** | `ebuild clean compile` in container. Agent fixes failures and re-runs (§5.4). |
+| 9 | **Verify build** | Check expected binaries, version strings, `ldd` linkage. |
+| 10 | **Integration test** | `emerge` in disposable container. Never on host (§5.4). |
+| 11 | **Open PR** | If checks pass and `auto_upgrade` is true, auto-merge. |
 | 12 | **Notify** | Email / issue comment on failure. |
 
 ### 5.4 Build & Test Tooling: `ebuild` for Iteration, `emerge` for Final Testing
 
 The build/test process uses a **two-tier approach**:
 
-**Tier 1 — `ebuild` (primary, used for development iteration):**
+**Tier 1 — `ebuild` (primary, development iteration):**
 
-The `ebuild` command is the primary tool for building and testing ebuilds during development, both in CI and locally. Unlike `emerge` (Portage), `ebuild` operates directly on a single `.ebuild` file from the overlay source tree without interacting with the system package database. This provides:
+The `ebuild` command is the primary tool for building
+and testing ebuilds during development, both in CI and
+locally. Unlike `emerge` (Portage), `ebuild` operates
+directly on a single `.ebuild` file from the overlay
+source tree without interacting with the system package
+database. This provides:
 
-* **Isolation** — Clear separation between the development overlay and the installed system. No risk of polluting the host or system repo.
-* **Consistency** — The same `ebuild ./pkg-1.0.ebuild clean compile` command works identically in CI containers and on a developer's workstation.
-* **Granular control** — Individual phases (`clean`, `fetch`, `unpack`, `prepare`, `compile`, `install`) can be run and retried independently.
-* **Speed on retry** — After a compile-phase failure, re-running `ebuild ./pkg.ebuild compile` (without `clean`) reuses the already-unpacked and patched source tree, skipping the slow unpack/patch phase.
+* **Isolation** — Clear separation between the
+  development overlay and the installed system.
+* **Consistency** — The same
+  `ebuild ./pkg-1.0.ebuild clean compile` command works
+  identically in CI containers and locally.
+* **Granular control** — Individual phases (`clean`,
+  `fetch`, `unpack`, `prepare`, `compile`, `install`)
+  can be run and retried independently.
+* **Speed on retry** — Re-running without `clean` reuses
+  the already-unpacked source tree, skipping the slow
+  unpack/patch phase.
 
-All iterative development — fixing dependency issues, adjusting USE flags, debugging compile failures — should use `ebuild`. This is the tool agents use for the vast majority of build/test cycles.
+All iterative development — fixing dependency issues,
+adjusting USE flags, debugging compile failures — should
+use `ebuild`. This is the tool agents use for the vast
+majority of build/test cycles.
 
-**Tier 2 — `emerge` (final integration test, container only):**
+**Tier 2 — `emerge` (final integration test, container
+only):**
 
-Once an ebuild compiles successfully with `ebuild`, a final `emerge` test inside a Gentoo container confirms that the package integrates correctly with Portage (dependency resolution, slot handling, post-install actions). This step is **never run on the host system** — it executes exclusively inside a disposable container to prevent any system modification.
+Once an ebuild compiles successfully with `ebuild`, a
+final `emerge` test inside a Gentoo container confirms
+Portage integration (dependency resolution, slot
+handling, post-install actions). This step is **never
+run on the host system** — it executes exclusively
+inside a disposable container.
 
-**Important:** The existing toolchain, both locally and in the container, is assumed to be sufficient. Agents must follow the safety constraints in §8.4 regarding system tool installation and file modification.
+**Important:** The existing toolchain, both locally and
+in the container, is assumed to be sufficient. Agents
+must follow the safety constraints in §8.4.
 
-The workflow uses `ebuild ./<file>.ebuild manifest` as the primary tool for Manifest generation — it is consistent with the `ebuild`-first approach used throughout development and handles fetching and hashing correctly. If `ebuild manifest` is unavailable or encounters issues, `pkgdev manifest` (from `dev-util/pkgdev`) serves as a fallback.
+The workflow uses `ebuild ./<file>.ebuild manifest` as
+the primary tool for Manifest generation. If `ebuild
+manifest` is unavailable, `pkgdev manifest` (from
+`dev-util/pkgdev`) serves as a fallback.
 
 ### 5.5 Dependency Change Detection (Upgrade Sub-Process)
 
-When upgrading an ebuild, always check for upstream dependency changes before considering the update complete. The exact checks depend on the build system:
+When upgrading an ebuild, always check for upstream
+dependency changes before considering the update complete.
+The exact checks depend on the build system:
 
 #### Cargo / Rust packages (e.g. `app-editors/zed`)
 
-Diff the upstream `Cargo.toml` between old and new versions and look for:
+Diff the upstream `Cargo.toml` between old and new
+versions and look for:
 
 | Change detected | Action |
 |---|---|
-| A git dependency's `rev =` changed | Update the commit hash in `GIT_CRATES` |
-| A new `{ git = "...", rev = "..." }` dependency appeared | Add a new entry to `GIT_CRATES` |
-| A git dependency was removed | Remove its entry from `GIT_CRATES` |
-| New workspace members added | Fetch their `Cargo.toml` files and scan for git deps |
-| `rust-version` changed | Update `RUST_MIN_VER` in the ebuild |
-| Crates.io version bumps | No action — handled by the crates tarball |
+| A git dep's `rev =` changed | Update commit hash in `GIT_CRATES` |
+| A new git dep appeared | Add new entry to `GIT_CRATES` |
+| A git dep was removed | Remove its `GIT_CRATES` entry |
+| New workspace members added | Fetch their `Cargo.toml`, scan for git deps |
+| `rust-version` changed | Update `RUST_MIN_VER` in ebuild |
+| Crates.io version bumps | No action — handled by crates tarball |
 
-Also check release notes for mentions of new system-level libraries that would affect `DEPEND`/`BDEPEND`.
+Also check release notes for mentions of new system-level
+libraries that would affect `DEPEND`/`BDEPEND`.
 
 #### CMake / Meson packages
 
-Diff `CMakeLists.txt` or `meson.build` for changed `find_package()`, `dependency()`, or version requirements. Update `DEPEND`/`BDEPEND` accordingly.
+Diff `CMakeLists.txt` or `meson.build` for changed
+`find_package()`, `dependency()`, or version
+requirements. Update `DEPEND`/`BDEPEND` accordingly.
 
 #### Binary repackage packages
 
-Typically no dependency changes, but verify runtime library requirements by checking `ldd` output after build.
+Typically no dependency changes, but verify runtime
+library requirements by checking `ldd` output after
+build.
 
 ### 5.6 Source Repackaging
 
-Some packages (e.g. Surge XT) require source repackaging because upstream tarballs do not include git submodules. The existing `repackage-surge.yml` handles this for Surge XT.
+Some packages (e.g. Surge XT) require source repackaging
+because upstream tarballs do not include git submodules.
+The existing `repackage-surge.yml` handles this for
+Surge XT.
 
-This pattern should be generalized into a **reusable workflow** (`.github/workflows/repackage-source.yml`) that accepts:
+This pattern should be generalized into a **reusable
+workflow** (`.github/workflows/repackage-source.yml`)
+that accepts:
 
 * `upstream_repo`
 * `version`
@@ -267,7 +371,8 @@ This pattern should be generalized into a **reusable workflow** (`.github/workfl
 * `tarball_name_pattern`
 * `release_tag_pattern`
 
-The upgrade workflow will call the repackage workflow first when the package registry has `"repackage": true`.
+The upgrade workflow will call the repackage workflow
+first when the package registry has `"repackage": true`.
 
 ---
 
@@ -279,103 +384,182 @@ The upgrade workflow will call the repackage workflow first when the package reg
 * Avoids polluting the developer's host system.
 * Runs identically in GitHub Actions and locally.
 
-### 6.2 Container Image
+### 6.2 Container Images
 
-Use the official `gentoo/stage3` container image as a base. Build a custom image on top:
+Two container images are maintained, both published to GHCR:
 
-```dockerfile
-FROM gentoo/stage3:latest
+**Base image — `testenv`**
+(`ghcr.io/faraclas/adaptive-overlay/testenv:latest`)
 
-# Sync portage tree
-RUN emerge-webrsync
+Built from `gentoo/stage3:latest`. Installs `pkgcheck` and
+`pkgdev`, copies overlay metadata/profiles, and configures
+the overlay in `repos.conf`. Published weekly (Mondays at
+04:00 UTC) via `publish-testenv.yml`. Used for linting and
+building most packages.
 
-# Install overlay tooling
-RUN emerge --oneshot app-portage/repoman dev-util/pkgcheck dev-util/pkgdev
+**Rust image — `testenv-rust`**
+(`ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest`)
 
-# Configure the overlay mount point
-RUN mkdir -p /var/db/repos/adaptive-overlay
-COPY metadata/ /var/db/repos/adaptive-overlay/metadata/
-COPY profiles/ /var/db/repos/adaptive-overlay/profiles/
+Extends `testenv` with everything needed to build
+`app-editors/zed`: LLVM 21, Rust 1.93, Wayland/X11 libs,
+and ~60+ build dependencies pre-installed. Published
+automatically after `testenv` via `publish-testenv-rust.yml`.
 
-# repos.conf entry for the overlay
-RUN echo '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nauto-sync = no' \
-    > /etc/portage/repos.conf/adaptive-overlay.conf
-```
+Containerfiles live in `containers/testenv/` and
+`containers/testenv-rust/` respectively.
 
-At workflow runtime, the repo contents are bind-mounted into the container so that the latest ebuild changes are visible.
+At workflow runtime, the repo contents are bind-mounted into
+the container so that the latest ebuild changes are visible.
 
 ### 6.3 Caching
 
-* The portage tree sync is expensive. Cache the synced tree as a container layer or GitHub Actions cache.
-* `distfiles` (downloaded source tarballs) should be cached between runs to speed up repeated builds.
-* The custom container image should be published to GHCR (GitHub Container Registry) and rebuilt weekly or on portage tree updates.
+* The portage tree is synced at image build time and baked
+  into the container layer.
+* The `testenv-rust` image pre-installs ~60+ build
+  dependencies so Zed builds don't start from scratch.
+* Both images are published to GHCR and rebuilt weekly.
+* Explicit distfiles/portage tree caching in CI workflows
+  is not yet implemented (Phase 2.4, partial).
 
 ### 6.4 Local Usage
 
-Developers can run the same container locally:
+Developers run the same containers locally via the helper
+scripts:
 
 ```bash
 # Quick lint check
-./scripts/lint.sh media-sound/carla
+scripts/lint.sh media-sound/carla
 
-# Full build test (runs: ebuild ./carla-2.6.0.ebuild clean compile)
-./scripts/test-build.sh media-sound/carla carla-2.6.0.ebuild
+# Full build test
+scripts/test-build.sh media-sound/carla carla-2.5.10.ebuild
+
+# Retry without clean (reuse unpacked source)
+scripts/test-build.sh media-sound/carla carla-2.5.10.ebuild \
+    --no-clean
+
+# Check for upstream updates
+scripts/check-updates.sh
+scripts/check-updates.sh --json
 ```
 
-These wrapper scripts invoke `podman run` (or `docker run` as a fallback) with the correct bind mounts and arguments, matching what the GitHub Actions workflows do.
+These scripts invoke `podman run` (or `docker run` as
+fallback) with the correct bind mounts and arguments,
+mirroring the CI workflows exactly.
 
 ---
 
 ## 7. Reusable Workflows & Actions
 
-### 7.1 `lint-ebuild` (Reusable Workflow)
+### 7.1 `lint-ebuild` (Reusable Workflow) ✅
+
+**Status:** Implemented — `lint-ebuild.yml`
 
 **Inputs:** `package_dir` (e.g. `media-sound/carla`)
 
 **Steps:**
 
-1. Start Gentoo container.
-2. Run `pkgcheck scan <package_dir>` — fail on errors, warn on warnings.
-3. Run `ebuild ./<file>.ebuild manifest` to regenerate the Manifest (fetches sources and updates checksums). Fall back to `pkgdev manifest` if needed.
-4. Optionally run `shellcheck` on any helper scripts.
+1. Start `testenv` container from GHCR.
+2. Symlink checkout into the portage repo location.
+3. Run `pkgcheck scan --exit error` — fail on errors, warn
+   on warnings.
 
-### 7.2 `test-ebuild` (Reusable Workflow)
+**Callers:** `ci-lint.yml` (PR/push to main, auto-detects
+changed packages).
 
-**Inputs:** `package_dir` (e.g. `media-sound/carla`), `ebuild_file` (e.g. `carla-2.6.0.ebuild`)
+### 7.2 `test-ebuild` (Reusable Workflow) ✅
 
-**Steps:**
+**Status:** Implemented — `test-ebuild.yml`
 
-1. Start Gentoo container with cached portage tree and distfiles. Bind-mount the overlay source tree.
-2. `ebuild ./<ebuild_file> clean compile` — full build from source in the overlay directory. Iterate with `ebuild` on failures.
-3. Verify build output: check expected binaries exist, confirm version strings, validate linkage with `ldd`.
-4. `emerge --oneshot <category>/<package>` — final integration test inside the container to confirm Portage-level correctness. This step runs only in the container, never on the host.
-5. Upload build log as GitHub Actions artifact.
-6. Report pass/fail.
-
-### 7.3 `repackage-source` (Reusable Workflow)
-
-Generalization of the existing `repackage-surge.yml`.
-
-**Inputs:** `upstream_repo`, `version`, `tag_pattern`, `tarball_prefix`, `release_tag_prefix`
+**Inputs:** `package_dir`, `ebuild_file`, `container_image`
+(defaults to `testenv`, auto-selects `testenv-rust` for Zed)
 
 **Steps:**
 
-1. Clone upstream at the specified tag with submodules.
-2. Create tarball excluding `.git` directories.
-3. Create a GitHub Release with the tarball attached.
+1. Start the appropriate container from GHCR.
+2. `ebuild ./<ebuild_file> clean compile` — full build from
+   source.
+3. Upload build log as GitHub Actions artifact.
+4. If a verify script exists
+   (`containers/<image>/verify-<pkg>.sh`), run it against
+   the build image directory.
+5. Report pass/fail.
 
-### 7.4 `check-upstream-versions` (Reusable Workflow)
+**Callers:** `ci-build.yml` (opt-in via `build-test` label,
+auto-detects changed packages).
 
-**Inputs:** none (reads `.agent/packages.json` and scans the overlay tree)
+**Not yet implemented (Phase 4):**
+
+* `emerge` integration test step (Tier 2 testing)
+
+### 7.3 `repackage-source` (Reusable Workflow) 🔶
+
+**Status:** Surge-specific version exists
+(`repackage-surge.yml`). Generalized reusable version
+planned for Phase 4.5.
+
+**Current implementation** (`repackage-surge.yml`):
+
+* Weekly cron checks for new Surge XT releases (via Tags
+  API) and sends email notification on new version.
+* Manual dispatch clones at tag with
+  `--recurse-submodules`, creates tarball excluding
+  `.git`, publishes as a GitHub Release on this repo.
+
+**Planned inputs (generalized):** `upstream_repo`, `version`,
+`tag_pattern`, `tarball_prefix`, `release_tag_prefix`
+
+### 7.4 `check-upstream-versions` (Reusable Workflow) ✅
+
+**Status:** Implemented —
+`check-upstream-versions.yml`
+
+**Inputs:** `create_issues` (boolean, default false)
+
+**Outputs:** `results` (JSON array), `updates_available`
+(boolean)
 
 **Steps:**
 
 1. For each package in `.agent/packages.json`:
-   a. Derive current versions by scanning ebuild filenames in `<category>/<name>/`.
-   b. Query the upstream source for the latest version.
-   c. Compare to the versions found on disk.
-2. Output a list of packages that have new upstream versions.
-3. For each new version, dispatch the appropriate upgrade or repackage workflow.
+   a. Derive current versions by scanning ebuild filenames
+      in `<category>/<name>/`.
+   b. Query the upstream source for the latest version
+      (GitHub Releases API for `github-release`, GitHub
+      Tags API for `github-tag`, skip for `manual`).
+   c. Compare to the versions found on disk using
+      `sort -V`.
+2. Output a JSON array of results with per-package status.
+3. If `create_issues` is true, create GitHub issues for
+   packages with available updates (deduplicated by title).
+4. Write a formatted summary table to
+   `$GITHUB_STEP_SUMMARY`.
+
+**Callers:** `ci-version-check.yml` (scheduled Wed/Sat at
+06:00 UTC + manual dispatch, with `create_issues: true`).
+
+**Not yet implemented (Phase 4.6):**
+
+* Auto-dispatch of upgrade/repackage workflows.
+
+### 7.5 `upgrade-ebuild` (Workflow) 🔶
+
+**Status:** Being created — `upgrade-ebuild.yml`
+
+**Local script:** `scripts/upgrade-ebuild.sh` (✅) handles
+version detection, ebuild copy, Cargo.toml dependency
+diffing, and auto-apply. Supports `--apply`, `--json`, and
+`--manifest` flags.
+
+**Planned workflow inputs:** `package` (e.g.
+`app-editors/zed`), `new_version`, `auto_merge` (boolean)
+
+**Steps (planned):**
+
+1. Run `scripts/upgrade-ebuild.sh` with `--apply --json`.
+2. Run lint checks on the new ebuild.
+3. Optionally run build test (informational).
+4. Create PR via `peter-evans/create-pull-request` with
+   appropriate labels.
 
 ---
 
@@ -383,60 +567,94 @@ Generalization of the existing `repackage-surge.yml`.
 
 ### 8.1 Agent Capabilities
 
-The AI coding agent (e.g. GitHub Copilot) should be able to:
+The AI coding agent (e.g. GitHub Copilot) should be
+able to:
 
-* Read `.agent/packages.json` and per-package instructions in `.agent/instructions/`.
-* Generate new ebuilds by inspecting upstream build systems.
+* Read `.agent/packages.json` and per-package
+  instructions in `.agent/instructions/`.
+* Generate new ebuilds by inspecting upstream build
+  systems.
 * Copy and modify existing ebuilds for version bumps.
-* Run lint and build workflows and interpret their output.
+* Run lint and build workflows and interpret their
+  output.
 * Open PRs and interact via PR comments.
 
-Agents must always operate within the safety constraints defined in §8.4 — no system tool installation or system file modification without explicit approval.
+Agents must always operate within the safety constraints
+defined in §8.4 — no system tool installation or system
+file modification without explicit approval.
 
 ### 8.2 Agent Entrypoints
 
 | Task | Entry point |
 |---|---|
-| Create new ebuild | Issue assigned to agent → agent creates branch, drafts ebuild, opens PR |
-| Upgrade ebuild | Workflow dispatches upgrade → agent (or script) performs the version bump |
-| Fix lint/build failure | Agent reads CI failure logs, makes corrections, pushes to PR branch |
+| Create new ebuild | Issue → branch → draft ebuild → PR |
+| Upgrade ebuild | Workflow dispatch → version bump |
+| Fix lint/build failure | Read CI logs → fix → push |
 
 ### 8.3 Providing Context to Agents
 
 To help agents produce high-quality ebuilds:
 
-* Maintain `.agent/ebuild_guidelines.md` describing overlay-specific conventions (preferred USE flags, licensing practices, Manifest handling, etc.).
-* Provide per-package upgrade instructions in `.agent/instructions/<category>/<package>/`, mirroring the overlay's directory structure for easy navigation and correlation (e.g. the Zed update process from §5.5 as `.agent/instructions/app-editors/zed/upgrade.md`).
-* Store reusable agent skill documents in `.agent/skills/` (e.g. "how to upgrade a Cargo-based ebuild", "how to handle GIT_CRATES").
-* Include example ebuilds in the overlay that demonstrate common patterns (cmake-based, cargo-based, binary repackage, etc.).
-* `.agent/packages.json` provides structured upstream metadata the agent can consume for version checking and upgrade automation.
+* Maintain `.agent/ebuild_guidelines.md` describing
+  overlay-specific conventions (preferred USE flags,
+  licensing practices, Manifest handling, etc.).
+* Provide per-package upgrade instructions in
+  `.agent/instructions/<category>/<package>/`, mirroring
+  the overlay's directory structure (e.g. Zed update
+  process as
+  `.agent/instructions/app-editors/zed/upgrade.md`).
+* Store reusable agent skill documents in
+  `.agent/skills/` (e.g. "how to upgrade a Cargo-based
+  ebuild", "how to handle GIT_CRATES").
+* Include example ebuilds in the overlay that demonstrate
+  common patterns (cmake, cargo, binary repackage, etc.).
+* `.agent/packages.json` provides structured upstream
+  metadata the agent can consume for version checking and
+  upgrade automation.
 
 ### 8.4 Agent Safety Constraints
 
-Agents operate under strict safety rules that protect the developer's system while still allowing full automation in controlled environments. The installed toolchain — both locally and in containers — is assumed to be sufficient for all workflow tasks.
+Agents operate under strict safety rules that protect the
+developer's system while still allowing full automation in
+controlled environments. The installed toolchain — both
+locally and in containers — is assumed to be sufficient
+for all workflow tasks.
 
 #### System tool installation
 
 | Environment | Rule |
 |---|---|
-| **Local system** | Agents must **never** install system tools (via `emerge`, `apt`, `pip install --system`, etc.). All required tools are already present. |
-| **CI container** | Tool installation is permitted **only** if explicitly defined as part of the workflow (e.g. in the Containerfile or a workflow step). Agents must not install ad-hoc tools without prior approval. |
+| **Local system** | **Never** install system tools (`emerge`, `apt`, etc.). |
+| **CI container** | Only if defined in workflow. No ad-hoc installs. |
 
-If an agent encounters a missing tool, it must **pause and request human guidance** — post a PR comment describing the missing tool, apply the `waiting-for-human` label, and stop work on that step until the human responds.
+If an agent encounters a missing tool, it must **pause
+and request human guidance** — post a PR comment
+describing the missing tool, apply the
+`waiting-for-human` label, and stop work on that step
+until the human responds.
 
 #### System file modification
 
 | Environment | Rule |
 |---|---|
-| **Local system** | Agents must **never** modify system files (e.g. `/etc/portage/*`, `/var/db/repos/*`, `/usr/*`) without explicit permission from the human via a PR comment or issue thread. All agent work products should be confined to the overlay directory and designated temp workspaces. |
-| **CI container** | System file modification is permitted **only** if defined as part of the workflow (e.g. configuring `repos.conf` for the overlay in the Containerfile). Even in containers, agents should seek approval via PR comment before making system changes not already anticipated by the workflow definition. |
+| **Local system** | **Never** modify system files without explicit permission. Confine work to overlay dir. |
+| **CI container** | Only if defined in workflow. Seek approval for unanticipated changes. |
 
 #### Rationale
 
 These constraints allow:
-* **Full automation in CI/cloud** — Containers are disposable; workflow-defined system changes are safe and reproducible.
-* **Protection for local systems** — A developer's workstation is never used as an experimental testbed. The `ebuild` tool (§5.4) provides build/test capability without touching the system, and containers handle the final `emerge` integration test.
-* **Flexibility with guardrails** — When workflows evolve to need new tools or system changes, they are added to the workflow definition (Containerfile, workflow YAML) with human review, not installed ad-hoc by agents.
+
+* **Full automation in CI/cloud** — Containers are
+  disposable; workflow-defined system changes are safe
+  and reproducible.
+* **Protection for local systems** — A developer's
+  workstation is never used as an experimental testbed.
+  `ebuild` (§5.4) provides build/test capability without
+  touching the system; containers handle `emerge`.
+* **Flexibility with guardrails** — New tools or system
+  changes are added to the workflow definition
+  (Containerfile, workflow YAML) with human review, not
+  installed ad-hoc by agents.
 
 ---
 
@@ -444,18 +662,26 @@ These constraints allow:
 
 ### 9.1 Scripts
 
-Create a `scripts/` directory with the following helpers:
+The `scripts/` directory contains local convenience helpers
+that mirror CI behavior:
 
-| Script | Purpose |
-|---|---|
-| `scripts/lint.sh <pkg_dir>` | Run pkgcheck inside the Gentoo container on the specified package. |
-| `scripts/test-build.sh <pkg_dir> <ebuild_file>` | Run `ebuild ./<file> clean compile` inside the container. |
-| `scripts/check-updates.sh` | Run the version-check logic locally, printing packages that have upstream updates. |
-| `scripts/new-ebuild.sh <cat> <name> <ver>` | Scaffold a new ebuild skeleton with metadata.xml. |
+| Script | Status | Purpose |
+|---|---|---|
+| `scripts/lint.sh <pkg_dir>` | ✅ | `pkgcheck` in `testenv` container. Local image → GHCR fallback. |
+| `scripts/test-build.sh <pkg> <ebuild> [--no-clean]` | ✅ | `ebuild clean compile` in container. Auto-selects `testenv-rust` for Zed. `--no-clean` for fast retry. |
+| `scripts/check-updates.sh [--json]` | ✅ | Check tracked packages for upstream updates. `--json` for machine output. |
+| `scripts/upgrade-ebuild.sh` | ✅ | Detect upstream updates, copy ebuild, diff Cargo.toml deps, apply changes. `--apply`, `--json`, `--manifest`. |
+| `scripts/new-ebuild.sh <cat> <name> <ver>` | ❌ | Scaffold new ebuild skeleton + metadata.xml. (Phase 5) |
 
 ### 9.2 Container Runtime
 
-Scripts should prefer Podman and fall back to Docker if Podman is not available. Detect which is present and use it (`podman` first, then `docker`). The container image tag defaults to `ghcr.io/<OWNER>/adaptive-overlay-testenv:latest` (where `<OWNER>` is the GitHub repository owner, e.g. `faraclas`) and can be overridden via the `TESTENV_IMAGE` environment variable.
+Scripts prefer Podman and fall back to Docker. Image
+resolution: local image first (e.g.
+`localhost/adaptive-overlay-testenv:local`), then GHCR
+(`ghcr.io/faraclas/adaptive-overlay/testenv:latest`).
+`test-build.sh` auto-selects `testenv-rust` for
+`app-editors/zed`. Override overlay root via
+`OVERLAY_DIR`.
 
 ### 9.3 Makefile / Taskfile (Optional)
 
@@ -463,67 +689,69 @@ A top-level `Makefile` or `Taskfile.yml` can provide convenient aliases:
 
 ```makefile
 lint:
-	./scripts/lint.sh $(PKG)
+    ./scripts/lint.sh $(PKG)
 
 test:
-	./scripts/test-build.sh $(PKG) $(EBUILD)
+    ./scripts/test-build.sh $(PKG) $(EBUILD)
 
 check-updates:
-	./scripts/check-updates.sh
+    ./scripts/check-updates.sh
 ```
 
 ---
 
 ## 10. Implementation Phases
 
-The work is broken into sequential phases. Each phase produces usable, testable deliverables.
+The work is broken into sequential phases. Each phase
+produces usable, testable deliverables.
 
-### Phase 1 — Foundation (Container & Lint)
+### Phase 1 — Foundation (Container & Lint) ✅
 
-> Goal: Establish the container environment and basic lint CI.
+> Goal: Establish the container environment and basic lint
+> CI.
 
-| Item | Description |
-|---|---|
-| 1.1 | Create `Containerfile` for the Gentoo test environment. |
-| 1.2 | Set up GHCR publishing workflow for the container image (weekly rebuild). |
-| 1.3 | Create the `lint-ebuild` reusable workflow. |
-| 1.4 | Create `scripts/lint.sh` for local use. |
-| 1.5 | Add a CI workflow that lints changed ebuilds on every PR. |
+| Item | Status | Description |
+|---|---|---|
+| 1.1 | ✅ | `containers/testenv/Containerfile` + bonus `testenv-rust/` for Zed. |
+| 1.2 | ✅ | `publish-testenv.yml` (weekly) + chained `publish-testenv-rust.yml`. |
+| 1.3 | ✅ | `lint-ebuild.yml` — reusable `pkgcheck scan`. |
+| 1.4 | ✅ | `scripts/lint.sh` — local Podman/Docker. |
+| 1.5 | ✅ | `ci-lint.yml` — lints changed ebuilds on PR/push. |
 
-### Phase 2 — Build Testing
+### Phase 2 — Build Testing ✅
 
-> Goal: Enable full emerge testing in CI and locally.
+> Goal: Enable full build testing in CI and locally.
 
-| Item | Description |
-|---|---|
-| 2.1 | Create the `test-ebuild` reusable workflow. |
-| 2.2 | Create `scripts/test-build.sh` for local use. |
-| 2.3 | Integrate build testing into the PR CI pipeline (triggered for changed ebuilds). |
-| 2.4 | Implement distfiles and portage tree caching for faster CI runs. |
+| Item | Status | Description |
+|---|---|---|
+| 2.1 | ✅ | `test-ebuild.yml` — reusable, verify-script support. |
+| 2.2 | ✅ | `scripts/test-build.sh` — local, `--no-clean`, Rust auto-select. |
+| 2.3 | ✅ | `ci-build.yml` — opt-in via `build-test` label. |
+| 2.4 | ⚠️ | Partial — images pre-bake deps. No distfiles cache yet. |
 
-### Phase 3 — Package Registry & Version Checking
+### Phase 3 — Package Registry & Version Checking ✅
 
 > Goal: Track packages and detect upstream updates.
 
-| Item | Description |
-|---|---|
-| 3.1 | Create `.agent/packages.json` with upstream tracking metadata for all current packages. |
-| 3.2 | Create the `check-upstream-versions` workflow/script (reads `.agent/packages.json`, scans overlay for current versions). |
-| 3.3 | Create `scripts/check-updates.sh` for local use. |
-| 3.4 | Set up scheduled cron trigger (e.g. twice weekly). |
+| Item | Status | Description |
+|---|---|---|
+| 3.1 | ✅ | `.agent/packages.json` — all 8 packages. Types: `github-release`, `github-tag`, `manual`. |
+| 3.2 | ✅ | `check-upstream-versions.yml` — JSON output, issue creation, summary. |
+| 3.3 | ✅ | `scripts/check-updates.sh` — `--json`, `GITHUB_TOKEN`. |
+| 3.4 | ✅ | `ci-version-check.yml` — Wed/Sat 06:00 UTC + manual. |
 
-### Phase 4 — Automated Ebuild Upgrades
+### Phase 4 — Automated Ebuild Upgrades 🔶
 
 > Goal: End-to-end autonomous version bumps.
 
-| Item | Description |
-|---|---|
-| 4.1 | Create the `upgrade-ebuild.yml` workflow with dispatch inputs. |
-| 4.2 | Implement the copy-and-update ebuild logic including dependency change detection (§5.5). |
-| 4.3 | Integrate lint + `ebuild` build test into the upgrade workflow. |
-| 4.4 | Implement auto-PR creation with appropriate labels. |
-| 4.5 | Generalize `repackage-surge.yml` into a reusable `repackage-source.yml` workflow. |
-| 4.6 | Wire the version-check workflow to automatically trigger upgrades. |
+| Item | Status | Description |
+|---|---|---|
+| 4.1 | 🔶 | `upgrade-ebuild.sh` script exists with version detection, source checking, ebuild copy, Cargo.toml dep diffing, auto-apply, and JSON output. `upgrade-ebuild.yml` workflow being created. |
+| 4.2 | ✅ | Copy-and-update logic + dep change detection for Cargo/Rust implemented in `upgrade-ebuild.sh` (§5.5). |
+| 4.3 | 🔶 | Lint integration done (script prints next steps). Build test integration is informational only (CI workflow being created). |
+| 4.4 | 🔶 | `upgrade-ebuild.yml` being created with PR creation via `peter-evans/create-pull-request`. |
+| 4.5 | ❌ | Generalize `repackage-surge.yml` → `repackage-source.yml`. |
+| 4.6 | ❌ | Wire version-check → upgrade triggers. |
 
 ### Phase 5 — New Ebuild Creation Workflow
 
@@ -531,11 +759,11 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 5.1 | Create `.agent/ebuild_guidelines.md` — conventions and patterns for agents. |
-| 5.2 | Create `scripts/new-ebuild.sh` — scaffold a new ebuild skeleton. |
-| 5.3 | Define the `new-ebuild.yml` workflow with issue/dispatch triggers. |
-| 5.4 | Implement the human-in-the-loop mechanism (labels, PR comments, review requests). |
-| 5.5 | Document the agent collaboration process. Populate `.agent/skills/` and `.agent/instructions/` with initial content. |
+| 5.1 | `.agent/ebuild_guidelines.md` — conventions for agents. |
+| 5.2 | `scripts/new-ebuild.sh` — scaffold ebuild skeleton. |
+| 5.3 | `new-ebuild.yml` with issue/dispatch triggers. |
+| 5.4 | Human-in-the-loop (labels, PR comments, reviews). |
+| 5.5 | Populate `.agent/skills/` and `.agent/instructions/`. |
 
 ### Phase 6 — Upstream Release Triggers
 
@@ -543,8 +771,8 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 6.1 | Evaluate options: `repository_dispatch` via external webhook vs. polling workflow. |
-| 6.2 | Implement the chosen trigger mechanism for GitHub-hosted upstreams. |
+| 6.1 | Evaluate `repository_dispatch` vs. polling workflow. |
+| 6.2 | Implement trigger for GitHub-hosted upstreams. |
 | 6.3 | Connect release triggers to the upgrade workflow. |
 
 ### Phase 7 — Polish & Documentation
@@ -553,10 +781,10 @@ The work is broken into sequential phases. Each phase produces usable, testable 
 
 | Item | Description |
 |---|---|
-| 7.1 | Update `README.md` with contributing/CI documentation. |
-| 7.2 | Add a `CONTRIBUTING.md` covering the workflow for human and agent contributors. |
+| 7.1 | Update `README.md` with contributing/CI docs. |
+| 7.2 | Add `CONTRIBUTING.md` for human + agent contributors. |
 | 7.3 | Create optional `Makefile` or `Taskfile.yml`. |
-| 7.4 | Review and harden all workflows (permissions, secrets, error handling). |
+| 7.4 | Harden all workflows (permissions, secrets, errors). |
 
 ---
 
@@ -576,7 +804,12 @@ Phase 1 ──► Phase 5
 Phase 4 + Phase 5 ──► Phase 7
 ```
 
-Phases 1–2 (container + testing) are prerequisites for everything else. Phase 3 (version checking) and Phase 5 (new ebuilds) can proceed in parallel once Phase 1 is done. Phase 4 (upgrades) depends on Phases 2 and 3. Phase 6 (release triggers) extends Phase 4. Phase 7 wraps up after the core workflows are functional.
+Phases 1–2 (container + testing) are prerequisites for
+everything else. Phase 3 (version checking) and Phase 5
+(new ebuilds) can proceed in parallel once Phase 1 is
+done. Phase 4 (upgrades) depends on Phases 2 and 3.
+Phase 6 (release triggers) extends Phase 4. Phase 7
+wraps up after the core workflows are functional.
 
 ---
 
@@ -584,12 +817,17 @@ Phases 1–2 (container + testing) are prerequisites for everything else. Phase 
 
 | Secret / Permission | Used By | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` (default) | All workflows | Create PRs, releases, push branches |
+| `GITHUB_TOKEN` (default) | All workflows | PRs, releases, branches |
 | `MAIL_USERNAME` | Version check, notifications | SMTP authentication for email alerts |
-| `MAIL_PASSWORD` | Version check, notifications | SMTP authentication for email alerts (must be stored as a GitHub encrypted secret — never commit to source) |
-| `MAIL_TO` | Version check, notifications | Notification recipient |
+| `MAIL_PASSWORD` | Version check, notifications | SMTP auth (GitHub encrypted secret — never commit) |
+| `MAIL_TO` | Version check, notifications | Recipient |
 
-> **Note on notifications:** Email is used for out-of-band alerts (matching the existing `repackage-surge.yml` pattern). For tighter GitHub integration, consider supplementing email with GitHub Issue comments or Discussions posts so that notification history is co-located with the code. Workflows can create issue comments using the default `GITHUB_TOKEN` without additional secrets.
+> **Note on notifications:** Email is used for out-of-band
+> alerts (matching `repackage-surge.yml`). For tighter
+> GitHub integration, consider supplementing with Issue
+> comments or Discussions posts. Workflows can create
+> issue comments using `GITHUB_TOKEN` without extra
+> secrets.
 | GHCR write access | Container image workflow | Push the test environment image |
 
 ---
@@ -598,12 +836,12 @@ Phases 1–2 (container + testing) are prerequisites for everything else. Phase 
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Gentoo container builds are slow | Long CI times | Aggressive caching of portage tree, distfiles, and compiled packages (binpkgs). Build only the package under test, not full `@world`. |
-| Upstream API rate limits | Version checks fail | Cache API responses. Use conditional requests (`If-None-Match`). Limit check frequency. |
-| Ebuild complexity varies widely | Agent may produce incorrect ebuilds | Provide clear guidelines and examples. Require human review for new ebuilds. Allow auto-merge only for version bumps of packages with `auto_upgrade: true`. |
-| Supply-chain attacks via upstream | Auto-merged bump includes malicious code | Even for `auto_upgrade` packages, the build-test step acts as a first gate. Add a checksum/signature verification step where upstream provides signed releases. Consider a brief hold period (e.g. 24 hours) before auto-merge to allow community detection of compromised releases. Security-critical packages should never be `auto_upgrade: true`. |
-| Container image staleness | Tests against outdated portage tree | Weekly automated rebuild of the container image. Allow manual rebuild dispatch. |
-| Flaky upstream sources | Build tests fail due to transient download errors | Retry logic in emerge. Cache distfiles. Use mirrors. |
+| Gentoo container builds are slow | Long CI times | Cache portage tree, distfiles, binpkgs. Build only package under test. |
+| Upstream API rate limits | Version checks fail | Cache responses. Conditional requests. Limit frequency. |
+| Ebuild complexity varies | Incorrect ebuilds | Guidelines + examples. Human review for new ebuilds. Auto-merge only for `auto_upgrade: true`. |
+| Supply-chain attacks | Malicious code in bump | Build-test as first gate. Checksum/signature verification. Hold period before auto-merge. |
+| Container staleness | Outdated portage tree | Weekly rebuild + manual dispatch. |
+| Flaky upstream sources | Transient download errors | Retry logic. Cache distfiles. Use mirrors. |
 
 ---
 
@@ -611,8 +849,15 @@ Phases 1–2 (container + testing) are prerequisites for everything else. Phase 
 
 The workflow system is considered complete when:
 
-1. Every PR automatically receives lint and build-test results.
-2. Version bumps for `auto_upgrade` packages happen without human intervention, from detection through merge.
-3. An agent can be assigned a "create new ebuild" issue and produce a working, tested PR with minimal human guidance.
-4. All CI workflows can be replicated locally using the provided scripts and container image.
-5. The package registry accurately reflects the overlay contents and is kept up to date by automation.
+1. Every PR automatically receives lint and build-test
+   results.
+2. Version bumps for `auto_upgrade` packages happen
+   without human intervention, from detection through
+   merge.
+3. An agent can be assigned a "create new ebuild" issue
+   and produce a working, tested PR with minimal human
+   guidance.
+4. All CI workflows can be replicated locally using the
+   provided scripts and container image.
+5. The package registry accurately reflects the overlay
+   contents and is kept up to date by automation.

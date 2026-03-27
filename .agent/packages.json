@@ -1,0 +1,82 @@
+[
+  {
+    "category": "app-editors",
+    "name": "zed",
+    "upstream_repo": "zed-industries/zed",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks on every bump. See update_zed_editor.md."
+  },
+  {
+    "category": "media-sound",
+    "name": "carla",
+    "upstream_repo": "falkTX/Carla",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Standard GitHub release. auto_upgrade can be enabled once upgrade workflow is proven."
+  },
+  {
+    "category": "media-sound",
+    "name": "surgext",
+    "upstream_repo": "surge-synthesizer/surge",
+    "upstream_type": "github-tag",
+    "version_pattern": "release_xt_(.*)",
+    "repackage": true,
+    "auto_upgrade": false,
+    "notes": "Non-standard tag pattern. Stable releases are tags only (no GitHub Release objects). Requires source repackaging with submodules via repackage-surge.yml before ebuild can fetch sources."
+  },
+  {
+    "category": "media-sound",
+    "name": "yabridge",
+    "upstream_repo": "robbert-vdh/yabridge",
+    "upstream_type": "github-release",
+    "version_pattern": "(.*)",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Current ebuild (5.1.2) tracks a development branch by commit SHA rather than a release tag due to Wine 10 embedding fixes. Version checking against release tags will lag behind actual ebuild state until a stable release incorporates the fixes."
+  },
+  {
+    "category": "media-sound",
+    "name": "amp-locker",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Downloads from Audio Assault S3 bucket. No public release API available. Updates must be checked manually at https://audioassault.mx/amplocker.php"
+  },
+  {
+    "category": "media-sound",
+    "name": "drum-locker",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Downloads from Audio Assault S3 bucket. No public release API available. Updates must be checked manually at https://audioassault.mx/drumlocker.php"
+  },
+  {
+    "category": "media-sound",
+    "name": "bitwig-studio",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Downloads directly from bitwig.com. No public release API. Updates must be checked manually at https://www.bitwig.com/download/"
+  },
+  {
+    "category": "net-vpn",
+    "name": "forticlient",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Downloads from Fortinet's apt repo. No public release API. Updates must be checked manually at https://www.fortinet.com/support/product-downloads"
+  }
+]

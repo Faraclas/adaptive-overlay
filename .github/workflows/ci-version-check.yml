@@ -1,0 +1,24 @@
+# Scheduled Version Check — runs the check-upstream-versions reusable
+# workflow on a regular cadence to detect new upstream releases.
+#
+# Schedule: twice weekly — Wednesday and Saturday at 06:00 UTC.
+# Can also be triggered manually via workflow_dispatch.
+#
+# When updates are detected, GitHub issues are created automatically
+# (one per package, deduplicated by title).
+#
+# Phase 3.4 of the implementation plan.
+
+name: Scheduled Version Check
+
+on:
+  schedule:
+    - cron: "0 6 * * 3,6" # Wednesday and Saturday at 06:00 UTC
+
+  workflow_dispatch: # Allow manual trigger from the Actions UI
+
+jobs:
+  version-check:
+    uses: ./.github/workflows/check-upstream-versions.yml
+    with:
+      create_issues: true

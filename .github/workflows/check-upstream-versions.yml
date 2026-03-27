@@ -1,0 +1,434 @@
+# Reusable workflow: check all tracked packages for upstream updates.
+#
+# Reads .agent/packages.json, queries the GitHub Releases API for each
+# package with upstream_type "github-release", scans the overlay tree
+# for current ebuild versions, and reports which packages have newer
+# upstream releases available.
+#
+# Outputs a JSON array of update results and optionally creates GitHub
+# issues for packages that have updates available.
+#
+# Usage from a caller workflow:
+#
+#   jobs:
+#     check:
+#       uses: ./.github/workflows/check-upstream-versions.yml
+#       with:
+#         create_issues: true
+#
+# Phase 3.2 of the implementation plan.
+
+name: Check Upstream Versions
+
+on:
+  workflow_call:
+    inputs:
+      create_issues:
+        description: >
+          Whether to create GitHub issues for packages that have
+          upstream updates available.
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      results:
+        description: >
+          JSON array of version check results.  Each element has:
+          category, name, current_version, upstream_version, status.
+        value: ${{ jobs.check.outputs.results }}
+      updates_available:
+        description: >
+          "true" if at least one package has a newer upstream version.
+        value: ${{ jobs.check.outputs.updates_available }}
+
+jobs:
+  check:
+    name: Check upstream versions
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    outputs:
+      results: ${{ steps.check.outputs.results }}
+      updates_available: ${{ steps.check.outputs.updates_available }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check upstream versions
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PACKAGES_JSON=".agent/packages.json"
+
+          if [ ! -f "${PACKAGES_JSON}" ]; then
+              echo "::error::${PACKAGES_JSON} not found"
+              exit 1
+          fi
+
+          # -----------------------------------------------------------
+          # Helper: query GitHub Releases API for latest stable version
+          # -----------------------------------------------------------
+          github_latest_version() {
+              local repo="$1"
+              local pattern="$2"
+              local api_url="https://api.github.com/repos/${repo}/releases"
+
+              local response
+              response=$(
+                  curl -sf --max-time 15 \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "Authorization: token ${GH_TOKEN}" \
+                      "${api_url}?per_page=10" 2>/dev/null
+              ) || return 1
+
+              # Get all non-draft, non-prerelease tag names.
+              local tags
+              tags=$(
+                  echo "${response}" \
+                      | jq -r '
+                          [ .[]
+                            | select(.draft == false
+                                     and .prerelease == false) ]
+                          | .[].tag_name // empty
+                      '
+              )
+
+              # Find the first tag that actually matches the
+              # version pattern.  Tags like "Nightly" that don't
+              # match are silently skipped.
+              local tag
+              while IFS= read -r tag; do
+                  [ -z "${tag}" ] && continue
+                  if echo "${tag}" | grep -qE "^${pattern}$"; then
+                      echo "${tag}" \
+                          | sed -E "s/^${pattern}$/\\1/"
+                      return 0
+                  fi
+              done <<< "${tags}"
+
+              # No matching tag found.
+              return 1
+          }
+
+          # -----------------------------------------------------------
+          # Helper: query GitHub Tags API for latest matching version
+          #
+          # Some projects (e.g. Surge XT) publish stable versions as
+          # tags only, without creating GitHub Release objects.  This
+          # function queries the Tags API, filters to tags matching
+          # the pattern, and returns the highest version.
+          # -----------------------------------------------------------
+          github_latest_tag_version() {
+              local repo="$1"
+              local pattern="$2"
+              local api_url="https://api.github.com/repos/${repo}/tags"
+
+              local response
+              response=$(
+                  curl -sf --max-time 15 \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "Authorization: token ${GH_TOKEN}" \
+                      "${api_url}?per_page=30" 2>/dev/null
+              ) || return 1
+
+              local version
+              version=$(
+                  echo "${response}" \
+                      | jq -r '.[].name // empty' \
+                      | grep -E "^${pattern}$" \
+                      | sed -E "s/^${pattern}$/\\1/" \
+                      | sort -V \
+                      | tail -n 1
+              )
+
+              if [ -n "${version}" ]; then
+                  echo "${version}"
+                  return 0
+              fi
+
+              return 1
+          }
+
+          # -----------------------------------------------------------
+          # Helper: find the highest ebuild version for a package
+          # -----------------------------------------------------------
+          overlay_best_version() {
+              local category="$1"
+              local name="$2"
+              local pkg_dir="${category}/${name}"
+
+              if [ ! -d "${pkg_dir}" ]; then
+                  echo "none"
+                  return
+              fi
+
+              local versions=()
+              for ebuild in "${pkg_dir}"/*.ebuild; do
+                  [ -f "${ebuild}" ] || continue
+                  local base
+                  base=$(basename "${ebuild}" .ebuild)
+                  local ver="${base#"${name}"-}"
+                  versions+=("${ver}")
+              done
+
+              if [ ${#versions[@]} -eq 0 ]; then
+                  echo "none"
+                  return
+              fi
+
+              printf '%s\n' "${versions[@]}" | sort -V | tail -n 1
+          }
+
+          # Strip Gentoo -rN revision suffix for comparison.
+          strip_revision() {
+              echo "$1" | sed -E 's/-r[0-9]+$//'
+          }
+
+          # -----------------------------------------------------------
+          # Main loop
+          # -----------------------------------------------------------
+          PKG_COUNT=$(jq 'length' "${PACKAGES_JSON}")
+          JSON_RESULTS="[]"
+          UPDATES_FOUND=0
+
+          echo ""
+          printf "%-30s %-15s %-15s %s\n" \
+              "PACKAGE" "CURRENT" "UPSTREAM" "STATUS"
+          printf "%-30s %-15s %-15s %s\n" \
+              "-------" "-------" "--------" "------"
+
+          for i in $(seq 0 $((PKG_COUNT - 1))); do
+              CATEGORY=$(jq -r ".[$i].category" "${PACKAGES_JSON}")
+              NAME=$(jq -r ".[$i].name" "${PACKAGES_JSON}")
+              UPSTREAM_REPO=$(jq -r ".[$i].upstream_repo // empty" \
+                  "${PACKAGES_JSON}")
+              UPSTREAM_TYPE=$(jq -r ".[$i].upstream_type" \
+                  "${PACKAGES_JSON}")
+              VERSION_PATTERN=$(jq -r \
+                  ".[$i].version_pattern // empty" \
+                  "${PACKAGES_JSON}")
+              PKG_LABEL="${CATEGORY}/${NAME}"
+
+              CURRENT_VER=$(overlay_best_version "${CATEGORY}" "${NAME}")
+              CURRENT_CLEAN=$(strip_revision "${CURRENT_VER}")
+
+              UPSTREAM_VER=""
+              STATUS=""
+
+              case "${UPSTREAM_TYPE}" in
+                  github-release)
+                      if [ -z "${UPSTREAM_REPO}" ] \
+                          || [ -z "${VERSION_PATTERN}" ]; then
+                          STATUS="error:missing-metadata"
+                      else
+                          UPSTREAM_VER=$(
+                              github_latest_version \
+                                  "${UPSTREAM_REPO}" \
+                                  "${VERSION_PATTERN}"
+                          ) || true
+                          if [ -z "${UPSTREAM_VER}" ]; then
+                              STATUS="error:api-failed"
+                          fi
+                      fi
+                      ;;
+                  github-tag)
+                      if [ -z "${UPSTREAM_REPO}" ] \
+                          || [ -z "${VERSION_PATTERN}" ]; then
+                          STATUS="error:missing-metadata"
+                      else
+                          UPSTREAM_VER=$(
+                              github_latest_tag_version \
+                                  "${UPSTREAM_REPO}" \
+                                  "${VERSION_PATTERN}"
+                          ) || true
+                          if [ -z "${UPSTREAM_VER}" ]; then
+                              STATUS="error:api-failed"
+                          fi
+                      fi
+                      ;;
+                  manual)
+                      UPSTREAM_VER="n/a"
+                      STATUS="manual"
+                      ;;
+                  *)
+                      UPSTREAM_VER="n/a"
+                      STATUS="unsupported:${UPSTREAM_TYPE}"
+                      ;;
+              esac
+
+              # Compare versions.
+              if [ -z "${STATUS}" ]; then
+                  if [ "${CURRENT_VER}" = "none" ]; then
+                      STATUS="new-package"
+                      UPDATES_FOUND=$((UPDATES_FOUND + 1))
+                  elif [ "${CURRENT_CLEAN}" = "${UPSTREAM_VER}" ]; then
+                      STATUS="up-to-date"
+                  else
+                      HIGHER=$(
+                          printf '%s\n%s\n' \
+                              "${CURRENT_CLEAN}" "${UPSTREAM_VER}" \
+                              | sort -V | tail -n 1
+                      )
+                      if [ "${HIGHER}" = "${UPSTREAM_VER}" ] \
+                          && [ "${HIGHER}" != "${CURRENT_CLEAN}" ]; then
+                          STATUS="update-available"
+                          UPDATES_FOUND=$((UPDATES_FOUND + 1))
+                      else
+                          STATUS="up-to-date"
+                      fi
+                  fi
+              fi
+
+              printf "%-30s %-15s %-15s %s\n" \
+                  "${PKG_LABEL}" \
+                  "${CURRENT_VER}" \
+                  "${UPSTREAM_VER:-?}" \
+                  "${STATUS}"
+
+              JSON_RESULTS=$(
+                  echo "${JSON_RESULTS}" | jq \
+                      --arg cat "${CATEGORY}" \
+                      --arg name "${NAME}" \
+                      --arg current "${CURRENT_VER}" \
+                      --arg upstream "${UPSTREAM_VER:-}" \
+                      --arg status "${STATUS}" \
+                      '. + [{
+                          category: $cat,
+                          name: $name,
+                          current_version: $current,
+                          upstream_version: $upstream,
+                          status: $status
+                      }]'
+              )
+          done
+
+          echo ""
+          if [ "${UPDATES_FOUND}" -gt 0 ]; then
+              echo "${UPDATES_FOUND} package(s) with updates available."
+          else
+              echo "All trackable packages are up to date."
+          fi
+
+          # Write outputs.
+          # JSON goes into a file to avoid shell quoting issues with
+          # multiline content in GITHUB_OUTPUT.
+          RESULTS_FILE=$(mktemp)
+          echo "${JSON_RESULTS}" | jq -c . > "${RESULTS_FILE}"
+
+          echo "results=$(cat "${RESULTS_FILE}")" >> "$GITHUB_OUTPUT"
+
+          if [ "${UPDATES_FOUND}" -gt 0 ]; then
+              echo "updates_available=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "updates_available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------
+      # Create GitHub issues for packages with available updates.
+      # One issue per package, skipping if an open issue already exists
+      # with a matching title.
+      # ---------------------------------------------------------------
+      - name: Create issues for available updates
+        if: >-
+          inputs.create_issues
+          && steps.check.outputs.updates_available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTS: ${{ steps.check.outputs.results }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "${RESULTS}" | jq -c '.[]
+              | select(.status == "update-available")' \
+          | while IFS= read -r entry; do
+              CATEGORY=$(echo "${entry}" | jq -r '.category')
+              NAME=$(echo "${entry}" | jq -r '.name')
+              CURRENT=$(echo "${entry}" | jq -r '.current_version')
+              UPSTREAM=$(echo "${entry}" | jq -r '.upstream_version')
+              PKG="${CATEGORY}/${NAME}"
+              TITLE="Upgrade ${PKG} to ${UPSTREAM}"
+
+              # Skip if an open issue with this title already exists.
+              EXISTING=$(
+                  gh issue list \
+                      --state open \
+                      --search "${TITLE}" \
+                      --json title \
+                      --jq "[.[] | select(.title == \"${TITLE}\")] | length"
+              )
+              if [ "${EXISTING}" -gt 0 ]; then
+                  echo "Issue already exists: ${TITLE}"
+                  continue
+              fi
+
+              echo "Creating issue: ${TITLE}"
+              gh issue create \
+                  --title "${TITLE}" \
+                  --label "upgrade" \
+                  --body "$(cat <<EOF
+          ## Upstream Update Detected
+
+          | Field | Value |
+          |-------|-------|
+          | **Package** | \`${PKG}\` |
+          | **Current version** | \`${CURRENT}\` |
+          | **Upstream version** | \`${UPSTREAM}\` |
+          | **Detected by** | \`check-upstream-versions\` workflow |
+
+          ### Next Steps
+
+          1. Review the upstream release notes.
+          2. Run the upgrade workflow or bump the ebuild manually.
+          3. Test with \`scripts/test-build.sh ${PKG} ${NAME}-${UPSTREAM}.ebuild\`.
+
+          ---
+          *This issue was created automatically by CI.*
+          EOF
+              )"
+          done
+
+      - name: Summary
+        if: always()
+        env:
+          RESULTS: ${{ steps.check.outputs.results }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "## Upstream Version Check Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | Current | Upstream | Status |" \
+              >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------|----------|--------|" \
+              >> "$GITHUB_STEP_SUMMARY"
+
+          echo "${RESULTS}" | jq -c '.[]' \
+          | while IFS= read -r entry; do
+              CAT=$(echo "${entry}" | jq -r '.category')
+              NAME=$(echo "${entry}" | jq -r '.name')
+              CURRENT=$(echo "${entry}" | jq -r '.current_version')
+              UPSTREAM=$(echo "${entry}" | jq -r '.upstream_version')
+              STATUS=$(echo "${entry}" | jq -r '.status')
+
+              # Highlight updates with an emoji.
+              case "${STATUS}" in
+                  update-available) ICON="🔴" ;;
+                  up-to-date)       ICON="✅" ;;
+                  manual)           ICON="📋" ;;
+                  error:*)          ICON="⚠️" ;;
+                  *)                ICON="❓" ;;
+              esac
+
+              echo "| \`${CAT}/${NAME}\` | \`${CURRENT}\`" \
+                  "| \`${UPSTREAM}\` | ${ICON} ${STATUS} |" \
+                  >> "$GITHUB_STEP_SUMMARY"
+          done
