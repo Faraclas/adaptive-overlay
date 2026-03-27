@@ -386,10 +386,23 @@ NEW_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" "Cargo.toml") || {
 CARGO_DIFF=$(diff <(echo "${OLD_CARGO}") <(echo "${NEW_CARGO}") || true)
 
 # --- Collect all changes into arrays for structured reporting ----------------
+#
+# The script collects two kinds of data:
+#   1. Structured change records (for JSON/agent consumption)
+#   2. Human-readable descriptions (for terminal output)
+#
+# The JSON output provides structured data so an AI agent can act on
+# each change precisely.  The agent is responsible for:
+#   - Inserting new GIT_CRATES entries (with correct subpath)
+#   - Removing old GIT_CRATES entries
+#   - Updating RUST_MIN_VER (has container/toolchain implications)
+# The script handles:
+#   - Updating existing commit hashes (global sed replacement)
+#   - Updating WEBRTC_COMMIT
 
 declare -a CHANGE_DESCRIPTIONS=()
 declare -A UPDATED_GIT_CRATES=()     # crate -> new_rev
-declare -A ADDED_GIT_CRATES=()       # crate -> "url;rev;subpath"
+declare -A ADDED_GIT_CRATES=()       # crate -> "url;rev"
 declare -a REMOVED_GIT_CRATES=()     # crate names
 NEW_RUST_MIN_VER=""
 NEW_WEBRTC_COMMIT=""
@@ -599,13 +612,18 @@ if [[ "${DO_APPLY}" -eq 1 && ${#CHANGE_DESCRIPTIONS[@]} -gt 0 ]]; then
         fi
     done
 
-    # --- Apply RUST_MIN_VER --------------------------------------------------
+    # --- RUST_MIN_VER is NOT auto-applied ------------------------------------
+    # Changing RUST_MIN_VER has cascading implications:
+    #   - The testenv-rust container has a specific Rust version baked in
+    #   - If the new min version exceeds the container's Rust, builds fail
+    #     or trigger a massive in-container recompile
+    #   - The Containerfile may need updating (new rust-bin version,
+    #     keyword accepts, possibly new LLVM version)
+    #   - The container image must be rebuilt and published first
+    # This is reported in the JSON for the agent to handle with awareness
+    # of these downstream effects.
     if [[ -n "${NEW_RUST_MIN_VER}" ]]; then
-        OLD_PATTERN=$(grep -oP 'RUST_MIN_VER="\K[^"]+' "${EBUILD_FILE}" || true)
-        if [[ -n "${OLD_PATTERN}" ]]; then
-            sed -i "s/RUST_MIN_VER=\"${OLD_PATTERN}\"/RUST_MIN_VER=\"${NEW_RUST_MIN_VER}\"/" "${EBUILD_FILE}"
-            APPLIED+=("RUST_MIN_VER: ${OLD_PATTERN} → ${NEW_RUST_MIN_VER}")
-        fi
+        APPLIED+=("RUST_MIN_VER change detected (${NEW_RUST_MIN_VER}) — requires agent/manual handling (container rebuild may be needed)")
     fi
 
     # --- Apply WEBRTC_COMMIT -------------------------------------------------
@@ -617,32 +635,41 @@ if [[ "${DO_APPLY}" -eq 1 && ${#CHANGE_DESCRIPTIONS[@]} -gt 0 ]]; then
         fi
     fi
 
-    # --- Handle added GIT_CRATES (informational only — too complex to
-    #     auto-insert reliably) -----------------------------------------------
+    # --- New and removed GIT_CRATES are the agent's responsibility -----------
+    # The script reports them in the JSON output but does not attempt to
+    # insert or remove entries — that requires understanding repo structure
+    # (subpaths, workspace layout) which an AI agent handles better.
     if [[ ${#ADDED_GIT_CRATES[@]} -gt 0 ]]; then
-        APPLIED+=("⚠ New GIT_CRATES entries detected but NOT auto-inserted — manual addition required:")
-        for crate in "${!ADDED_GIT_CRATES[@]}"; do
-            APPLIED+=("    ${crate} = ${ADDED_GIT_CRATES[${crate}]}")
-        done
+        APPLIED+=("New GIT_CRATES entries require agent/manual insertion (${#ADDED_GIT_CRATES[@]} crate(s))")
     fi
-
-    # --- Handle removed GIT_CRATES (informational only) ----------------------
     if [[ ${#REMOVED_GIT_CRATES[@]} -gt 0 ]]; then
-        APPLIED+=("⚠ Removed GIT_CRATES entries detected but NOT auto-removed — manual removal required:")
-        for crate in "${REMOVED_GIT_CRATES[@]}"; do
-            APPLIED+=("    ${crate}")
-        done
+        APPLIED+=("Removed GIT_CRATES entries require agent/manual removal (${#REMOVED_GIT_CRATES[@]} crate(s))")
     fi
 fi
 
 # =============================================================================
-# Run pkgdev manifest (if --manifest)
+# Run manifest generation (if --manifest)
 # =============================================================================
 
 MANIFEST_RESULT=""
 if [[ "${DO_MANIFEST}" -eq 1 ]]; then
-    if command -v pkgdev &>/dev/null; then
-        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "" && echo "==> Running pkgdev manifest..."
+    [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "" && echo "==> Generating Manifest..."
+
+    # Prefer scripts/manifest.sh (runs in container — works everywhere).
+    # Fall back to local pkgdev if the script is not available.
+    MANIFEST_SCRIPT="${OVERLAY_DIR}/scripts/manifest.sh"
+
+    if [[ -x "${MANIFEST_SCRIPT}" ]]; then
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    Using: scripts/manifest.sh (container)"
+        if OVERLAY_DIR="${OVERLAY_DIR}" "${MANIFEST_SCRIPT}" "${PACKAGE_DIR}" 2>&1; then
+            MANIFEST_RESULT="success"
+            [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Manifest generated successfully."
+        else
+            MANIFEST_RESULT="failed"
+            [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Manifest generation failed." >&2
+        fi
+    elif command -v pkgdev &>/dev/null; then
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    Using: pkgdev (local)"
         if (cd "${PKG_PATH}" && pkgdev manifest 2>&1); then
             MANIFEST_RESULT="success"
             [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Manifest generated successfully."
@@ -651,8 +678,8 @@ if [[ "${DO_MANIFEST}" -eq 1 ]]; then
             [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Manifest generation failed." >&2
         fi
     else
-        MANIFEST_RESULT="skipped:pkgdev-not-found"
-        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ⚠ pkgdev not found — skipping manifest generation."
+        MANIFEST_RESULT="skipped:no-tooling"
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ⚠ Neither scripts/manifest.sh nor pkgdev found — skipping."
     fi
 fi
 
@@ -661,7 +688,12 @@ fi
 # =============================================================================
 
 if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
-    # Build JSON output.
+    # Build structured JSON output for agent consumption.
+    #
+    # The JSON includes both human-readable descriptions AND structured
+    # data so an agent can programmatically act on each change.
+
+    # Human-readable change descriptions.
     CHANGES_JSON="[]"
     for desc in "${CHANGE_DESCRIPTIONS[@]+"${CHANGE_DESCRIPTIONS[@]}"}"; do
         CHANGES_JSON=$(echo "${CHANGES_JSON}" | jq --arg d "${desc}" '. + [$d]')
@@ -671,14 +703,54 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
         APPLIED_JSON=$(echo "${APPLIED_JSON}" | jq --arg d "${desc}" '. + [$d]')
     done
 
+    # Structured: updated GIT_CRATES (already applied by --apply).
+    UPDATED_JSON="[]"
+    for crate in "${!UPDATED_GIT_CRATES[@]}"; do
+        new_rev="${UPDATED_GIT_CRATES[${crate}]}"
+        old_rev="${OLD_GIT_DEPS[${crate}]}"
+        url="${NEW_GIT_URLS[${crate}]}"
+        UPDATED_JSON=$(echo "${UPDATED_JSON}" | jq \
+            --arg c "${crate}" --arg old "${old_rev}" \
+            --arg new "${new_rev}" --arg url "${url}" \
+            '. + [{crate: $c, old_rev: $old, new_rev: $new, url: $url}]')
+    done
+
+    # Structured: added GIT_CRATES (agent must insert these).
+    ADDED_JSON_STRUCT="[]"
+    for crate in "${!ADDED_GIT_CRATES[@]}"; do
+        IFS=';' read -r url rev <<< "${ADDED_GIT_CRATES[${crate}]}"
+        ADDED_JSON_STRUCT=$(echo "${ADDED_JSON_STRUCT}" | jq \
+            --arg c "${crate}" --arg url "${url}" --arg rev "${rev}" \
+            '. + [{crate: $c, url: $url, rev: $rev}]')
+    done
+
+    # Structured: removed GIT_CRATES (agent must remove these).
+    REMOVED_JSON="[]"
+    for crate in "${REMOVED_GIT_CRATES[@]+"${REMOVED_GIT_CRATES[@]}"}"; do
+        REMOVED_JSON=$(echo "${REMOVED_JSON}" | jq --arg c "${crate}" '. + [$c]')
+    done
+
+    # Structured: new workspace members.
+    MEMBERS_JSON="[]"
+    for member in "${NEW_WORKSPACE_MEMBERS[@]+"${NEW_WORKSPACE_MEMBERS[@]}"}"; do
+        MEMBERS_JSON=$(echo "${MEMBERS_JSON}" | jq --arg m "${member}" '. + [$m]')
+    done
+
     jq -n \
         --arg pkg "${PACKAGE_DIR}" \
         --arg current "${CURRENT_VERSION}" \
         --arg upstream "${UPSTREAM_VERSION}" \
         --arg from_ebuild "${FROM_EBUILD}" \
         --arg to_ebuild "${TO_EBUILD}" \
+        --arg ebuild_path "${PKG_PATH}/${TO_EBUILD}" \
         --argjson changes "${CHANGES_JSON}" \
         --argjson applied "${APPLIED_JSON}" \
+        --argjson updated_git_crates "${UPDATED_JSON}" \
+        --argjson added_git_crates "${ADDED_JSON_STRUCT}" \
+        --argjson removed_git_crates "${REMOVED_JSON}" \
+        --argjson new_workspace_members "${MEMBERS_JSON}" \
+        --arg rust_min_ver "${NEW_RUST_MIN_VER}" \
+        --arg webrtc_commit "${NEW_WEBRTC_COMMIT}" \
         --arg manifest "${MANIFEST_RESULT}" \
         --arg status "upgrade-prepared" \
         '{
@@ -687,9 +759,18 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
             upstream: $upstream,
             from_ebuild: $from_ebuild,
             to_ebuild: $to_ebuild,
+            ebuild_path: $ebuild_path,
             status: $status,
             changes_detected: $changes,
             changes_applied: $applied,
+            git_crates: {
+                updated: $updated_git_crates,
+                added: $added_git_crates,
+                removed: $removed_git_crates
+            },
+            new_workspace_members: $new_workspace_members,
+            rust_min_ver: (if $rust_min_ver == "" then null else $rust_min_ver end),
+            webrtc_commit: (if $webrtc_commit == "" then null else $webrtc_commit end),
             manifest: $manifest
         }'
 else

@@ -544,14 +544,41 @@ planned for Phase 4.5.
 ### 7.5 `upgrade-ebuild` (Workflow) ✅
 
 **Status:** Created — `upgrade-ebuild.yml` +
-`scripts/upgrade-ebuild.sh`
+`scripts/upgrade-ebuild.sh` + `scripts/manifest.sh`
 
-**Local script:** `scripts/upgrade-ebuild.sh` handles
-version detection, source availability checking, ebuild
-copy, Cargo.toml dependency diffing (GIT_CRATES,
-RUST_MIN_VER, WEBRTC_COMMIT), and auto-apply via global
-sed replacement. Supports `--apply`, `--json`, and
-`--manifest` flags.
+**Architecture: Script + Agent division of labor.**
+
+The upgrade process splits work between a bash script
+(mechanical detection and safe replacements) and an AI
+agent (decisions requiring code structure understanding):
+
+| Responsibility | Owner |
+|---|---|
+| Detect version, check sources, copy ebuild | Script |
+| Diff `Cargo.toml`, extract all changes | Script |
+| Update existing commit hashes (global sed) | Script (`--apply`) |
+| Update `WEBRTC_COMMIT` | Script (`--apply`) |
+| Update `src_prepare()` commit variables | Script (side effect of global sed) |
+| **Insert new `GIT_CRATES` entries** | **Agent** |
+| **Remove old `GIT_CRATES` entries** | **Agent** |
+| **Determine subpath for new crates** | **Agent** |
+| **Update `RUST_MIN_VER`** | **Agent** (cascading impact: container rebuild, LLVM version, keyword accepts) |
+| **Review and validate final ebuild** | **Agent** |
+| Generate Manifest | Script (`scripts/manifest.sh`) |
+| Lint | Script (`scripts/lint.sh`) |
+
+The script outputs structured JSON so the agent can
+programmatically act on each change. See
+`.agent/skills/update-zed-editor.md` for the full
+agent procedure.
+
+**Local scripts:**
+
+* `scripts/upgrade-ebuild.sh` — version detection, source
+  checking, ebuild copy, Cargo.toml dep diffing, auto-apply.
+  Flags: `--apply`, `--json`, `--manifest`, `--version`.
+* `scripts/manifest.sh` — runs `pkgdev manifest` inside
+  the testenv container with a read-write overlay mount.
 
 **Workflow triggers:** `workflow_dispatch` (manual) and
 `workflow_call` (for chaining from version-check).
@@ -564,15 +591,14 @@ if empty).
 
 1. Run `scripts/upgrade-ebuild.sh` with `--apply --json`.
 2. Parse JSON output into step outputs.
-3. Create PR via `peter-evans/create-pull-request@v7`
+3. AI agent finalizes ebuild (insert/remove `GIT_CRATES`,
+   validate changes). *(Planned — currently manual.)*
+4. Run `scripts/manifest.sh` in container.
+5. Create PR via `peter-evans/create-pull-request@v7`
    with `upgrade` + `automated` labels.
-4. Run lint via reusable `lint-ebuild.yml`.
-5. Build testing is deferred — reviewer adds `build-test`
+6. Run lint via reusable `lint-ebuild.yml`.
+7. Build testing is deferred — reviewer adds `build-test`
    label to trigger `ci-build.yml`.
-
-**Note:** `pkgdev manifest` is NOT run in CI (requires
-Gentoo tooling + network access to fetch distfiles).
-The PR body instructs the reviewer to run it locally.
 
 **Third-party dependency:**
 [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request)
@@ -689,7 +715,8 @@ that mirror CI behavior:
 | `scripts/lint.sh <pkg_dir>` | ✅ | `pkgcheck` in `testenv` container. Local image → GHCR fallback. |
 | `scripts/test-build.sh <pkg> <ebuild> [--no-clean]` | ✅ | `ebuild clean compile` in container. Auto-selects `testenv-rust` for Zed. `--no-clean` for fast retry. |
 | `scripts/check-updates.sh [--json]` | ✅ | Check tracked packages for upstream updates. `--json` for machine output. |
-| `scripts/upgrade-ebuild.sh` | ✅ | Detect upstream updates, copy ebuild, diff Cargo.toml deps, apply changes. `--apply`, `--json`, `--manifest`. |
+| `scripts/upgrade-ebuild.sh` | ✅ | Detect upstream updates, copy ebuild, diff Cargo.toml deps, apply safe changes. `--apply`, `--json`, `--manifest`. Outputs structured JSON for agent consumption. |
+| `scripts/manifest.sh <pkg_dir>` | ✅ | Run `pkgdev manifest` in `testenv` container with read-write overlay mount. Fetches distfiles and updates `Manifest`. |
 | `scripts/new-ebuild.sh <cat> <name> <ver>` | ❌ | Scaffold new ebuild skeleton + metadata.xml. (Phase 5) |
 
 ### 9.2 Container Runtime
