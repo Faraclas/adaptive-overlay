@@ -1,0 +1,11 @@
+// Devcontainer for the GitHub Copilot coding agent.
+// This provides basic CLI tools for running our shell scripts.
+// Gentoo-specific tooling lives in the testenv containers managed
+// by scripts/, not in this devcontainer.
+{
+  "name": "adaptive-overlay",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}

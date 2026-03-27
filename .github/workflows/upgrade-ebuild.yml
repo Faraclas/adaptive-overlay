@@ -1,15 +1,19 @@
-# Automated Ebuild Upgrade — creates a PR with a version-bumped ebuild.
+# Automated Ebuild Upgrade — detects upstream changes and delegates to
+# the Copilot coding agent for intelligent finalization.
 #
 # Triggered manually via workflow_dispatch, or called from other
 # workflows (e.g. the scheduled version-check workflow).
 #
-# Runs scripts/upgrade-ebuild.sh to detect upstream changes, copy the
-# ebuild, and apply dependency updates (GIT_CRATES, RUST_MIN_VER, etc.)
-# automatically. The result is committed to a branch and a PR is opened.
-#
-# Note: pkgdev manifest is NOT run in CI — it requires network access to
-# fetch distfiles and Gentoo tooling not present on the runner. Manifest
-# generation must happen locally or in a Gentoo container.
+# Flow:
+#   1. Run scripts/upgrade-ebuild.sh --apply --json to detect upstream
+#      changes and apply mechanical updates.
+#   2. If the package is already up to date, stop.
+#   3. Create a GitHub Issue with the structured JSON change report,
+#      a reference to the skills doc, and the mechanically-updated
+#      ebuild content.
+#   4. Assign the issue to copilot-swe-agent[bot] via the REST API.
+#   5. Copilot reads the issue, runs scripts, makes intelligent edits,
+#      generates Manifest, lints, and opens a PR when done.
 #
 # Phase 4 of the implementation plan.
 
@@ -45,46 +49,35 @@ on:
         default: ""
 
 jobs:
-  # -----------------------------------------------------------------------
-  # Job 1: Run the upgrade script, commit the result, and open a PR.
-  # -----------------------------------------------------------------------
-  upgrade:
-    name: Upgrade ${{ inputs.package }}
+  # ---------------------------------------------------------------------
+  # Job 1: Run the upgrade script to gather structured change data.
+  # ---------------------------------------------------------------------
+  detect:
+    name: Detect changes for ${{ inputs.package }}
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
 
     outputs:
+      status: ${{ steps.run-upgrade.outputs.status }}
       version: ${{ steps.run-upgrade.outputs.version }}
       current: ${{ steps.run-upgrade.outputs.current }}
       package: ${{ steps.run-upgrade.outputs.package }}
       to_ebuild: ${{ steps.run-upgrade.outputs.to_ebuild }}
-      status: ${{ steps.run-upgrade.outputs.status }}
+      ebuild_path: ${{ steps.run-upgrade.outputs.ebuild_path }}
+      json_report: ${{ steps.run-upgrade.outputs.json_report }}
       changes_summary: ${{ steps.run-upgrade.outputs.changes_summary }}
-      pr_created: ${{ steps.check-changes.outputs.has_changes == 'true' && steps.create-pr.outputs.pull-request-number != '' }}
-      branch: upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
+      ebuild_content: ${{ steps.read-ebuild.outputs.content }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: overlay
-
-      - name: Compute branch name
-        id: branch-name
-        run: |
-          # Replace slashes in package name for the branch.
-          PACKAGE="${{ inputs.package }}"
-          PKG_SLUG="${PACKAGE//\//-}"
-          echo "slug=${PKG_SLUG}" >> "$GITHUB_OUTPUT"
 
       - name: Run upgrade-ebuild.sh
         id: run-upgrade
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        working-directory: overlay
         shell: bash
         run: |
           set -euo pipefail
@@ -97,8 +90,8 @@ jobs:
 
           echo "==> Running: scripts/upgrade-ebuild.sh ${ARGS[*]}"
 
-          # Capture JSON output. The script exits 0 on success (including
-          # "up-to-date"), non-zero on errors.
+          # Capture JSON output. The script exits 0 on success
+          # (including "up-to-date"), non-zero on errors.
           OUTPUT=$(bash scripts/upgrade-ebuild.sh "${ARGS[@]}")
           echo "${OUTPUT}" | jq .
 
@@ -108,17 +101,28 @@ jobs:
           CURRENT=$(echo "${OUTPUT}" | jq -r '.current')
           PACKAGE=$(echo "${OUTPUT}" | jq -r '.package')
           TO_EBUILD=$(echo "${OUTPUT}" | jq -r '.to_ebuild // empty')
+          EBUILD_PATH=$(echo "${OUTPUT}" | jq -r '.ebuild_path // empty')
 
           echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
           echo "package=${PACKAGE}" >> "$GITHUB_OUTPUT"
           echo "to_ebuild=${TO_EBUILD}" >> "$GITHUB_OUTPUT"
+          echo "ebuild_path=${EBUILD_PATH}" >> "$GITHUB_OUTPUT"
 
-          # Build a human-readable change summary for the PR body.
-          CHANGES_DETECTED=$(echo "${OUTPUT}" | jq -r '.changes_detected // [] | .[]')
-          CHANGES_APPLIED=$(echo "${OUTPUT}" | jq -r '.changes_applied // [] | .[]')
-          MANIFEST=$(echo "${OUTPUT}" | jq -r '.manifest // empty')
+          # Store the full JSON report. Use a heredoc delimiter
+          # to handle multiline JSON safely.
+          {
+            echo 'json_report<<JSON_EOF'
+            echo "${OUTPUT}"
+            echo 'JSON_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          # Build a human-readable change summary for the issue.
+          CHANGES_DETECTED=$(echo "${OUTPUT}" \
+            | jq -r '.changes_detected // [] | .[]')
+          CHANGES_APPLIED=$(echo "${OUTPUT}" \
+            | jq -r '.changes_applied // [] | .[]')
 
           {
             echo 'changes_summary<<CHANGES_EOF'
@@ -126,184 +130,311 @@ jobs:
             if [[ -n "${CHANGES_DETECTED}" ]]; then
               echo "### Changes Detected"
               echo ""
-              echo "${CHANGES_DETECTED}" | while IFS= read -r line; do
-                echo "- ${line}"
-              done
+              echo "${CHANGES_DETECTED}" \
+                | while IFS= read -r line; do
+                    echo "- ${line}"
+                  done
               echo ""
             else
-              echo "No dependency changes detected — straightforward version bump."
+              echo "No dependency changes detected."
               echo ""
             fi
 
             if [[ -n "${CHANGES_APPLIED}" ]]; then
-              echo "### Changes Applied"
+              echo "### Changes Applied (mechanical)"
               echo ""
-              echo "${CHANGES_APPLIED}" | while IFS= read -r line; do
-                echo "- ${line}"
-              done
-              echo ""
-            fi
-
-            if [[ -n "${MANIFEST}" ]]; then
-              echo "Manifest: \`${MANIFEST}\`"
+              echo "${CHANGES_APPLIED}" \
+                | while IFS= read -r line; do
+                    echo "- ${line}"
+                  done
               echo ""
             fi
 
             echo 'CHANGES_EOF'
           } >> "$GITHUB_OUTPUT"
 
-          # Save the full JSON for reference.
+          # Save locally for the artifact upload.
           echo "${OUTPUT}" > /tmp/upgrade-result.json
 
-      - name: Check if upgrade produced changes
-        id: check-changes
+      - name: Read updated ebuild content
+        id: read-ebuild
+        if: steps.run-upgrade.outputs.status == 'upgrade-prepared'
+        shell: bash
         run: |
-          if [[ "${{ steps.run-upgrade.outputs.status }}" == "up-to-date" ]]; then
-            echo "Package is already up to date — nothing to do."
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          EBUILD_PATH="${{ steps.run-upgrade.outputs.ebuild_path }}"
+          if [[ -f "${EBUILD_PATH}" ]]; then
+            {
+              echo 'content<<EBUILD_EOF'
+              cat "${EBUILD_PATH}"
+              echo 'EBUILD_EOF'
+            } >> "$GITHUB_OUTPUT"
           fi
 
-      # -----------------------------------------------------------------
-      # TODO (Phase 4 — Agent Step):
-      #   Insert an AI agent call here to finalize the ebuild before
-      #   manifest generation. The agent should:
-      #     - Read the JSON from steps.run-upgrade.outputs
-      #     - Insert new GIT_CRATES entries (with subpath lookup)
-      #     - Remove old GIT_CRATES entries
-      #     - Handle RUST_MIN_VER changes (with container implications)
-      #     - Validate the final ebuild
-      #   See .agent/skills/update-zed-editor.md for the full procedure.
-      # -----------------------------------------------------------------
+      - name: Upload upgrade report artifact
+        if: steps.run-upgrade.outputs.status == 'upgrade-prepared'
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgrade-report-${{ inputs.package }}-${{ steps.run-upgrade.outputs.version }}
+          path: /tmp/upgrade-result.json
+          retention-days: 30
 
-      - name: Generate Manifest
-        if: steps.check-changes.outputs.has_changes == 'true'
+  # ---------------------------------------------------------------------
+  # Job 2: Create a GitHub Issue and assign to Copilot coding agent.
+  # Only runs if the detect job found an upgrade to perform.
+  # ---------------------------------------------------------------------
+  delegate:
+    name: Delegate to Copilot agent
+    needs: detect
+    if: needs.detect.outputs.status == 'upgrade-prepared'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    outputs:
+      issue_url: ${{ steps.create-issue.outputs.issue_url }}
+      issue_number: ${{ steps.create-issue.outputs.issue_number }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .agent
+
+      - name: Build skills reference
+        id: skills
+        shell: bash
         run: |
           set -euo pipefail
 
-          PACKAGE="${{ inputs.package }}"
-          PKG_DIR="overlay/${PACKAGE}"
+          PACKAGE="${{ needs.detect.outputs.package }}"
 
-          # Determine container image — use testenv (has pkgdev installed).
-          IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
+          # Map package to its skills doc.
+          SKILLS_FILE=""
+          case "${PACKAGE}" in
+            app-editors/zed)
+              SKILLS_FILE=".agent/skills/update-zed-editor.md"
+              ;;
+          esac
 
-          echo "==> Generating Manifest for ${PACKAGE}"
-          echo "    Image: ${IMAGE}"
-
-          docker run --rm \
-            -v "${{ github.workspace }}/overlay:/mnt/adaptive-overlay:rw" \
-            "${IMAGE}" \
-            bash -c "
-              set -euo pipefail
-              rm -rf /var/db/repos/adaptive-overlay
-              ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay
-              cd /var/db/repos/adaptive-overlay/${PACKAGE}
-              echo '==> pkgdev manifest'
-              pkgdev manifest
-            "
-
-          echo "==> Manifest generated successfully."
-
-          # Verify the Manifest was updated.
-          if [[ -f "${PKG_DIR}/Manifest" ]]; then
-            echo "    ✓ Manifest file exists ($(wc -l < "${PKG_DIR}/Manifest") lines)"
+          if [[ -n "${SKILLS_FILE}" && -f "${SKILLS_FILE}" ]]; then
+            echo "skills_file=${SKILLS_FILE}" >> "$GITHUB_OUTPUT"
+            echo "has_skills=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Manifest file not found after generation"
-            exit 1
+            echo "has_skills=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload new ebuild as artifact
-        if: steps.check-changes.outputs.has_changes == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ebuild-${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
-          path: overlay/${{ inputs.package }}/
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: Create Pull Request
-        id: create-pr
-        if: steps.check-changes.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: overlay
-          branch: upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}
-          commit-message: "Upgrade ${{ inputs.package }} to ${{ steps.run-upgrade.outputs.version }}"
-          title: "Upgrade ${{ inputs.package }} to ${{ steps.run-upgrade.outputs.version }}"
-          labels: upgrade,automated
-          body: |
-            ## Automated Ebuild Upgrade
-
-            | Field | Value |
-            |-------|-------|
-            | **Package** | `${{ inputs.package }}` |
-            | **Previous version** | `${{ steps.run-upgrade.outputs.current }}` |
-            | **New version** | `${{ steps.run-upgrade.outputs.version }}` |
-            | **New ebuild** | `${{ steps.run-upgrade.outputs.to_ebuild }}` |
-            | **Status** | `${{ steps.run-upgrade.outputs.status }}` |
-
-            ${{ steps.run-upgrade.outputs.changes_summary }}
-
-            ### 🤖 Agent Finalization
-
-            The upgrade script applied all safe mechanical changes (commit hash
-            updates, `WEBRTC_COMMIT`). The following may still need agent or
-            manual attention — check the change summary above:
-            - New `GIT_CRATES` entries (require subpath lookup and insertion)
-            - Removed `GIT_CRATES` entries
-            - `RUST_MIN_VER` changes (container rebuild may be needed)
-
-            ### ✅ Manifest
-
-            `pkgdev manifest` was run in CI. If you make further edits to the
-            ebuild, re-generate locally with:
-
-            ```
-            scripts/manifest.sh ${{ inputs.package }}
-            ```
-
-            ### 🔨 Build Testing
-
-            Build tests are **not** triggered automatically (they can take 30+ minutes
-            for large packages like Zed). To trigger a build test:
-
-            1. Add the `build-test` label to this PR.
-            2. The `ci-build.yml` workflow will pick it up and run the build.
-
-            ---
-            *This PR was created automatically by the `upgrade-ebuild` workflow.*
-
-      - name: Summary
-        if: always()
+      - name: Create upgrade issue
+        id: create-issue
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          set -euo pipefail
+
+          PACKAGE="${{ needs.detect.outputs.package }}"
+          VERSION="${{ needs.detect.outputs.version }}"
+          CURRENT="${{ needs.detect.outputs.current }}"
+          TO_EBUILD="${{ needs.detect.outputs.to_ebuild }}"
+          EBUILD_PATH="${{ needs.detect.outputs.ebuild_path }}"
+          HAS_SKILLS="${{ steps.skills.outputs.has_skills }}"
+          SKILLS_FILE="${{ steps.skills.outputs.skills_file }}"
+
+          # -------------------------------------------------------
+          # Compose the issue body.
+          # -------------------------------------------------------
+          BODY="## Upgrade ${PACKAGE} from ${CURRENT} to ${VERSION}
+
+          | Field | Value |
+          |-------|-------|
+          | **Package** | \`${PACKAGE}\` |
+          | **Current version** | \`${CURRENT}\` |
+          | **New version** | \`${VERSION}\` |
+          | **New ebuild** | \`${TO_EBUILD}\` |
+          | **Ebuild path** | \`${EBUILD_PATH}\` |
+
+          ---
+
+          ### What has already been done
+
+          The \`upgrade-ebuild.sh --apply --json\` script has:
+          - Copied the ebuild to the new version filename
+          - Applied all safe mechanical changes (commit hash updates, WEBRTC_COMMIT)
+          - Produced the structured JSON report below
+
+          The mechanically-updated ebuild is **not yet committed** — you need to
+          check out a fresh copy of the repo, run the upgrade script yourself, and
+          then apply the intelligent edits on top.
+
+          ---
+
+          ### Instructions
+
+          1. **Read the skills doc:** \`${SKILLS_FILE:-No package-specific skills doc — use general ebuild knowledge}\`
+          2. **Run the upgrade script** from the repo root:
+             \`\`\`bash
+             scripts/upgrade-ebuild.sh ${PACKAGE} --version ${VERSION} --apply --json
+             \`\`\`
+          3. **Read the JSON output** and apply intelligent edits:
+             - Insert new \`GIT_CRATES\` entries (with correct subpath — see skills doc)
+             - Remove old \`GIT_CRATES\` entries
+             - Handle \`RUST_MIN_VER\` changes if reported
+             - Check \`new_workspace_members\` for additional git deps
+          4. **Generate the Manifest:**
+             \`\`\`bash
+             scripts/manifest.sh ${PACKAGE}
+             \`\`\`
+          5. **Run the linter:**
+             \`\`\`bash
+             scripts/lint.sh ${PACKAGE}
+             \`\`\`
+          6. **Fix any issues** from manifest or lint, then re-run until clean.
+          7. **Open a PR** with a clear summary of all changes.
+
+          ---
+
+          ${{ needs.detect.outputs.changes_summary }}
+
+          ---
+
+          ### Upgrade Report (JSON)
+
+          <details>
+          <summary>Full JSON output from upgrade-ebuild.sh</summary>
+
+          \`\`\`json
+          ${{ needs.detect.outputs.json_report }}
+          \`\`\`
+
+          </details>
+
+          ---
+
+          ### Mechanically-Updated Ebuild Content
+
+          <details>
+          <summary>Ebuild after mechanical updates (before agent edits)</summary>
+
+          \`\`\`bash
+          ${{ needs.detect.outputs.ebuild_content }}
+          \`\`\`
+
+          </details>
+
+          ---
+
+          *This issue was created automatically by the \`upgrade-ebuild\` workflow.*
+          "
+
+          # Strip leading whitespace from heredoc indentation.
+          BODY=$(echo "${BODY}" | sed 's/^          //')
+
+          # Create the issue.
+          ISSUE_URL=$(gh issue create \
+            --title "Upgrade ${PACKAGE} to ${VERSION}" \
+            --body "${BODY}" \
+            --label "upgrade,automated" \
+            2>&1)
+
+          echo "==> Created issue: ${ISSUE_URL}"
+
+          # Extract issue number from the URL.
+          ISSUE_NUMBER=$(echo "${ISSUE_URL}" \
+            | grep -oE '[0-9]+$')
+          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Assign issue to Copilot coding agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ISSUE_NUMBER="${{ steps.create-issue.outputs.issue_number }}"
+          PACKAGE="${{ needs.detect.outputs.package }}"
+          VERSION="${{ needs.detect.outputs.version }}"
+          SKILLS_FILE="${{ steps.skills.outputs.skills_file }}"
+
+          echo "==> Assigning issue #${ISSUE_NUMBER} to" \
+               "copilot-swe-agent[bot]"
+
+          # Assign the Copilot coding agent to the issue.
+          # The agent_assignment field provides model selection
+          # and custom instructions.
+          printf '{"assignees":["copilot-swe-agent[bot]"]}' \
+            | gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
+                --input -
+
+          echo "==> Issue #${ISSUE_NUMBER} assigned to" \
+               "copilot-swe-agent[bot]."
+          echo "    The agent will read the issue, run" \
+               "scripts, make edits, and open a PR."
+
+  # ---------------------------------------------------------------------
+  # Job 3: Summary — always runs, reports what happened.
+  # ---------------------------------------------------------------------
+  summary:
+    name: Summary
+    needs: [detect, delegate]
+    if: always()
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Write summary
+        shell: bash
+        run: |
+          STATUS="${{ needs.detect.outputs.status }}"
+          PACKAGE="${{ needs.detect.outputs.package }}"
+          VERSION="${{ needs.detect.outputs.version }}"
+          CURRENT="${{ needs.detect.outputs.current }}"
+
+          DELEGATE_RESULT="${{ needs.delegate.result }}"
+          ISSUE_URL="${{ needs.delegate.outputs.issue_url }}"
+
           {
             echo "## Upgrade Ebuild Results"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
-            echo "| **Package** | \`${{ inputs.package }}\` |"
-            echo "| **Version** | \`${{ steps.run-upgrade.outputs.version }}\` |"
-            echo "| **Status** | \`${{ steps.run-upgrade.outputs.status }}\` |"
+            echo "| **Package** | \`${PACKAGE}\` |"
+            echo "| **Current** | \`${CURRENT}\` |"
+            echo "| **Upstream** | \`${VERSION}\` |"
+            echo "| **Status** | \`${STATUS}\` |"
 
-            if [[ "${{ steps.check-changes.outputs.has_changes }}" == "true" ]]; then
-              echo "| **PR** | #${{ steps.create-pr.outputs.pull-request-number }} |"
-              echo "| **Branch** | \`upgrade/${{ steps.branch-name.outputs.slug }}-${{ steps.run-upgrade.outputs.version }}\` |"
-            else
-              echo "| **PR** | _(none — already up to date)_ |"
+            if [[ "${STATUS}" == "up-to-date" ]]; then
+              echo ""
+              echo "Package is already up to date — nothing to do."
+            elif [[ "${DELEGATE_RESULT}" == "success" ]]; then
+              echo "| **Action** | Issue created and assigned to Copilot |"
+              if [[ -n "${ISSUE_URL}" ]]; then
+                echo "| **Issue** | ${ISSUE_URL} |"
+              fi
+              echo ""
+              echo "The Copilot coding agent has been assigned to"
+              echo "finalize the upgrade. It will:"
+              echo "1. Run the upgrade script"
+              echo "2. Apply intelligent edits"
+              echo "3. Generate the Manifest"
+              echo "4. Lint the ebuild"
+              echo "5. Open a PR for review"
+            elif [[ "${STATUS}" == "upgrade-prepared" ]]; then
+              echo ""
+              echo "⚠️ Upgrade detected but delegation to Copilot"
+              echo "failed. Manual intervention required."
+              echo ""
+              echo "Run locally:"
+              echo "\`\`\`"
+              echo "scripts/upgrade-ebuild.sh ${PACKAGE} --apply --json"
+              echo "\`\`\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # -----------------------------------------------------------------------
-  # Job 2: Lint the upgraded ebuild.
-  # Only runs if the upgrade job created changes.
-  # -----------------------------------------------------------------------
-  lint:
-    name: Lint
-    needs: upgrade
-    if: needs.upgrade.outputs.pr_created == 'true'
-    uses: ./.github/workflows/lint-ebuild.yml
-    with:
-      package_dir: ${{ needs.upgrade.outputs.package }}

@@ -963,10 +963,10 @@ produces usable, testable deliverables.
 | 4.4 | ✅ | `upgrade-ebuild.yml` creates PRs with `upgrade` + `automated` labels, change summary table, manifest instructions. |
 | 4.5 | ❌ | Generalize `repackage-surge.yml` → `repackage-source.yml`. |
 | 4.6 | ❌ | Wire version-check → upgrade triggers. |
-| 4.7 | ❌ | **Agent finalization — CI path:** Create `.devcontainer/devcontainer.json` so Copilot coding agent can run scripts. Create `.github/copilot-instructions.md` pointing at `.agent/instructions/general.md` and `.agent/skills/`. Update `upgrade-ebuild.yml` to create a GitHub Issue with structured JSON change summary and assign it to `copilot-swe-agent[bot]` via REST API with `model: claude-sonnet-4.6` and `custom_instructions` referencing the skills doc. See §8.5 for full architecture. |
-| 4.8 | ❌ | **Agent finalization — local path:** Create `scripts/agent-finalize-ebuild.sh` that reads JSON output from `upgrade-ebuild.sh`, constructs a prompt with the skills doc + ebuild content + change report, pipes it to the `copilot` CLI (`copilot -s --no-ask-user --model claude-sonnet-4.6` via stdin), and writes the edited ebuild back. See §8.5 for details. |
-| 4.9 | ❌ | **Manifest in CI:** Already added `pkgdev manifest` step to `upgrade-ebuild.yml` running in testenv container. Needs end-to-end testing after agent step is wired in (manifest must run after agent edits, not before). |
-| 4.10 | ❌ | **Issue-first flow (alternative to 4.7):** Evaluate whether the upgrade workflow should create an Issue and assign Copilot (letting Copilot do everything from scratch using our scripts as tools), vs. the current approach where the workflow does mechanical work first and Copilot only handles the agent-level edits. The issue-first approach is simpler and more aligned with Copilot coding agent's design. |
+| 4.7 | ✅ | **Agent finalization — CI path:** Created `.devcontainer/devcontainer.json` (lightweight Ubuntu base + gh CLI for Copilot coding agent). Created `.github/copilot-instructions.md` (repo-level Copilot context pointing at `.agent/instructions/general.md`, `.agent/skills/`, `scripts/`, and `.agent/packages.json`). Rewrote `upgrade-ebuild.yml` to use Approach B (issue-first): detect job runs `upgrade-ebuild.sh --apply --json`, delegate job creates a GitHub Issue with structured JSON + ebuild content + skills reference + step-by-step instructions, then assigns to `copilot-swe-agent[bot]` via REST API. Copilot owns the entire finalization (edits, manifest, lint, PR). |
+| 4.8 | ✅ | **Agent finalization — local path:** Created `scripts/agent-finalize-ebuild.sh`. Reads JSON from `upgrade-ebuild.sh`, resolves the skills doc, constructs a prompt (skills + JSON report + ebuild content), pipes to `copilot -s --no-ask-user --model claude-sonnet-4.6` via stdin, strips code fences and control chars from response, validates output looks like an ebuild, writes back, then runs `manifest.sh` and `lint.sh` automatically. Supports `--dry-run`, `--model`, `--skip-manifest`, `--skip-lint`. |
+| 4.9 | ✅ | **Manifest in CI:** Manifest generation is now the agent's responsibility (Approach B). The agent runs `scripts/manifest.sh` after making edits, ensuring manifest reflects final ebuild content. The workflow no longer generates manifest itself. |
+| 4.10 | ✅ | **Issue-first flow (Approach B chosen):** Decided that every upgrade goes through the agent — no branching logic for "trivial" vs "complex" bumps. The agent validates even simple bumps, keeping the workflow simple and ensuring intelligent review on every upgrade. The workflow is now a "detect and delegate" pipeline: it gathers structured data, creates an Issue, and hands off to Copilot. |
 | 4.11 | ❌ | **End-to-end test:** Run the full pipeline against a real Zed upgrade (0.227.1 → 0.229.0) with the agent in the loop. Verify that new `GIT_CRATES` entries (e.g. `proptest`) are correctly inserted with proper subpath, Manifest is generated, lint passes. |
 
 ### Phase 5 — New Ebuild Creation Workflow
@@ -1102,150 +1102,122 @@ The workflow system is considered complete when:
 
 ## 15. Next Steps (Session Resume Point)
 
-> **Last updated:** End of Phase 4 agent architecture
-> session. All items below are ready to be implemented
-> in the next session.
+> **Last updated:** End of Phase 4 agent integration
+> session. Items 1–4 are implemented. Only the
+> end-to-end test (item 5) remains.
 
 ### Context for Resuming
 
-Phase 4 items 4.1–4.4 are complete and tested in
-production (GitHub Actions). The upgrade script detects
-changes, applies mechanical updates, generates Manifest
-in CI, and creates PRs. What remains is wiring in the
-AI agent to handle the intelligent edits that the script
-cannot (new/removed `GIT_CRATES`, `RUST_MIN_VER`,
-subpath determination).
+Phase 4 items 4.1–4.10 are now complete. The full
+agent integration is built for both CI and local
+paths:
 
-Two agent backends were identified and verified:
+* **CI path (Approach B — issue-first):**
+  `upgrade-ebuild.yml` runs the upgrade script to
+  gather structured change data, creates a GitHub
+  Issue with the JSON report + ebuild content +
+  skills reference + step-by-step instructions,
+  then assigns it to `copilot-swe-agent[bot]` via
+  REST API. The agent owns the entire finalization
+  flow: edits, manifest, lint, and PR creation.
 
-* **CI:** GitHub Copilot coding agent (issue-based,
-  REST API assignment, `copilot-swe-agent[bot]`)
-* **Local:** GitHub Copilot CLI (`copilot` binary,
-  stdin piping, verified working on dev machine)
+* **Local path:** `scripts/agent-finalize-ebuild.sh`
+  reads JSON from `upgrade-ebuild.sh`, constructs a
+  prompt (skills doc + JSON report + ebuild content),
+  pipes it to the Copilot CLI, post-processes the
+  response (strips code fences, validates EAPI),
+  writes the edited ebuild back, then runs
+  `manifest.sh` and `lint.sh` automatically.
 
-Both use `claude-sonnet-4.6` as the default model.
+**Key design decision (Approach B):** Every upgrade
+goes through the agent — no branching logic for
+"trivial" vs "complex" bumps. The agent validates
+even simple bumps, keeping the workflow simple and
+ensuring intelligent review on every upgrade.
 
-### Items to Build (in order)
+### Completed Items
 
-#### 1. `.devcontainer/devcontainer.json`
+#### 1. `.devcontainer/devcontainer.json` ✅
 
-Lightweight dev container for Copilot coding agent.
-Needs: `bash`, `curl`, `jq`, `diff`, `sed`, `grep`,
-`sort`, `git`. Does NOT need Gentoo tooling (our
-scripts handle container operations). A Debian/Ubuntu
-base image is fine.
+Lightweight Ubuntu devcontainer for Copilot coding
+agent. Includes `gh` CLI feature. Gentoo tooling
+lives in the testenv containers, not here.
 
-```jsonc
-// Minimal — just CLI tools for our scripts
-{
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
-  }
-}
-```
+#### 2. `.github/copilot-instructions.md` ✅
 
-#### 2. `.github/copilot-instructions.md`
+Repo-level instructions covering: what the repo is,
+safety rules (pointing at `.agent/instructions/`),
+agent context files, available scripts, workflow for
+upgrade issues, overlay structure, and the key
+constraint that the agent runs on Ubuntu and uses
+`scripts/` wrappers for all Gentoo operations.
 
-Repo-level instructions that Copilot coding agent reads
-automatically. Should contain:
+#### 3. `scripts/agent-finalize-ebuild.sh` ✅
 
-* Point at `.agent/instructions/general.md` for safety
-  rules.
-* Point at `.agent/skills/` for package-specific
-  procedures.
-* Explain the overlay structure and conventions.
-* Explain that `scripts/` contains the tools the agent
-  should use.
-* Reference `.agent/packages.json` for package metadata.
+Local Copilot CLI wrapper. Features:
+- Reads JSON from `upgrade-ebuild.sh --apply --json`
+- Resolves package-specific skills doc
+- Constructs structured prompt (skills + JSON +
+  ebuild content)
+- Pipes to `copilot -s --no-ask-user --model
+  claude-sonnet-4.6` via stdin
+- Post-processes: strips code fences, removes C0
+  control chars, validates EAPI presence
+- Writes edited ebuild, shows diff summary
+- Runs `manifest.sh` and `lint.sh` automatically
+- Options: `--model`, `--dry-run`, `--skip-manifest`,
+  `--skip-lint`
 
-#### 3. `scripts/agent-finalize-ebuild.sh`
+#### 4. `upgrade-ebuild.yml` — Approach B ✅
 
-Local agent wrapper script. Pattern:
+Rewrote the workflow as a "detect and delegate"
+pipeline with three jobs:
 
-```bash
-#!/bin/bash
-# Read JSON from upgrade-ebuild.sh, construct prompt,
-# pipe to copilot CLI, write edited ebuild back.
-set -euo pipefail
+1. **detect** — runs `upgrade-ebuild.sh --apply
+   --json`, captures JSON report + ebuild content,
+   uploads artifact
+2. **delegate** — creates a GitHub Issue with
+   structured body (metadata table, instructions,
+   changes summary, JSON report in `<details>`,
+   ebuild content in `<details>`), assigns to
+   `copilot-swe-agent[bot]` via REST API
+3. **summary** — always runs, writes GitHub Actions
+   step summary with status and issue link (or
+   manual fallback instructions if delegation failed)
 
-JSON_FILE="${1}"  # Path to upgrade JSON output
-SKILLS_DOC=".agent/skills/update-zed-editor.md"
+Removed: `peter-evans/create-pull-request`,
+in-workflow manifest generation, lint job. These are
+now the agent's responsibility.
 
-# Read inputs
-JSON=$(cat "${JSON_FILE}")
-EBUILD_PATH=$(echo "${JSON}" | jq -r '.ebuild_path')
-EBUILD_CONTENT=$(cat "${EBUILD_PATH}")
+### Remaining Item
 
-# Construct prompt
-PROMPT="$(cat "${SKILLS_DOC}")
-
----
-
-## Upgrade Report (from upgrade-ebuild.sh)
-
-${JSON}
-
----
-
-## Current Ebuild Content
-
-${EBUILD_CONTENT}
-
----
-
-## Task
-
-Apply the changes described in the upgrade report to
-the ebuild. Output ONLY the complete edited ebuild
-file content, no explanations."
-
-# Call Copilot CLI
-RESULT=$(echo "${PROMPT}" \
-  | copilot -s --no-ask-user \
-    --model claude-sonnet-4.6)
-
-# Strip code fences if present, write back
-# (post-processing logic here)
-echo "${RESULT}" > "${EBUILD_PATH}"
-```
-
-Follows existing script conventions (`set -euo pipefail`,
-`OVERLAY_DIR`, `==>` banners, `--help`).
-
-#### 4. Update `upgrade-ebuild.yml` — Agent Integration
-
-Two approaches to evaluate (see items 4.7 and 4.10):
-
-**Approach A (current workflow + Copilot on PR):**
-The workflow does mechanical work, creates PR, then
-posts a comment `@copilot please finalize this ebuild`
-with the JSON change summary.
-
-**Approach B (issue-first, Copilot does everything):**
-The version-check workflow creates an Issue like
-"Upgrade app-editors/zed to 0.229.0" with structured
-instructions. The issue is assigned to
-`copilot-swe-agent[bot]` via REST API. Copilot runs
-`upgrade-ebuild.sh`, reads the output, makes all edits,
-runs `manifest.sh`, and opens the PR.
-
-Approach B is simpler and more aligned with Copilot
-coding agent's design (it's built around "issue in, PR
-out"). Start with Approach B.
-
-#### 5. End-to-End Test
+#### 5. End-to-End Test (Phase 4 item 4.11)
 
 Test the full pipeline with the real Zed 0.229.0
 upgrade:
 
-* Verify `proptest` GIT_CRATES entry is correctly
-  inserted with subpath `proptest/`
-* Verify all commit hash updates are correct
-* Verify `WEBRTC_COMMIT` is updated
-* Verify Manifest generates successfully
-* Verify lint passes
+* Trigger the workflow via `workflow_dispatch` for
+  `app-editors/zed` version `0.229.0`
+* Verify the detect job produces valid JSON output
+* Verify an Issue is created with correct structure
+* Verify `copilot-swe-agent[bot]` is assigned
+* Verify the agent (or manually using the local
+  path) correctly:
+  - Inserts `proptest` GIT_CRATES entry with subpath
+  - Updates all commit hashes
+  - Updates `WEBRTC_COMMIT`
+  - Generates Manifest successfully
+  - Passes lint
 * Human reviews the final PR
+
+**Local path test (can run immediately):**
+
+```/dev/null/test-local.sh#L1-4
+scripts/upgrade-ebuild.sh app-editors/zed \
+  --version 0.229.0 --apply --json \
+  > /tmp/zed-upgrade.json
+scripts/agent-finalize-ebuild.sh /tmp/zed-upgrade.json
+```
 
 ### Files Summary
 
@@ -1255,9 +1227,10 @@ upgrade:
 | `scripts/manifest.sh` | ✅ | Manifest generation in container |
 | `scripts/lint.sh` | ✅ | pkgcheck in container |
 | `scripts/test-build.sh` | ✅ | Build test in container |
+| `scripts/agent-finalize-ebuild.sh` | ✅ | Local Copilot CLI wrapper |
 | `.agent/instructions/general.md` | ✅ | Agent safety rules |
 | `.agent/skills/update-zed-editor.md` | ✅ | Zed upgrade procedure |
-| `.github/workflows/upgrade-ebuild.yml` | ✅ | CI workflow (needs agent step) |
-| `.devcontainer/devcontainer.json` | ❌ | For Copilot coding agent |
-| `.github/copilot-instructions.md` | ❌ | Repo-level Copilot context |
-| `scripts/agent-finalize-ebuild.sh` | ❌ | Local Copilot CLI wrapper |
+| `.agent/packages.json` | ✅ | Package registry |
+| `.github/workflows/upgrade-ebuild.yml` | ✅ | CI detect + delegate workflow |
+| `.github/copilot-instructions.md` | ✅ | Repo-level Copilot context |
+| `.devcontainer/devcontainer.json` | ✅ | Devcontainer for Copilot agent |
