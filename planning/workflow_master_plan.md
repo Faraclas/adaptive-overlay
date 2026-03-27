@@ -541,25 +541,44 @@ planned for Phase 4.5.
 
 * Auto-dispatch of upgrade/repackage workflows.
 
-### 7.5 `upgrade-ebuild` (Workflow) 🔶
+### 7.5 `upgrade-ebuild` (Workflow) ✅
 
-**Status:** Being created — `upgrade-ebuild.yml`
+**Status:** Created — `upgrade-ebuild.yml` +
+`scripts/upgrade-ebuild.sh`
 
-**Local script:** `scripts/upgrade-ebuild.sh` (✅) handles
-version detection, ebuild copy, Cargo.toml dependency
-diffing, and auto-apply. Supports `--apply`, `--json`, and
+**Local script:** `scripts/upgrade-ebuild.sh` handles
+version detection, source availability checking, ebuild
+copy, Cargo.toml dependency diffing (GIT_CRATES,
+RUST_MIN_VER, WEBRTC_COMMIT), and auto-apply via global
+sed replacement. Supports `--apply`, `--json`, and
 `--manifest` flags.
 
-**Planned workflow inputs:** `package` (e.g.
-`app-editors/zed`), `new_version`, `auto_merge` (boolean)
+**Workflow triggers:** `workflow_dispatch` (manual) and
+`workflow_call` (for chaining from version-check).
 
-**Steps (planned):**
+**Workflow inputs:** `package` (required, e.g.
+`app-editors/zed`), `version` (optional — auto-detected
+if empty).
+
+**Steps:**
 
 1. Run `scripts/upgrade-ebuild.sh` with `--apply --json`.
-2. Run lint checks on the new ebuild.
-3. Optionally run build test (informational).
-4. Create PR via `peter-evans/create-pull-request` with
-   appropriate labels.
+2. Parse JSON output into step outputs.
+3. Create PR via `peter-evans/create-pull-request@v7`
+   with `upgrade` + `automated` labels.
+4. Run lint via reusable `lint-ebuild.yml`.
+5. Build testing is deferred — reviewer adds `build-test`
+   label to trigger `ci-build.yml`.
+
+**Note:** `pkgdev manifest` is NOT run in CI (requires
+Gentoo tooling + network access to fetch distfiles).
+The PR body instructs the reviewer to run it locally.
+
+**Third-party dependency:**
+[`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request)
+(v7) — widely-used action (5k+ stars) for committing
+working-directory changes to a branch and opening a PR.
+Requires only the default `GITHUB_TOKEN`.
 
 ---
 
@@ -746,10 +765,10 @@ produces usable, testable deliverables.
 
 | Item | Status | Description |
 |---|---|---|
-| 4.1 | 🔶 | `upgrade-ebuild.sh` script exists with version detection, source checking, ebuild copy, Cargo.toml dep diffing, auto-apply, and JSON output. `upgrade-ebuild.yml` workflow being created. |
+| 4.1 | ✅ | `upgrade-ebuild.sh` — version detection, source checking, ebuild copy, Cargo.toml dep diffing, auto-apply, JSON output. `upgrade-ebuild.yml` — workflow with `workflow_dispatch`/`workflow_call`, PR creation via `peter-evans/create-pull-request@v7`, lint integration. |
 | 4.2 | ✅ | Copy-and-update logic + dep change detection for Cargo/Rust implemented in `upgrade-ebuild.sh` (§5.5). |
-| 4.3 | 🔶 | Lint integration done (script prints next steps). Build test integration is informational only (CI workflow being created). |
-| 4.4 | 🔶 | `upgrade-ebuild.yml` being created with PR creation via `peter-evans/create-pull-request`. |
+| 4.3 | ✅ | Lint runs automatically in the upgrade workflow. Build test deferred to reviewer via `build-test` label (handled by existing `ci-build.yml`). |
+| 4.4 | ✅ | `upgrade-ebuild.yml` creates PRs with `upgrade` + `automated` labels, change summary table, manifest instructions. |
 | 4.5 | ❌ | Generalize `repackage-surge.yml` → `repackage-source.yml`. |
 | 4.6 | ❌ | Wire version-check → upgrade triggers. |
 
@@ -813,7 +832,7 @@ wraps up after the core workflows are functional.
 
 ---
 
-## 12. Secrets & Permissions Required
+## 12. Secrets, Permissions & Third-Party Actions
 
 | Secret / Permission | Used By | Purpose |
 |---|---|---|
@@ -821,6 +840,18 @@ wraps up after the core workflows are functional.
 | `MAIL_USERNAME` | Version check, notifications | SMTP authentication for email alerts |
 | `MAIL_PASSWORD` | Version check, notifications | SMTP auth (GitHub encrypted secret — never commit) |
 | `MAIL_TO` | Version check, notifications | Recipient |
+
+**Third-party GitHub Actions:**
+
+| Action | Version | Used By | Purpose |
+|---|---|---|---|
+| `peter-evans/create-pull-request` | v7 | `upgrade-ebuild.yml` | Commit changes to a branch and open a PR automatically. Uses only `GITHUB_TOKEN`. |
+| `softprops/action-gh-release` | v2 | `repackage-surge.yml` | Publish repackaged source tarballs as GitHub Releases. |
+| `dawidd6/action-send-mail` | v3 | `repackage-surge.yml` | Send email notifications for new upstream versions. |
+| `docker/build-push-action` | v6 | `publish-testenv*.yml` | Build and push container images to GHCR. |
+| `docker/login-action` | v3 | `publish-testenv*.yml` | Authenticate with GHCR for image push. |
+| `docker/metadata-action` | v5 | `publish-testenv*.yml` | Generate image tags (`latest` + date). |
+| `docker/setup-buildx-action` | v3 | `publish-testenv*.yml` | Set up Docker Buildx for layer caching. |
 
 > **Note on notifications:** Email is used for out-of-band
 > alerts (matching `repackage-surge.yml`). For tighter
