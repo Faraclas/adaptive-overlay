@@ -12,10 +12,10 @@
 # This image provides:
 #   - Wine with abi_x86_32 (not wow64) for winegcc 32-bit support
 #   - MinGW cross-toolchain for Windows PE binaries
-#   - JACK, ALSA, PulseAudio, PipeWire audio stack
+#   - JACK, ALSA, PulseAudio audio stack
 #   - Multilib X11/XCB libraries for Bitwig and yabridge
 #   - FluidSynth, libsndfile, LADSPA/LV2 plugin support
-#   - Qt6 and GTK3 for plugin UIs
+#   - GTK3 for plugin UIs
 #   - Rust toolchain for yabridge
 #
 # Note on wow64 vs abi_x86_32:
@@ -30,10 +30,6 @@
 # Build from repo root:
 #   podman build -t adaptive-overlay-testenv-audio:local \
 #       -f containers/testenv-audio/Containerfile .
-#
-# Note: The dependency lists were determined by querying the build
-# host with eix and matching installed USE flags. If ebuild deps
-# change, rebuild with --no-cache and re-verify.
 
 FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
@@ -47,80 +43,173 @@ RUN mkdir -p /etc/portage && \
 # -------------------------------------------------------------------
 # Portage: USE and ABI flags
 #
-# Mirrors the build host package.use for audio packages. Key
-# decisions:
-#   - Wine: abi_x86_32, -wow64 (for winegcc 32-bit import libs)
-#   - Multilib X libs: abi_x86_32 (for Bitwig and yabridge)
-#   - FluidSynth: jack, ladspa
-#   - PipeWire: jack-sdk (for Bitwig)
+# Organized by purpose. The full abi_x86_32 transitive dep chain
+# was derived from emerge dependency resolution output for
+# wine-staging[abi_x86_32] and manually curated.
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.use && \
     cat > /etc/portage/package.use/audio <<'EOF'
-# === Wine and MinGW ===
-# xcomposite flag dropped in wine-staging-11
-app-emulation/wine-staging alsa dbus ffmpeg fontconfig gstreamer mono opengl pulseaudio ssl strip truetype udev unwind vulkan wayland x xcomposite xinerama abi_x86_32 -wow64
+# === Wine and MinGW (top-level) ===
+app-emulation/wine-staging abi_x86_32 -wow64 alsa dbus ffmpeg fontconfig gstreamer opengl pulseaudio ssl truetype udev unwind vulkan wayland x xinerama
 dev-util/mingw64-toolchain abi_x86_32
 
 # === Audio stack ===
 media-sound/fluidsynth jack ladspa
-media-video/pipewire jack-sdk
+net-libs/webkit-gtk X
 
-# === Multilib X11/XCB libs (Bitwig, yabridge) ===
+# === Multilib X11/XCB ===
 x11-libs/libX11 abi_x86_32
 x11-libs/libxcb abi_x86_32
-x11-libs/xcb-util-wm abi_x86_32
 x11-libs/xcb-util abi_x86_32
+x11-libs/xcb-util-wm abi_x86_32
+x11-libs/xcb-util-keysyms abi_x86_32
 x11-libs/libxkbcommon abi_x86_32 X
 x11-libs/libXau abi_x86_32
 x11-libs/libXdmcp abi_x86_32
+x11-libs/libXv abi_x86_32
+x11-libs/libxshmfence abi_x86_32
+x11-libs/libXcomposite abi_x86_32
+x11-libs/libXcursor abi_x86_32
+x11-libs/libXext abi_x86_32
+x11-libs/libXfixes abi_x86_32
+x11-libs/libXi abi_x86_32
+x11-libs/libXinerama abi_x86_32
+x11-libs/libXrandr abi_x86_32
+x11-libs/libXrender abi_x86_32
+x11-libs/libXxf86vm abi_x86_32
+x11-libs/libdrm abi_x86_32
+x11-libs/libpciaccess abi_x86_32
 x11-libs/pixman abi_x86_32
+x11-libs/cairo abi_x86_32 X
+x11-libs/pango abi_x86_32
+virtual/jack abi_x86_32
+virtual/opengl abi_x86_32
 
-# === Wine multilib dep chain (abi_x86_32) ===
->=media-libs/gst-plugins-base-1.24.11-r1 abi_x86_32
->=media-libs/gstreamer-1.24.11 abi_x86_32
->=sys-libs/libunwind-1.8.2-r1 abi_x86_32
->=media-plugins/gst-plugins-meta-1.24.11 abi_x86_32
->=media-libs/gst-plugins-good-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-a52dec-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-faad-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-dts-1.24.11 abi_x86_32
->=media-libs/gst-plugins-ugly-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-dvdread-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-mpeg2dec-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-resindvd-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-flac-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-mpg123-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-pulse-1.24.11 abi_x86_32
->=media-libs/gst-plugins-bad-1.24.11 abi_x86_32
->=media-plugins/gst-plugins-x264-1.24.11 abi_x86_32
->=media-libs/x264-0.0.20240513 abi_x86_32
->=dev-lang/orc-0.4.41 abi_x86_32
->=media-libs/libdvdnav-6.1.1 abi_x86_32
->=media-libs/libdvdread-6.1.3 abi_x86_32
->=media-libs/libdvdcss-1.4.3 abi_x86_32
->=media-libs/libmpeg2-0.5.1-r3 abi_x86_32
->=media-libs/libdca-0.0.7 abi_x86_32
->=media-libs/faad2-2.11.2 abi_x86_32
->=media-libs/a52dec-0.7.4-r9 abi_x86_32
->=media-libs/libtheora-1.2.0-r1 abi_x86_32
->=x11-libs/libXv-1.0.13 abi_x86_32
->=media-libs/graphene-1.10.8-r1 abi_x86_32
->=media-plugins/gst-plugins-cdparanoia-1.24.11 abi_x86_32
->=media-sound/cdparanoia-3.10.2-r8 abi_x86_32
->=media-video/ffmpeg-7.0 abi_x86_32
->=media-libs/opencore-amr-0.1.6 abi_x86_32
->=media-libs/vo-amrwbenc-0.1.3 abi_x86_32
->=media-libs/dav1d-1.5.0 abi_x86_32
->=media-libs/libjxl-0.11.1 abi_x86_32
->=media-libs/libass-0.17.4 abi_x86_32
->=media-sound/sndio-1.10.0 abi_x86_32
->=media-libs/xvid-1.3.7-r2 abi_x86_32
->=dev-libs/libbsd-0.11.8 abi_x86_32
->=app-crypt/libmd-1.1.0 abi_x86_32
->=app-arch/brotli-1.1.0 abi_x86_32
->=dev-cpp/highway-1.3.0 abi_x86_32
->=media-libs/giflib-5.2.2 abi_x86_32
->=virtual/jack-2 abi_x86_32
+# === Wine abi_x86_32 transitive dep chain ===
+#
+# wine-staging[abi_x86_32] pulls gstreamer, ffmpeg, mesa,
+# pulseaudio and their full dependency trees in 32-bit.
+# Every entry below was identified from emerge output.
+
+# -- GStreamer --
+media-libs/gstreamer abi_x86_32
+media-libs/gst-plugins-base abi_x86_32 opengl
+media-libs/gst-plugins-good abi_x86_32
+media-libs/gst-plugins-bad abi_x86_32
+media-libs/gst-plugins-ugly abi_x86_32
+media-plugins/gst-plugins-meta abi_x86_32
+media-plugins/gst-plugins-a52dec abi_x86_32
+media-plugins/gst-plugins-cdparanoia abi_x86_32
+media-plugins/gst-plugins-dts abi_x86_32
+media-plugins/gst-plugins-dvdread abi_x86_32
+media-plugins/gst-plugins-faad abi_x86_32
+media-plugins/gst-plugins-flac abi_x86_32
+media-plugins/gst-plugins-mpeg2dec abi_x86_32
+media-plugins/gst-plugins-mpg123 abi_x86_32
+media-plugins/gst-plugins-pulse abi_x86_32
+media-plugins/gst-plugins-resindvd abi_x86_32
+media-plugins/gst-plugins-x264 abi_x86_32
+dev-lang/orc abi_x86_32
+
+# -- FFmpeg / media codecs --
+media-video/ffmpeg abi_x86_32
+media-libs/x264 abi_x86_32
+media-libs/dav1d abi_x86_32
+media-libs/libjxl abi_x86_32
+media-libs/libass abi_x86_32
+media-libs/xvid abi_x86_32
+media-libs/opencore-amr abi_x86_32
+media-libs/vo-amrwbenc abi_x86_32
+media-libs/faad2 abi_x86_32
+media-libs/a52dec abi_x86_32
+media-libs/libtheora abi_x86_32
+media-libs/libdca abi_x86_32
+media-libs/libmpeg2 abi_x86_32
+media-libs/graphene abi_x86_32
+media-libs/flac abi_x86_32
+media-libs/opus abi_x86_32
+media-libs/giflib abi_x86_32
+media-libs/libsndfile abi_x86_32
+media-libs/libogg abi_x86_32
+media-libs/libvorbis abi_x86_32
+media-libs/libjpeg-turbo abi_x86_32
+media-libs/libpng abi_x86_32
+media-sound/cdparanoia abi_x86_32
+media-sound/sndio abi_x86_32
+media-sound/lame abi_x86_32
+media-sound/mpg123-base abi_x86_32
+
+# -- DVD / optical --
+media-libs/libdvdnav abi_x86_32
+media-libs/libdvdread abi_x86_32
+media-libs/libdvdcss abi_x86_32
+
+# -- Mesa / graphics --
+media-libs/mesa abi_x86_32
+media-libs/libglvnd abi_x86_32 X
+llvm-core/llvm abi_x86_32
+dev-util/spirv-tools abi_x86_32
+
+# -- Vulkan --
+media-libs/vulkan-loader abi_x86_32 wayland X
+media-libs/libsdl2 abi_x86_32
+
+# -- PulseAudio --
+media-libs/libpulse abi_x86_32 X
+media-plugins/alsa-plugins pulseaudio
+media-libs/alsa-lib abi_x86_32
+
+# -- JACK --
+media-sound/jack2 abi_x86_32
+
+# -- Fonts / rendering --
+media-libs/freetype abi_x86_32 harfbuzz
+media-libs/fontconfig abi_x86_32
+media-libs/harfbuzz abi_x86_32 icu
+media-gfx/graphite2 abi_x86_32
+
+# -- Core system libs --
+sys-libs/libunwind abi_x86_32
+sys-libs/zlib abi_x86_32
+sys-libs/ncurses abi_x86_32
+sys-libs/readline abi_x86_32
+sys-libs/gdbm abi_x86_32
+sys-libs/libcap abi_x86_32
+sys-libs/pam abi_x86_32
+sys-apps/systemd-utils abi_x86_32
+sys-apps/dbus abi_x86_32
+sys-apps/util-linux abi_x86_32
+dev-libs/libpcre2 abi_x86_32
+dev-libs/glib abi_x86_32
+dev-libs/expat abi_x86_32
+dev-libs/elfutils abi_x86_32
+dev-libs/libbsd abi_x86_32
+dev-libs/wayland abi_x86_32
+dev-libs/libxml2 abi_x86_32
+dev-libs/libffi abi_x86_32
+dev-libs/icu abi_x86_32
+dev-libs/nettle abi_x86_32
+dev-libs/libtasn1 abi_x86_32
+dev-libs/libunistring abi_x86_32
+dev-libs/lzo abi_x86_32
+dev-libs/isl abi_x86_32
+dev-libs/fribidi abi_x86_32
+dev-libs/gmp abi_x86_32
+dev-cpp/highway abi_x86_32
+app-crypt/libmd abi_x86_32
+app-arch/brotli abi_x86_32
+app-arch/bzip2 abi_x86_32
+app-arch/xz-utils abi_x86_32
+app-arch/zstd abi_x86_32
+app-text/xmlto text
+net-libs/gnutls abi_x86_32
+net-libs/libasyncns abi_x86_32
+net-dns/libidn2 abi_x86_32
+virtual/libelf abi_x86_32
+virtual/libiconv abi_x86_32
+virtual/libintl abi_x86_32
+virtual/libudev abi_x86_32
+virtual/zlib abi_x86_32
 EOF
 
 # -------------------------------------------------------------------
@@ -128,11 +217,8 @@ EOF
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.accept_keywords && \
     cat > /etc/portage/package.accept_keywords/audio <<'EOF'
-# wine-staging is keyworded ~amd64
 app-emulation/wine-staging ~amd64
-# yabridge is keyworded ~amd64
 media-sound/yabridge ~amd64
-# surgext, amp-locker, drum-locker are keyworded ~amd64
 media-sound/surgext ~amd64
 media-sound/amp-locker ~amd64
 media-sound/drum-locker ~amd64
@@ -140,9 +226,6 @@ EOF
 
 # -------------------------------------------------------------------
 # Install the full audio build dependency stack
-#
-# Covers build deps for all media-sound packages in the overlay.
-# Combined into one emerge for image layer efficiency.
 # -------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build \
     app-emulation/wine-staging \
@@ -150,7 +233,6 @@ RUN emerge --oneshot --quiet-build \
     virtual/jack \
     media-libs/alsa-lib \
     media-libs/libpulse \
-    media-video/pipewire \
     media-sound/fluidsynth \
     media-libs/libsndfile \
     media-libs/ladspa-sdk \
