@@ -1,13 +1,13 @@
-# PR Build Test CI — runs ebuild compile + verify for each changed package
-# when the 'build-test' label is present on the pull request.
+# Build Test CI — runs ebuild compile + verify for packages.
 #
-# This workflow is intentionally opt-in. The agent is expected to have
-# already validated the build locally using scripts/test-build.sh and
-# posted the results in the PR description. This workflow exists as an
-# independent CI confirmation for cases where you want extra confidence.
+# Two trigger modes:
 #
-# To trigger: add the 'build-test' label to the PR.
-# To re-run after changes: remove and re-add the label.
+#   1. **PR (automatic)** — detects changed packages when the
+#      'build-test' label is present on the pull request.
+#
+#   2. **Manual dispatch** — pick a specific package and ebuild
+#      from the GitHub Actions UI (Actions → Build Test Changed
+#      Ebuilds → Run workflow).
 #
 # Phase 2.3 of the implementation plan.
 
@@ -24,16 +24,43 @@ on:
       - "**/Manifest"
       - "**/files/**"
 
+  workflow_dispatch:
+    inputs:
+      package_dir:
+        description: >
+          Package directory (e.g. app-editors/zed)
+        required: true
+        type: string
+      ebuild_file:
+        description: >
+          Ebuild filename (e.g. zed-0.229.0.ebuild)
+        required: true
+        type: string
+      container_image:
+        description: >
+          Container image for the build
+        required: false
+        type: choice
+        options:
+          - ghcr.io/faraclas/adaptive-overlay/testenv:latest
+          - ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+        default: ghcr.io/faraclas/adaptive-overlay/testenv:latest
+      verify_script:
+        description: >
+          Verify script path (blank to skip)
+        required: false
+        type: string
+        default: ""
+
 jobs:
   # -----------------------------------------------------------------------
   # Gate: only proceed if the 'build-test' label is present.
-  # This is checked as a job condition rather than a workflow-level
-  # condition so that the workflow still appears in the PR checks UI
-  # (as skipped) even when the label is absent, making it discoverable.
+  # Skipped entirely for manual dispatch runs.
   # -----------------------------------------------------------------------
   check-label:
     name: Check for build-test label
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     permissions:
       contents: read
@@ -60,18 +87,15 @@ jobs:
 
   # -----------------------------------------------------------------------
   # Detect which package directories have changed.
-  # Outputs two things per changed package:
-  #   - package_dir:  e.g. app-editors/zed
-  #   - ebuild_file:  the newest .ebuild file in that directory
-  #
-  # We always pick the newest ebuild (by version sort) because that is
-  # the one being added or updated in the PR.
+  # Skipped entirely for manual dispatch runs.
   # -----------------------------------------------------------------------
   detect-changes:
     name: Detect changed packages
     runs-on: ubuntu-latest
     needs: check-label
-    if: needs.check-label.outputs.has_label == 'true'
+    if: >
+      github.event_name == 'pull_request'
+      && needs.check-label.outputs.has_label == 'true'
 
     permissions:
       contents: read
@@ -150,24 +174,37 @@ jobs:
           fi
 
   # -----------------------------------------------------------------------
-  # Run test-ebuild for each changed package in parallel.
-  # The matrix is built from the JSON array produced above, which
-  # includes the correct container image and verify script per package.
+  # PR path: run test-ebuild for each changed package in parallel.
   # -----------------------------------------------------------------------
   build-test:
-    name: Build
+    name: Build (PR)
     needs: detect-changes
-    if: needs.detect-changes.outputs.any_changed == 'true'
+    if: >
+      github.event_name == 'pull_request'
+      && needs.detect-changes.outputs.any_changed == 'true'
 
     strategy:
-      # Run all packages even if one fails so all results are visible.
       fail-fast: false
       matrix:
         package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
 
     uses: ./.github/workflows/test-ebuild.yml
     with:
-      package_dir:      ${{ matrix.package.package_dir }}
-      ebuild_file:      ${{ matrix.package.ebuild_file }}
-      container_image:  ${{ matrix.package.container_image }}
-      verify_script:    ${{ matrix.package.verify_script }}
+      package_dir: ${{ matrix.package.package_dir }}
+      ebuild_file: ${{ matrix.package.ebuild_file }}
+      container_image: ${{ matrix.package.container_image }}
+      verify_script: ${{ matrix.package.verify_script }}
+
+  # -----------------------------------------------------------------------
+  # Manual dispatch path: build the user-specified package directly.
+  # -----------------------------------------------------------------------
+  build-manual:
+    name: Build (manual)
+    if: github.event_name == 'workflow_dispatch'
+
+    uses: ./.github/workflows/test-ebuild.yml
+    with:
+      package_dir: ${{ inputs.package_dir }}
+      ebuild_file: ${{ inputs.ebuild_file }}
+      container_image: ${{ inputs.container_image }}
+      verify_script: ${{ inputs.verify_script }}
