@@ -1,0 +1,100 @@
+name: Publish Gentoo Test Environment (Audio) Image
+
+# Builds the Audio test environment container image and publishes it
+# to GHCR. This image layers on top of testenv:latest, adding
+# audio-related build dependencies.
+#
+# Published image: ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest
+#
+# Trigger order matters: this workflow runs after publish-testenv.yml
+# completes (via workflow_run) so that testenv:latest is always fresh
+# before we build on top of it. It also supports manual dispatch and
+# fires automatically when its own Containerfile changes.
+
+on:
+  # Run after the base testenv image has been successfully published.
+  # This ensures testenv-audio always builds on top of the latest base.
+  workflow_run:
+    workflows: ["Publish Gentoo Test Environment Image"]
+    types:
+      - completed
+
+  # On-demand rebuild with optional cache bypass
+  workflow_dispatch:
+    inputs:
+      no_cache:
+        description: "Rebuild from scratch (ignore layer cache)"
+        required: false
+        type: boolean
+        default: false
+
+  # Rebuild when the Containerfile itself changes
+  push:
+    paths:
+      - "containers/testenv-audio/Containerfile"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    # For the workflow_run trigger, only proceed if the base image
+    # workflow actually succeeded — don't build on a broken base.
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tags produced:
+      #   latest         — always updated on every successful build
+      #   YYYY-MM-DD     — date-stamped snapshot for reproducibility
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/testenv-audio
+          tags: |
+            type=raw,value=latest
+            type=schedule,pattern={{date 'YYYY-MM-DD'}}
+            type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build context is the repo root so the Containerfile's COPY
+      # directives (metadata/, profiles/) resolve correctly.
+      #
+      # The Containerfile references ghcr.io/faraclas/adaptive-overlay/testenv:latest
+      # as its base — Buildx will pull the freshly published base automatically.
+      #
+      # Layer cache is stored in GHCR alongside the image. The expensive
+      # emerge layer is only rebuilt when the base image digest changes
+      # or the Containerfile is edited.
+      - name: Build and push testenv-audio image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/testenv-audio/Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          no-cache: ${{ inputs.no_cache == true }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/testenv-audio:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/testenv-audio:buildcache,mode=max
+
+      - name: Image digest
+        run: |
+          echo "::notice::testenv-audio image successfully published to ghcr.io/${{ github.repository }}/testenv-audio"
