@@ -94,7 +94,7 @@ fi
 # --- Derive portage paths ----------------------------------------------------
 EBUILD_STEM="${EBUILD_FILE%.ebuild}"
 PKG_DIR="/var/db/repos/adaptive-overlay/${PACKAGE_DIR}"
-BUILD_IMAGE="/var/tmp/portage/${PACKAGE_DIR}/${EBUILD_STEM}/image"
+BUILD_IMAGE="/var/tmp/portage/${PACKAGE_DIR%/*}/${EBUILD_STEM}/image"
 
 # --- Resolve verify script ---------------------------------------------------
 # Convention: containers/<image-dir>/verify-<package-name>.sh
@@ -109,9 +109,9 @@ VERIFY_SCRIPT="${OVERLAY_DIR}/${VERIFY_SCRIPT_REL}"
 
 # --- Determine build phases --------------------------------------------------
 if [ "${NO_CLEAN}" -eq 1 ]; then
-    PHASES="compile"
+    PHASES="compile install"
 else
-    PHASES="clean compile"
+    PHASES="clean compile install"
 fi
 
 # --- Print plan --------------------------------------------------------------
@@ -170,7 +170,6 @@ echo ""
         if [ -f '/mnt/adaptive-overlay/${VERIFY_SCRIPT_REL}' ]; then
             echo ''
             echo '==> Running verify script: ${VERIFY_SCRIPT_REL}'
-            chmod +x '/mnt/adaptive-overlay/${VERIFY_SCRIPT_REL}'
-            '/mnt/adaptive-overlay/${VERIFY_SCRIPT_REL}' '${BUILD_IMAGE}'
+            bash '/mnt/adaptive-overlay/${VERIFY_SCRIPT_REL}' '${BUILD_IMAGE}'
         fi
     "

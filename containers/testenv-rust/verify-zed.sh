@@ -68,7 +68,8 @@ echo ""
 echo "--- Version ---"
 
 if [ -f "${ZEDIT}" ]; then
-    VERSION_OUTPUT=$("${ZEDIT}" --version 2>&1 || true)
+    # Zed refuses to run as root, so invoke via `su` to a non-root user.
+    VERSION_OUTPUT=$(su -s /bin/sh nobody -c "'${ZEDIT}' --version" 2>&1 || true)
     echo "  zedit --version: ${VERSION_OUTPUT}"
 
     if echo "${VERSION_OUTPUT}" | grep -qE '[0-9]+\.[0-9]+\.[0-9]+'; then
