@@ -66,7 +66,6 @@ jobs:
     name: >
       ebuild ${{ inputs.package_dir }}/${{ inputs.ebuild_file }}
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -99,7 +98,9 @@ jobs:
           EBUILD_STEM="${{ inputs.ebuild_file }}"
           EBUILD_STEM="${EBUILD_STEM%.ebuild}"
           PKG_DIR="/var/db/repos/adaptive-overlay/${{ inputs.package_dir }}"
-          BUILD_IMAGE="/var/tmp/portage/${{ inputs.package_dir }}/${EBUILD_STEM}/image"
+          CATEGORY="${{ inputs.package_dir }}"
+          CATEGORY="${CATEGORY%/*}"
+          BUILD_IMAGE="/var/tmp/portage/${CATEGORY}/${EBUILD_STEM}/image"
 
           echo "ebuild_stem=${EBUILD_STEM}" >> "$GITHUB_OUTPUT"
           echo "pkg_dir=${PKG_DIR}"         >> "$GITHUB_OUTPUT"
@@ -119,11 +120,11 @@ jobs:
           mkdir -p /var/log/adaptive-overlay
           LOG=/var/log/adaptive-overlay/build.log
 
-          echo "==> ebuild ${{ inputs.ebuild_file }} clean compile"
+          echo "==> ebuild ${{ inputs.ebuild_file }} clean compile install"
           cd "${{ steps.vars.outputs.pkg_dir }}"
 
           set +e
-          ebuild "./${{ inputs.ebuild_file }}" clean compile 2>&1 | tee "${LOG}"
+          ebuild "./${{ inputs.ebuild_file }}" clean compile install 2>&1 | tee "${LOG}"
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
 
