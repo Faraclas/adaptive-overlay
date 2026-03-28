@@ -101,10 +101,12 @@ jobs:
           CATEGORY="${{ inputs.package_dir }}"
           CATEGORY="${CATEGORY%/*}"
           BUILD_IMAGE="/var/tmp/portage/${CATEGORY}/${EBUILD_STEM}/image"
+          ARTIFACT_SLUG="$(echo '${{ inputs.package_dir }}' | tr '/' '-')"
 
-          echo "ebuild_stem=${EBUILD_STEM}" >> "$GITHUB_OUTPUT"
-          echo "pkg_dir=${PKG_DIR}"         >> "$GITHUB_OUTPUT"
-          echo "build_image=${BUILD_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "ebuild_stem=${EBUILD_STEM}"     >> "$GITHUB_OUTPUT"
+          echo "pkg_dir=${PKG_DIR}"             >> "$GITHUB_OUTPUT"
+          echo "build_image=${BUILD_IMAGE}"     >> "$GITHUB_OUTPUT"
+          echo "artifact_slug=${ARTIFACT_SLUG}" >> "$GITHUB_OUTPUT"
 
           echo "Package dir : ${PKG_DIR}"
           echo "Ebuild stem : ${EBUILD_STEM}"
@@ -147,7 +149,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log-${{ inputs.package_dir != '' && replace(inputs.package_dir, '/', '-') || 'unknown' }}-${{ inputs.ebuild_file }}
+          name: build-log-${{ steps.vars.outputs.artifact_slug }}-${{ inputs.ebuild_file }}
           path: ${{ steps.build.outputs.build_log }}
           if-no-files-found: warn
           retention-days: 14
