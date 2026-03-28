@@ -1,0 +1,86 @@
+# Build environment for media-sound/carla Wine bridge support
+#
+# Builds on top of the general-purpose testenv image. Adds Portage
+# configuration and dependencies needed to build Carla with its Wine
+# bridge (wineasio / native Windows VST plugin hosting).
+#
+# This image is intentionally scoped to Carla Wine bridge build
+# testing. It:
+#   - Disables Portage sandbox features that do not work in rootless
+#     Podman containers
+#   - Configures multilib (ABI_X86="32 64") and USE flags for Wine
+#   - Accepts ~amd64 keywords for wine-staging:11.0
+#   - Pre-installs Wine, the MinGW cross-toolchain, and all of
+#     Carla's build dependencies so builds do not need network
+#     access at runtime
+#
+# Build from repo root:
+#   podman build -t adaptive-overlay-testenv-wine:local \
+#       -f containers/testenv-wine/Containerfile .
+#
+# Note: The dependency list in the final RUN emerge was determined
+# by inspecting the Carla ebuild's DEPEND/RDEPEND. If the ebuild's
+# dependencies change, rebuild with --no-cache and re-verify.
+
+FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
+
+# -------------------------------------------------------------------
+# Portage: disable sandbox features that fail in rootless containers
+# -------------------------------------------------------------------
+RUN mkdir -p /etc/portage && \
+    echo 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"' \
+    >> /etc/portage/make.conf
+
+# -------------------------------------------------------------------
+# Portage: USE and ABI flags for Wine and the MinGW toolchain
+#
+# wine-staging needs ABI_X86="32 64" for full multilib support and
+# the mingw / wow64 flags to build the Windows-side bridge code.
+# mingw64-toolchain needs abi_x86_32 to produce 32-bit PE binaries.
+# -------------------------------------------------------------------
+RUN mkdir -p /etc/portage/package.use && \
+    printf '# Required by media-sound/carla Wine bridge\n' \
+        > /etc/portage/package.use/wine && \
+    printf 'app-emulation/wine-staging abi_x86_32 abi_x86_64 mingw wow64\n' \
+        >> /etc/portage/package.use/wine && \
+    printf 'dev-util/mingw64-toolchain abi_x86_32\n' \
+        >> /etc/portage/package.use/wine
+
+# -------------------------------------------------------------------
+# Portage: accept ~amd64 keywords for wine-staging slot 11.0
+# -------------------------------------------------------------------
+RUN mkdir -p /etc/portage/package.accept_keywords && \
+    printf '# wine-staging:11.0 is keyworded ~amd64\n' \
+        > /etc/portage/package.accept_keywords/wine && \
+    printf 'app-emulation/wine-staging:11.0 ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/wine
+
+# -------------------------------------------------------------------
+# Install Wine, MinGW cross-toolchain, and Carla build dependencies
+#
+# wine-staging:11.0  — Windows compatibility layer (with mingw/wow64)
+# mingw64-toolchain  — cross-compiler for Windows PE binaries
+#
+# Carla build deps:
+#   virtual/jack        — JACK Audio Connection Kit
+#   media-libs/alsa-lib — ALSA audio support
+#   x11-libs/gtk+:3     — GTK3 UI toolkit
+#   media-libs/libpulse — PulseAudio client library
+#   media-sound/fluidsynth — SoundFont synthesizer
+#   media-libs/libsndfile  — audio file I/O
+#   x11-libs/libX11     — X11 client library
+#   dev-python/pyqt5    — Python Qt5 bindings (Carla UI)
+#   dev-python/rdflib   — RDF/LV2 plugin metadata support
+# -------------------------------------------------------------------
+RUN emerge --oneshot --quiet-build \
+    app-emulation/wine-staging:11.0 \
+    dev-util/mingw64-toolchain \
+    virtual/jack \
+    media-libs/alsa-lib \
+    x11-libs/gtk+:3 \
+    media-libs/libpulse \
+    media-sound/fluidsynth \
+    media-libs/libsndfile \
+    x11-libs/libX11 \
+    dev-python/pyqt5 \
+    dev-python/rdflib
