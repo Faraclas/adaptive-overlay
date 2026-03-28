@@ -2,25 +2,36 @@
 #
 # Builds on top of the general-purpose testenv image. Adds Portage
 # configuration and dependencies needed to build Carla with its Wine
-# bridge (wineasio / native Windows VST plugin hosting).
+# bridges (winegcc-built .dll.so files and mingw-built .exe files
+# for hosting Windows VST plugins).
 #
 # This image is intentionally scoped to Carla Wine bridge build
 # testing. It:
 #   - Disables Portage sandbox features that do not work in rootless
 #     Podman containers
-#   - Configures multilib (ABI_X86="32 64") and USE flags for Wine
-#   - Accepts ~amd64 keywords for wine-staging:11.0
+#   - Configures multilib (abi_x86_32) and USE flags for Wine
+#   - Pulls in the full abi_x86_32 dependency chain that Wine needs
+#   - Accepts ~amd64 keywords for wine-staging
 #   - Pre-installs Wine, the MinGW cross-toolchain, and all of
-#     Carla's build dependencies so builds do not need network
+#     Carla build dependencies so builds do not need network
 #     access at runtime
+#
+# Note on wow64 vs abi_x86_32:
+#   Carla wine32 build target uses winegcc -m32 to produce a
+#   32-bit Linux .dll.so (jackbridge-wine32.dll.so). This requires
+#   Wine 32-bit import libraries (libadvapi32, libuser32, etc.)
+#   which are only installed when abi_x86_32 is enabled. The wow64
+#   USE flag is mutually exclusive with abi_x86_32 on x86_64, so
+#   we explicitly disable wow64 and enable abi_x86_32.
 #
 # Build from repo root:
 #   podman build -t adaptive-overlay-testenv-wine:local \
 #       -f containers/testenv-wine/Containerfile .
 #
 # Note: The dependency list in the final RUN emerge was determined
-# by inspecting the Carla ebuild's DEPEND/RDEPEND. If the ebuild's
-# dependencies change, rebuild with --no-cache and re-verify.
+# by inspecting the Carla ebuild and running emerge --pretend with
+# Wine multilib deps resolved. If the ebuild dependencies change,
+# rebuild with --no-cache and re-verify.
 
 FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
@@ -32,48 +43,99 @@ RUN mkdir -p /etc/portage && \
     >> /etc/portage/make.conf
 
 # -------------------------------------------------------------------
-# Portage: USE and ABI flags for Wine and the MinGW toolchain
+# Portage: USE and ABI flags for Wine and its multilib dep chain
 #
-# wine-staging needs ABI_X86="32 64" for full multilib support and
-# the mingw / wow64 flags to build the Windows-side bridge code.
-# mingw64-toolchain needs abi_x86_32 to produce 32-bit PE binaries.
+# wine-staging needs abi_x86_32 for 32-bit import libraries (used
+# by winegcc -m32). wow64 is explicitly disabled because it is
+# mutually exclusive with abi_x86_32 on x86_64:
+#   REQUIRED_USE: wow64? ( !arm64? ( !abi_x86_32 ) )
+#
+# The abi_x86_32 lines for gstreamer, ffmpeg, and other deps are
+# required by wine-staging multilib build.
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.use && \
-    printf '# Required by media-sound/carla Wine bridge\n' \
-        > /etc/portage/package.use/wine && \
-    printf 'app-emulation/wine-staging abi_x86_32 abi_x86_64 mingw wow64\n' \
-        >> /etc/portage/package.use/wine && \
-    printf 'dev-util/mingw64-toolchain abi_x86_32\n' \
-        >> /etc/portage/package.use/wine
+    cat > /etc/portage/package.use/wine <<'EOF'
+# Required by media-sound/carla Wine bridge build
+# xcomposite flag dropped in wine-staging-11
+app-emulation/wine-staging alsa dbus ffmpeg fontconfig gstreamer mono opengl pulseaudio ssl strip truetype udev unwind vulkan wayland x xcomposite xinerama abi_x86_32 -wow64
+# mingw64-toolchain needs abi_x86_32 for 32-bit PE binaries
+dev-util/mingw64-toolchain abi_x86_32
+# required by wine-staging multilib (abi_x86_32 dep chain)
+>=media-libs/gst-plugins-base-1.24.11-r1 abi_x86_32
+>=media-libs/gstreamer-1.24.11 abi_x86_32
+>=sys-libs/libunwind-1.8.2-r1 abi_x86_32
+>=media-plugins/gst-plugins-meta-1.24.11 abi_x86_32
+>=media-libs/gst-plugins-good-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-a52dec-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-faad-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-dts-1.24.11 abi_x86_32
+>=media-libs/gst-plugins-ugly-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-dvdread-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-mpeg2dec-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-resindvd-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-flac-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-mpg123-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-pulse-1.24.11 abi_x86_32
+>=media-libs/gst-plugins-bad-1.24.11 abi_x86_32
+>=media-plugins/gst-plugins-x264-1.24.11 abi_x86_32
+>=media-libs/x264-0.0.20240513 abi_x86_32
+>=dev-lang/orc-0.4.41 abi_x86_32
+>=media-libs/libdvdnav-6.1.1 abi_x86_32
+>=media-libs/libdvdread-6.1.3 abi_x86_32
+>=media-libs/libdvdcss-1.4.3 abi_x86_32
+>=media-libs/libmpeg2-0.5.1-r3 abi_x86_32
+>=media-libs/libdca-0.0.7 abi_x86_32
+>=media-libs/faad2-2.11.2 abi_x86_32
+>=media-libs/a52dec-0.7.4-r9 abi_x86_32
+>=media-libs/libtheora-1.2.0-r1 abi_x86_32
+>=x11-libs/libXv-1.0.13 abi_x86_32
+>=media-libs/graphene-1.10.8-r1 abi_x86_32
+>=media-plugins/gst-plugins-cdparanoia-1.24.11 abi_x86_32
+>=media-sound/cdparanoia-3.10.2-r8 abi_x86_32
+>=media-video/ffmpeg-7.0 abi_x86_32
+>=media-libs/opencore-amr-0.1.6 abi_x86_32
+>=media-libs/vo-amrwbenc-0.1.3 abi_x86_32
+>=media-libs/dav1d-1.5.0 abi_x86_32
+>=media-libs/libjxl-0.11.1 abi_x86_32
+>=media-libs/libass-0.17.4 abi_x86_32
+>=media-sound/sndio-1.10.0 abi_x86_32
+>=media-libs/xvid-1.3.7-r2 abi_x86_32
+>=dev-libs/libbsd-0.11.8 abi_x86_32
+>=app-crypt/libmd-1.1.0 abi_x86_32
+>=app-arch/brotli-1.1.0 abi_x86_32
+>=dev-cpp/highway-1.3.0 abi_x86_32
+>=media-libs/giflib-5.2.2 abi_x86_32
+>=virtual/jack-2 abi_x86_32
+EOF
 
 # -------------------------------------------------------------------
-# Portage: accept ~amd64 keywords for wine-staging slot 11.0
+# Portage: accept ~amd64 keywords for wine-staging
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.accept_keywords && \
-    printf '# wine-staging:11.0 is keyworded ~amd64\n' \
+    printf '# wine-staging is keyworded ~amd64\n' \
         > /etc/portage/package.accept_keywords/wine && \
-    printf 'app-emulation/wine-staging:11.0 ~amd64\n' \
+    printf 'app-emulation/wine-staging ~amd64\n' \
         >> /etc/portage/package.accept_keywords/wine
 
 # -------------------------------------------------------------------
 # Install Wine, MinGW cross-toolchain, and Carla build dependencies
 #
-# wine-staging:11.0  — Windows compatibility layer (with mingw/wow64)
-# mingw64-toolchain  — cross-compiler for Windows PE binaries
+# app-emulation/wine-staging -- Wine with 32-bit import libraries
+# dev-util/mingw64-toolchain  -- cross-compiler for Windows PE binaries
 #
 # Carla build deps:
-#   virtual/jack        — JACK Audio Connection Kit
-#   media-libs/alsa-lib — ALSA audio support
-#   x11-libs/gtk+:3     — GTK3 UI toolkit
-#   media-libs/libpulse — PulseAudio client library
-#   media-sound/fluidsynth — SoundFont synthesizer
-#   media-libs/libsndfile  — audio file I/O
-#   x11-libs/libX11     — X11 client library
-#   dev-python/pyqt5    — Python Qt5 bindings (Carla UI)
-#   dev-python/rdflib   — RDF/LV2 plugin metadata support
+#   virtual/jack        -- JACK Audio Connection Kit
+#   media-libs/alsa-lib -- ALSA audio support
+#   x11-libs/gtk+:3     -- GTK3 UI toolkit
+#   media-libs/libpulse -- PulseAudio client library
+#   media-sound/fluidsynth -- SoundFont synthesizer
+#   media-libs/libsndfile  -- audio file I/O
+#   x11-libs/libX11     -- X11 client library
+#   dev-python/pyqt5    -- Python Qt5 bindings (Carla UI)
+#   dev-python/rdflib   -- RDF/LV2 plugin metadata support
 # -------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build \
-    app-emulation/wine-staging:11.0 \
+    app-emulation/wine-staging \
     dev-util/mingw64-toolchain \
     virtual/jack \
     media-libs/alsa-lib \
