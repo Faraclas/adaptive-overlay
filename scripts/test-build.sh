@@ -78,14 +78,15 @@ fi
 # --- Select image based on package -------------------------------------------
 # Some packages need specialised images with extra build dependencies:
 #   app-editors/zed   → testenv-rust  (Rust, LLVM)
-#   media-sound/carla → testenv-wine  (Wine multilib, MinGW)
+#   media-sound/*     → testenv-audio (Wine, JACK, multilib X, etc.)
 # Everything else uses the base testenv image.
+PACKAGE_CAT="${PACKAGE_DIR%%/*}"
 if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
-elif [ "${PACKAGE_DIR}" = "media-sound/carla" ]; then
-    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-wine:local"
-    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-wine:latest"
+elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
+    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-audio:local"
+    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
 else
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
@@ -108,8 +109,8 @@ BUILD_IMAGE="/var/tmp/portage/${PACKAGE_DIR%/*}/${EBUILD_STEM}/image"
 PACKAGE_NAME="${PACKAGE_DIR##*/}"
 if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
-elif [ "${PACKAGE_DIR}" = "media-sound/carla" ]; then
-    VERIFY_SCRIPT_REL="containers/testenv-wine/verify-${PACKAGE_NAME}.sh"
+elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
+    VERIFY_SCRIPT_REL="containers/testenv-audio/verify-${PACKAGE_NAME}.sh"
 else
     VERIFY_SCRIPT_REL="containers/testenv/verify-${PACKAGE_NAME}.sh"
 fi

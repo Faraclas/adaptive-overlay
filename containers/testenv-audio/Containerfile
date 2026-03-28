@@ -1,37 +1,39 @@
-# Build environment for media-sound/carla Wine bridge support
+# Build environment for media-sound packages from adaptive-overlay
 #
 # Builds on top of the general-purpose testenv image. Adds Portage
-# configuration and dependencies needed to build Carla with its Wine
-# bridges (winegcc-built .dll.so files and mingw-built .exe files
-# for hosting Windows VST plugins).
+# configuration and dependencies needed to build audio packages:
+#   media-sound/carla       - audio plugin host (with Wine bridges)
+#   media-sound/yabridge    - Windows VST/VST3/CLAP bridge via Wine
+#   media-sound/surgext     - Surge XT synthesizer
+#   media-sound/bitwig-studio - DAW (binary, needs multilib X libs)
+#   media-sound/amp-locker  - guitar amp simulator plugin
+#   media-sound/drum-locker - drum machine plugin
 #
-# This image is intentionally scoped to Carla Wine bridge build
-# testing. It:
-#   - Disables Portage sandbox features that do not work in rootless
-#     Podman containers
-#   - Configures multilib (abi_x86_32) and USE flags for Wine
-#   - Pulls in the full abi_x86_32 dependency chain that Wine needs
-#   - Accepts ~amd64 keywords for wine-staging
-#   - Pre-installs Wine, the MinGW cross-toolchain, and all of
-#     Carla build dependencies so builds do not need network
-#     access at runtime
+# This image provides:
+#   - Wine with abi_x86_32 (not wow64) for winegcc 32-bit support
+#   - MinGW cross-toolchain for Windows PE binaries
+#   - JACK, ALSA, PulseAudio, PipeWire audio stack
+#   - Multilib X11/XCB libraries for Bitwig and yabridge
+#   - FluidSynth, libsndfile, LADSPA/LV2 plugin support
+#   - Qt6 and GTK3 for plugin UIs
+#   - Rust toolchain for yabridge
 #
 # Note on wow64 vs abi_x86_32:
 #   Carla wine32 build target uses winegcc -m32 to produce a
 #   32-bit Linux .dll.so (jackbridge-wine32.dll.so). This requires
 #   Wine 32-bit import libraries (libadvapi32, libuser32, etc.)
 #   which are only installed when abi_x86_32 is enabled. The wow64
-#   USE flag is mutually exclusive with abi_x86_32 on x86_64, so
-#   we explicitly disable wow64 and enable abi_x86_32.
+#   USE flag is mutually exclusive with abi_x86_32 on x86_64:
+#     REQUIRED_USE: wow64? ( !arm64? ( !abi_x86_32 ) )
+#   So we explicitly disable wow64 and enable abi_x86_32.
 #
 # Build from repo root:
-#   podman build -t adaptive-overlay-testenv-wine:local \
-#       -f containers/testenv-wine/Containerfile .
+#   podman build -t adaptive-overlay-testenv-audio:local \
+#       -f containers/testenv-audio/Containerfile .
 #
-# Note: The dependency list in the final RUN emerge was determined
-# by inspecting the Carla ebuild and running emerge --pretend with
-# Wine multilib deps resolved. If the ebuild dependencies change,
-# rebuild with --no-cache and re-verify.
+# Note: The dependency lists were determined by querying the build
+# host with eix and matching installed USE flags. If ebuild deps
+# change, rebuild with --no-cache and re-verify.
 
 FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
@@ -43,24 +45,37 @@ RUN mkdir -p /etc/portage && \
     >> /etc/portage/make.conf
 
 # -------------------------------------------------------------------
-# Portage: USE and ABI flags for Wine and its multilib dep chain
+# Portage: USE and ABI flags
 #
-# wine-staging needs abi_x86_32 for 32-bit import libraries (used
-# by winegcc -m32). wow64 is explicitly disabled because it is
-# mutually exclusive with abi_x86_32 on x86_64:
-#   REQUIRED_USE: wow64? ( !arm64? ( !abi_x86_32 ) )
-#
-# The abi_x86_32 lines for gstreamer, ffmpeg, and other deps are
-# required by wine-staging multilib build.
+# Mirrors the build host package.use for audio packages. Key
+# decisions:
+#   - Wine: abi_x86_32, -wow64 (for winegcc 32-bit import libs)
+#   - Multilib X libs: abi_x86_32 (for Bitwig and yabridge)
+#   - FluidSynth: jack, ladspa
+#   - PipeWire: jack-sdk (for Bitwig)
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.use && \
-    cat > /etc/portage/package.use/wine <<'EOF'
-# Required by media-sound/carla Wine bridge build
+    cat > /etc/portage/package.use/audio <<'EOF'
+# === Wine and MinGW ===
 # xcomposite flag dropped in wine-staging-11
 app-emulation/wine-staging alsa dbus ffmpeg fontconfig gstreamer mono opengl pulseaudio ssl strip truetype udev unwind vulkan wayland x xcomposite xinerama abi_x86_32 -wow64
-# mingw64-toolchain needs abi_x86_32 for 32-bit PE binaries
 dev-util/mingw64-toolchain abi_x86_32
-# required by wine-staging multilib (abi_x86_32 dep chain)
+
+# === Audio stack ===
+media-sound/fluidsynth jack ladspa
+media-video/pipewire jack-sdk
+
+# === Multilib X11/XCB libs (Bitwig, yabridge) ===
+x11-libs/libX11 abi_x86_32
+x11-libs/libxcb abi_x86_32
+x11-libs/xcb-util-wm abi_x86_32
+x11-libs/xcb-util abi_x86_32
+x11-libs/libxkbcommon abi_x86_32 X
+x11-libs/libXau abi_x86_32
+x11-libs/libXdmcp abi_x86_32
+x11-libs/pixman abi_x86_32
+
+# === Wine multilib dep chain (abi_x86_32) ===
 >=media-libs/gst-plugins-base-1.24.11-r1 abi_x86_32
 >=media-libs/gstreamer-1.24.11 abi_x86_32
 >=sys-libs/libunwind-1.8.2-r1 abi_x86_32
@@ -109,40 +124,70 @@ dev-util/mingw64-toolchain abi_x86_32
 EOF
 
 # -------------------------------------------------------------------
-# Portage: accept ~amd64 keywords for wine-staging
+# Portage: accept ~amd64 keywords
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.accept_keywords && \
-    printf '# wine-staging is keyworded ~amd64\n' \
-        > /etc/portage/package.accept_keywords/wine && \
-    printf 'app-emulation/wine-staging ~amd64\n' \
-        >> /etc/portage/package.accept_keywords/wine
+    cat > /etc/portage/package.accept_keywords/audio <<'EOF'
+# wine-staging is keyworded ~amd64
+app-emulation/wine-staging ~amd64
+# yabridge is keyworded ~amd64
+media-sound/yabridge ~amd64
+# surgext, amp-locker, drum-locker are keyworded ~amd64
+media-sound/surgext ~amd64
+media-sound/amp-locker ~amd64
+media-sound/drum-locker ~amd64
+EOF
 
 # -------------------------------------------------------------------
-# Install Wine, MinGW cross-toolchain, and Carla build dependencies
+# Install the full audio build dependency stack
 #
-# app-emulation/wine-staging -- Wine with 32-bit import libraries
-# dev-util/mingw64-toolchain  -- cross-compiler for Windows PE binaries
-#
-# Carla build deps:
-#   virtual/jack        -- JACK Audio Connection Kit
-#   media-libs/alsa-lib -- ALSA audio support
-#   x11-libs/gtk+:3     -- GTK3 UI toolkit
-#   media-libs/libpulse -- PulseAudio client library
-#   media-sound/fluidsynth -- SoundFont synthesizer
-#   media-libs/libsndfile  -- audio file I/O
-#   x11-libs/libX11     -- X11 client library
-#   dev-python/pyqt5    -- Python Qt5 bindings (Carla UI)
-#   dev-python/rdflib   -- RDF/LV2 plugin metadata support
+# Covers build deps for all media-sound packages in the overlay.
+# Combined into one emerge for image layer efficiency.
 # -------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build \
     app-emulation/wine-staging \
     dev-util/mingw64-toolchain \
     virtual/jack \
     media-libs/alsa-lib \
-    x11-libs/gtk+:3 \
     media-libs/libpulse \
+    media-video/pipewire \
     media-sound/fluidsynth \
     media-libs/libsndfile \
+    media-libs/ladspa-sdk \
+    media-libs/lv2 \
+    x11-libs/gtk+:3 \
     x11-libs/libX11 \
+    x11-libs/libxcb \
+    x11-libs/xcb-util-wm \
+    x11-libs/xcb-util \
+    x11-libs/libxkbcommon \
+    x11-libs/libXau \
+    x11-libs/libXdmcp \
+    x11-libs/pixman \
+    x11-libs/libXcursor \
+    x11-libs/libXrandr \
+    x11-libs/libXinerama \
+    x11-libs/libXext \
+    x11-libs/libXfixes \
+    x11-libs/libXrender \
+    x11-libs/libXv \
+    x11-libs/cairo \
+    x11-libs/xcb-util-cursor \
+    x11-libs/xcb-util-keysyms \
     dev-python/pyqt5 \
-    dev-python/rdflib
+    dev-python/rdflib \
+    media-libs/freetype \
+    media-libs/fontconfig \
+    net-misc/curl \
+    net-libs/webkit-gtk:4.1 \
+    dev-build/meson \
+    dev-lang/rust-bin \
+    app-arch/unzip \
+    dev-util/patchelf \
+    media-libs/libpng \
+    media-video/ffmpeg \
+    sys-libs/zlib \
+    dev-libs/expat \
+    app-arch/libarchive \
+    media-libs/liblrdf \
+    media-libs/portmidi
