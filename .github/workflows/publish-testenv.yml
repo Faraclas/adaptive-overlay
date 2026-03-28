@@ -43,6 +43,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Lowercase repository name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       # Log in to GHCR using the automatic GITHUB_TOKEN — no extra secret needed.
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -59,7 +63,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/testenv
+          images: ghcr.io/${{ steps.repo.outputs.name }}/testenv
           tags: |
             type=raw,value=latest
             type=schedule,pattern={{date 'YYYY-MM-DD'}}
@@ -87,10 +91,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           no-cache: ${{ inputs.no_cache == true }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/testenv:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/testenv:buildcache,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv:buildcache,mode=max
 
       - name: Image digest
         run: |
           echo "Published image digest: ${{ steps.meta.outputs.tags }}"
-          echo "::notice::testenv image successfully published to ghcr.io/${{ github.repository }}/testenv"
+          echo "::notice::testenv image successfully published to ghcr.io/${{ steps.repo.outputs.name }}/testenv"
