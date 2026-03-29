@@ -26,6 +26,8 @@ on:
 
   # Rebuild when the Containerfile itself changes
   push:
+    branches:
+      - main
     paths:
       - "containers/testenv/Containerfile"
       - "metadata/**"
