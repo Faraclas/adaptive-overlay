@@ -1,11 +1,16 @@
 #!/bin/bash
 # upgrade-ebuild.sh — detect and prepare ebuild version upgrades for
-# Cargo/Rust packages in the adaptive-overlay.
+# packages in the adaptive-overlay.
 #
 # Compares the current overlay version against the latest upstream
-# release, copies the ebuild, diffs upstream Cargo.toml to detect
-# dependency changes (GIT_CRATES, RUST_MIN_VER, WEBRTC_COMMIT), and
-# reports exactly what needs updating.
+# release, copies the ebuild, and — for Cargo/Rust packages — diffs
+# upstream Cargo.toml to detect dependency changes (GIT_CRATES,
+# RUST_MIN_VER, WEBRTC_COMMIT).  Non-Cargo packages (C/C++, meson,
+# etc.) get a straightforward version bump without dependency diffing.
+#
+# The build system is read from the "build_system" field in
+# .agent/packages.json.  If absent, it defaults to "cargo" for
+# backward compatibility.
 #
 # Usage:
 #   scripts/upgrade-ebuild.sh <category/package> [--version <ver>]
@@ -186,6 +191,7 @@ fi
 UPSTREAM_REPO=$(echo "${PKG_ENTRY}" | jq -r '.upstream_repo // empty')
 UPSTREAM_TYPE=$(echo "${PKG_ENTRY}" | jq -r '.upstream_type // empty')
 VERSION_PATTERN=$(echo "${PKG_ENTRY}" | jq -r '.version_pattern // empty')
+BUILD_SYSTEM=$(echo "${PKG_ENTRY}" | jq -r '.build_system // "cargo"')
 
 if [[ -z "${UPSTREAM_REPO}" ]]; then
     echo "error: ${PACKAGE_DIR} has no upstream_repo defined — cannot auto-upgrade." >&2
@@ -295,7 +301,8 @@ if [[ "${CURRENT_CLEAN}" == "${UPSTREAM_VERSION}" ]]; then
             --arg pkg "${PACKAGE_DIR}" \
             --arg current "${CURRENT_VERSION}" \
             --arg upstream "${UPSTREAM_VERSION}" \
-            '{package: $pkg, current: $current, upstream: $upstream, status: "up-to-date", changes: []}'
+            --arg build_system "${BUILD_SYSTEM}" \
+            '{package: $pkg, current: $current, upstream: $upstream, build_system: $build_system, status: "up-to-date", changes: []}'
     else
         echo "==> ${PACKAGE_DIR} is already at version ${CURRENT_VERSION} — nothing to do."
     fi
@@ -371,20 +378,6 @@ fi
 # Dependency change detection — Cargo.toml diff
 # =============================================================================
 
-[[ "${OUTPUT_JSON}" -eq 0 ]] && echo "==> Fetching upstream Cargo.toml for diff..."
-
-OLD_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${CURRENT_CLEAN}" "Cargo.toml") || {
-    echo "error: failed to fetch Cargo.toml for v${CURRENT_CLEAN}." >&2
-    exit 1
-}
-
-NEW_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" "Cargo.toml") || {
-    echo "error: failed to fetch Cargo.toml for v${UPSTREAM_VERSION}." >&2
-    exit 1
-}
-
-CARGO_DIFF=$(diff <(echo "${OLD_CARGO}") <(echo "${NEW_CARGO}") || true)
-
 # --- Collect all changes into arrays for structured reporting ----------------
 #
 # The script collects two kinds of data:
@@ -407,6 +400,22 @@ declare -a REMOVED_GIT_CRATES=()     # crate names
 NEW_RUST_MIN_VER=""
 NEW_WEBRTC_COMMIT=""
 declare -a NEW_WORKSPACE_MEMBERS=()
+
+if [[ "${BUILD_SYSTEM}" == "cargo" ]]; then
+
+[[ "${OUTPUT_JSON}" -eq 0 ]] && echo "==> Fetching upstream Cargo.toml for diff..."
+
+OLD_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${CURRENT_CLEAN}" "Cargo.toml") || {
+    echo "error: failed to fetch Cargo.toml for v${CURRENT_CLEAN}." >&2
+    exit 1
+}
+
+NEW_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" "Cargo.toml") || {
+    echo "error: failed to fetch Cargo.toml for v${UPSTREAM_VERSION}." >&2
+    exit 1
+}
+
+CARGO_DIFF=$(diff <(echo "${OLD_CARGO}") <(echo "${NEW_CARGO}") || true)
 
 # --- A) Parse git dependency changes from the diff ---------------------------
 
@@ -572,13 +581,15 @@ if [[ "${PKG_NAME}" == "zed" ]]; then
     fi
 fi
 
+fi  # end if BUILD_SYSTEM == "cargo"
+
 # =============================================================================
 # Apply changes to the new ebuild (if --apply)
 # =============================================================================
 
 APPLIED=()
 
-if [[ "${DO_APPLY}" -eq 1 && ${#CHANGE_DESCRIPTIONS[@]} -gt 0 ]]; then
+if [[ "${DO_APPLY}" -eq 1 && "${BUILD_SYSTEM}" == "cargo" && ${#CHANGE_DESCRIPTIONS[@]} -gt 0 ]]; then
     EBUILD_FILE="${PKG_PATH}/${TO_EBUILD}"
 
     # --- Apply GIT_CRATES commit hash updates --------------------------------
@@ -703,43 +714,45 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
         APPLIED_JSON=$(echo "${APPLIED_JSON}" | jq --arg d "${desc}" '. + [$d]')
     done
 
-    # Structured: updated GIT_CRATES (already applied by --apply).
+    # Structured: updated/added/removed GIT_CRATES — only meaningful for
+    # Cargo packages but we always emit the keys (empty for non-Cargo).
     UPDATED_JSON="[]"
-    for crate in "${!UPDATED_GIT_CRATES[@]}"; do
-        new_rev="${UPDATED_GIT_CRATES[${crate}]}"
-        old_rev="${OLD_GIT_DEPS[${crate}]}"
-        url="${NEW_GIT_URLS[${crate}]}"
-        UPDATED_JSON=$(echo "${UPDATED_JSON}" | jq \
-            --arg c "${crate}" --arg old "${old_rev}" \
-            --arg new "${new_rev}" --arg url "${url}" \
-            '. + [{crate: $c, old_rev: $old, new_rev: $new, url: $url}]')
-    done
-
-    # Structured: added GIT_CRATES (agent must insert these).
     ADDED_JSON_STRUCT="[]"
-    for crate in "${!ADDED_GIT_CRATES[@]}"; do
-        IFS=';' read -r url rev <<< "${ADDED_GIT_CRATES[${crate}]}"
-        ADDED_JSON_STRUCT=$(echo "${ADDED_JSON_STRUCT}" | jq \
-            --arg c "${crate}" --arg url "${url}" --arg rev "${rev}" \
-            '. + [{crate: $c, url: $url, rev: $rev}]')
-    done
-
-    # Structured: removed GIT_CRATES (agent must remove these).
     REMOVED_JSON="[]"
-    for crate in "${REMOVED_GIT_CRATES[@]+"${REMOVED_GIT_CRATES[@]}"}"; do
-        REMOVED_JSON=$(echo "${REMOVED_JSON}" | jq --arg c "${crate}" '. + [$c]')
-    done
-
-    # Structured: new workspace members.
     MEMBERS_JSON="[]"
-    for member in "${NEW_WORKSPACE_MEMBERS[@]+"${NEW_WORKSPACE_MEMBERS[@]}"}"; do
-        MEMBERS_JSON=$(echo "${MEMBERS_JSON}" | jq --arg m "${member}" '. + [$m]')
-    done
+
+    if [[ "${BUILD_SYSTEM}" == "cargo" ]]; then
+        for crate in "${!UPDATED_GIT_CRATES[@]}"; do
+            new_rev="${UPDATED_GIT_CRATES[${crate}]}"
+            old_rev="${OLD_GIT_DEPS[${crate}]}"
+            url="${NEW_GIT_URLS[${crate}]}"
+            UPDATED_JSON=$(echo "${UPDATED_JSON}" | jq \
+                --arg c "${crate}" --arg old "${old_rev}" \
+                --arg new "${new_rev}" --arg url "${url}" \
+                '. + [{crate: $c, old_rev: $old, new_rev: $new, url: $url}]')
+        done
+
+        for crate in "${!ADDED_GIT_CRATES[@]}"; do
+            IFS=';' read -r url rev <<< "${ADDED_GIT_CRATES[${crate}]}"
+            ADDED_JSON_STRUCT=$(echo "${ADDED_JSON_STRUCT}" | jq \
+                --arg c "${crate}" --arg url "${url}" --arg rev "${rev}" \
+                '. + [{crate: $c, url: $url, rev: $rev}]')
+        done
+
+        for crate in "${REMOVED_GIT_CRATES[@]+"${REMOVED_GIT_CRATES[@]}"}"; do
+            REMOVED_JSON=$(echo "${REMOVED_JSON}" | jq --arg c "${crate}" '. + [$c]')
+        done
+
+        for member in "${NEW_WORKSPACE_MEMBERS[@]+"${NEW_WORKSPACE_MEMBERS[@]}"}"; do
+            MEMBERS_JSON=$(echo "${MEMBERS_JSON}" | jq --arg m "${member}" '. + [$m]')
+        done
+    fi
 
     jq -n \
         --arg pkg "${PACKAGE_DIR}" \
         --arg current "${CURRENT_VERSION}" \
         --arg upstream "${UPSTREAM_VERSION}" \
+        --arg build_system "${BUILD_SYSTEM}" \
         --arg from_ebuild "${FROM_EBUILD}" \
         --arg to_ebuild "${TO_EBUILD}" \
         --arg ebuild_path "${PKG_PATH}/${TO_EBUILD}" \
@@ -757,6 +770,7 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
             package: $pkg,
             current: $current,
             upstream: $upstream,
+            build_system: $build_system,
             from_ebuild: $from_ebuild,
             to_ebuild: $to_ebuild,
             ebuild_path: $ebuild_path,
@@ -778,7 +792,10 @@ else
     echo "==> Dependency change summary for ${PACKAGE_DIR} ${CURRENT_VERSION} → ${UPSTREAM_VERSION}"
     echo ""
 
-    if [[ ${#CHANGE_DESCRIPTIONS[@]} -eq 0 ]]; then
+    if [[ "${BUILD_SYSTEM}" != "cargo" ]]; then
+        echo "    Non-Cargo package (build_system=${BUILD_SYSTEM}) — no dependency diffing performed."
+        echo "    Straightforward version bump."
+    elif [[ ${#CHANGE_DESCRIPTIONS[@]} -eq 0 ]]; then
         echo "    No dependency changes detected — straightforward version bump."
     else
         echo "    ${#CHANGE_DESCRIPTIONS[@]} change(s) detected:"

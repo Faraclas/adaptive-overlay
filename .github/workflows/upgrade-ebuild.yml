@@ -217,6 +217,9 @@ jobs:
             app-editors/zed)
               SKILLS_FILE=".agent/skills/update-zed-editor.md"
               ;;
+            media-sound/carla)
+              SKILLS_FILE=".agent/skills/update-carla.md"
+              ;;
           esac
 
           if [[ -n "${SKILLS_FILE}" && -f "${SKILLS_FILE}" ]]; then

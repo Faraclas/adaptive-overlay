@@ -5,6 +5,7 @@
     "upstream_repo": "zed-industries/zed",
     "upstream_type": "github-release",
     "version_pattern": "v(.*)",
+    "build_system": "cargo",
     "repackage": false,
     "auto_upgrade": false,
     "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks on every bump. See update_zed_editor.md."
@@ -15,6 +16,7 @@
     "upstream_repo": "falkTX/Carla",
     "upstream_type": "github-release",
     "version_pattern": "v(.*)",
+    "build_system": "make",
     "repackage": false,
     "auto_upgrade": false,
     "notes": "Standard GitHub release. auto_upgrade can be enabled once upgrade workflow is proven."

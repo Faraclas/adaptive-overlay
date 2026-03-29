@@ -61,9 +61,18 @@ jobs:
       #
       # We use --exit error so that warnings (DeprecatedEclass, etc.)
       # are surfaced in the log but do not block the PR.
+      # DeprecatedDep is excluded from the error threshold because
+      # some upstream packages (e.g. Carla) legitimately depend on
+      # deprecated Qt5/PyQt5 — we can't fix that without upstream.
+      #
+      # This overlay targets multilib desktop systems, so we restrict
+      # pkgcheck to desktop profiles only. This skips no-multilib and
+      # musl profiles where multilib deps (e.g. wine[abi_x86_32]) are
+      # inherently unsolvable.
       - name: Run pkgcheck scan
         run: |
           pkgcheck scan \
-            --exit error \
+            --profiles default/linux/amd64/23.0/desktop \
+            --exit error,-DeprecatedDep \
             -r adaptive-overlay \
             "${{ inputs.package_dir }}"

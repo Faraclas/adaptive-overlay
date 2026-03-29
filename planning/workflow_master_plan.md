@@ -35,7 +35,7 @@ Current repo facts that inform workflow design:
 | Masters | gentoo |
 | Manifests | thin-manifests, unsigned |
 | Package categories | `app-editors`, `media-sound`, `net-vpn` |
-| Container images | `testenv` (base) + `testenv-rust` (Zed) on GHCR |
+| Container images | `testenv` (base) + `testenv-rust` (Zed) + `testenv-audio` (media-sound) on GHCR |
 | CI — lint | `ci-lint.yml` — pkgcheck on changed ebuilds |
 | CI — build | `ci-build.yml` — opt-in build test |
 | CI — versions | `ci-version-check.yml` — scheduled check |
@@ -405,8 +405,28 @@ Extends `testenv` with everything needed to build
 and ~60+ build dependencies pre-installed. Published
 automatically after `testenv` via `publish-testenv-rust.yml`.
 
-Containerfiles live in `containers/testenv/` and
-`containers/testenv-rust/` respectively.
+**Audio image — `testenv-audio`**
+(`ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest`)
+
+Extends `testenv` with everything needed to build
+`media-sound/*` packages: Wine (with `abi_x86_32`,
+not `wow64` — see note below), MinGW cross-toolchain,
+JACK, ALSA, PulseAudio, PipeWire, FluidSynth, multilib
+X11/XCB libraries, LV2/LADSPA, GTK3, Qt6, PyQt5, Rust,
+and Meson. Covers build deps for Carla, yabridge,
+Surge XT, Bitwig Studio, amp-locker, and drum-locker.
+
+> **wow64 vs abi_x86_32:** Carla's `wine32` build
+> target uses `winegcc -m32` to produce a 32-bit
+> `.dll.so`. This requires Wine's 32-bit import
+> libraries, which are only installed with
+> `abi_x86_32`. On x86_64, `wow64` and `abi_x86_32`
+> are mutually exclusive (`REQUIRED_USE`), so the
+> image uses `abi_x86_32 -wow64`.
+
+Containerfiles live in `containers/testenv/`,
+`containers/testenv-rust/`, and
+`containers/testenv-audio/` respectively.
 
 At workflow runtime, the repo contents are bind-mounted into
 the container so that the latest ebuild changes are visible.
@@ -417,6 +437,9 @@ the container so that the latest ebuild changes are visible.
   into the container layer.
 * The `testenv-rust` image pre-installs ~60+ build
   dependencies so Zed builds don't start from scratch.
+* The `testenv-audio` image pre-installs Wine (with
+  full multilib dep chain), JACK, and all audio build
+  dependencies.
 * Both images are published to GHCR and rebuilt weekly.
 * Explicit distfiles/portage tree caching in CI workflows
   is not yet implemented (Phase 2.4, partial).
@@ -878,7 +901,7 @@ that mirror CI behavior:
 | Script | Status | Purpose |
 |---|---|---|
 | `scripts/lint.sh <pkg_dir>` | ✅ | `pkgcheck` in `testenv` container. Local image → GHCR fallback. |
-| `scripts/test-build.sh <pkg> <ebuild> [--no-clean]` | ✅ | `ebuild clean compile` in container. Auto-selects `testenv-rust` for Zed. `--no-clean` for fast retry. |
+| `scripts/test-build.sh <pkg> <ebuild> [--no-clean]` | ✅ | `ebuild clean compile` in container. Auto-selects `testenv-rust` for Zed, `testenv-audio` for `media-sound/*`. `--no-clean` for fast retry. |
 | `scripts/check-updates.sh [--json]` | ✅ | Check tracked packages for upstream updates. `--json` for machine output. |
 | `scripts/upgrade-ebuild.sh` | ✅ | Detect upstream updates, copy ebuild, diff Cargo.toml deps, apply safe changes. `--apply`, `--json`, `--manifest`. Outputs structured JSON for agent consumption. |
 | `scripts/manifest.sh <pkg_dir>` | ✅ | Run `pkgdev manifest` in `testenv` container with read-write overlay mount. Fetches distfiles and updates `Manifest`. |
@@ -891,7 +914,8 @@ resolution: local image first (e.g.
 `localhost/adaptive-overlay-testenv:local`), then GHCR
 (`ghcr.io/faraclas/adaptive-overlay/testenv:latest`).
 `test-build.sh` auto-selects `testenv-rust` for
-`app-editors/zed`. Override overlay root via
+`app-editors/zed` and `testenv-audio` for all
+`media-sound/*` packages. Override overlay root via
 `OVERLAY_DIR`.
 
 ### 9.3 Makefile / Taskfile (Optional)
@@ -1110,7 +1134,11 @@ The workflow system is considered complete when:
 
 Phase 4 items 4.1–4.10 are now complete. The full
 agent integration is built for both CI and local
-paths:
+paths. Additionally, a new `testenv-audio` container
+image has been created to support building all
+`media-sound/*` packages, and the Carla ebuild has
+been bumped to `2.5.10-r1` to fix Wine bridge build
+dependencies.
 
 * **CI path (Approach B — issue-first):**
   `upgrade-ebuild.yml` runs the upgrade script to
@@ -1236,3 +1264,6 @@ scripts/agent-finalize-ebuild.sh app-editors/zed \
 | `.github/workflows/upgrade-ebuild.yml` | ✅ | CI detect + delegate workflow |
 | `.github/copilot-instructions.md` | ✅ | Repo-level Copilot context |
 | `.devcontainer/devcontainer.json` | ✅ | Devcontainer for Copilot agent |
+| `containers/testenv-audio/Containerfile` | ✅ | Audio build env (Wine, JACK, multilib) |
+| `.agent/skills/update-carla.md` | ✅ | Carla upgrade procedure |
+| `media-sound/carla/carla-2.5.10-r1.ebuild` | 🔶 | Wine32 build dep fix (testing) |

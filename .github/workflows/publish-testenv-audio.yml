@@ -1,10 +1,10 @@
-name: Publish Gentoo Test Environment (Rust) Image
+name: Publish Gentoo Test Environment (Audio) Image
 
-# Builds the Rust/Zed test environment container image and publishes it
-# to GHCR. This image layers on top of testenv:latest, adding LLVM, Rust,
-# and all of zed's build dependencies.
+# Builds the Audio test environment container image and publishes it
+# to GHCR. This image layers on top of testenv:latest, adding
+# audio-related build dependencies.
 #
-# Published image: ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+# Published image: ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest
 #
 # Trigger order matters: this workflow runs after publish-testenv.yml
 # completes (via workflow_run) so that testenv:latest is always fresh
@@ -13,7 +13,7 @@ name: Publish Gentoo Test Environment (Rust) Image
 
 on:
   # Run after the base testenv image has been successfully published.
-  # This ensures testenv-rust always builds on top of the latest base.
+  # This ensures testenv-audio always builds on top of the latest base.
   workflow_run:
     workflows: ["Publish Gentoo Test Environment Image"]
     types:
@@ -64,7 +64,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.repo.outputs.name }}/testenv-rust
+          images: ghcr.io/${{ steps.repo.outputs.name }}/testenv-audio
           tags: |
             type=raw,value=latest
             type=schedule,pattern={{date 'YYYY-MM-DD'}}
@@ -80,20 +80,20 @@ jobs:
       # as its base — Buildx will pull the freshly published base automatically.
       #
       # Layer cache is stored in GHCR alongside the image. The expensive
-      # emerge layer (LLVM, Rust, ~200 packages) is only rebuilt when the
-      # base image digest changes or the Containerfile is edited.
-      - name: Build and push testenv-rust image
+      # emerge layer is only rebuilt when the base image digest changes
+      # or the Containerfile is edited.
+      - name: Build and push testenv-audio image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: containers/testenv-rust/Containerfile
+          file: containers/testenv-audio/Containerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           no-cache: ${{ inputs.no_cache == true }}
-          cache-from: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv-rust:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv-rust:buildcache,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv-audio:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ steps.repo.outputs.name }}/testenv-audio:buildcache,mode=max
 
       - name: Image digest
         run: |
-          echo "::notice::testenv-rust image successfully published to ghcr.io/${{ steps.repo.outputs.name }}/testenv-rust"
+          echo "::notice::testenv-audio image successfully published to ghcr.io/${{ steps.repo.outputs.name }}/testenv-audio"

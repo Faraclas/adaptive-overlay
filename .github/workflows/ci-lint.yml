@@ -69,10 +69,22 @@ jobs:
           # A file path like media-sound/carla/carla-2.5.10.ebuild becomes
           # media-sound/carla.  We filter to paths that look like
           # <category>/<package>/... (exactly two leading path components).
+          # Extract unique category/package dirs, filtering out
+          # non-overlay paths (.agent, .github, containers, etc.).
+          # Only keep dirs that look like a Gentoo category (no
+          # leading dot, not a known infra directory) and that
+          # actually contain at least one .ebuild file.
           PACKAGES=$(git diff --name-only "${BASE}" "${HEAD}" \
             | grep -E '^[^/]+/[^/]+/' \
+            | grep -vE '^\.' \
+            | grep -vE '^(containers|metadata|profiles|scripts|eclass)/' \
             | awk -F/ '{print $1"/"$2}' \
             | sort -u \
+            | while IFS= read -r dir; do
+                if ls "${dir}"/*.ebuild >/dev/null 2>&1; then
+                  echo "$dir"
+                fi
+              done \
             | jq -R . | jq -sc .)
 
           echo "Changed packages: ${PACKAGES}"

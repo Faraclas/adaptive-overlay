@@ -43,6 +43,7 @@ on:
         type: choice
         options:
           - ghcr.io/faraclas/adaptive-overlay/testenv:latest
+          - ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest
           - ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
         default: ghcr.io/faraclas/adaptive-overlay/testenv:latest
       verify_script:
@@ -153,6 +154,9 @@ jobs:
             if [ "${PKG_DIR}" = "app-editors/zed" ]; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
               VERIFY="containers/testenv-rust/verify-zed.sh"
+            elif echo "${PKG_DIR}" | grep -q '^media-sound/'; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
+              VERIFY=""
             else
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
               VERIFY=""

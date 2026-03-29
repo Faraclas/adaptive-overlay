@@ -33,6 +33,8 @@ RUN mkdir -p /etc/portage && \
 # Portage: USE flags required by zed's dependencies
 # -----------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.use && \
+    printf '# Break circular deps\nmedia-libs/tiff -webp\ndev-libs/glib -sysprof\ndev-python/pillow -truetype -avif\nwww-client/w3m -gdk-pixbuf\n' \
+        > /etc/portage/package.use/circular-deps && \
     printf '# Required by app-editors/zed\n' \
         > /etc/portage/package.use/zed && \
     printf '>=media-libs/vulkan-loader-1.4.0 X\n' \
