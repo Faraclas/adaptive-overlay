@@ -386,24 +386,35 @@ first when the package registry has `"repackage": true`.
 
 ### 6.2 Container Images
 
-Two container images are maintained, both published to GHCR:
+Three container images are maintained, all published to
+GHCR. Images are built and pushed **locally** (not in
+CI). Publish workflows exist only for weekly scheduled
+rebuilds (fresh portage tree) and manual dispatch —
+there are no push triggers on Containerfile changes.
 
 **Base image — `testenv`**
 (`ghcr.io/faraclas/adaptive-overlay/testenv:latest`)
 
-Built from `gentoo/stage3:latest`. Installs `pkgcheck` and
-`pkgdev`, copies overlay metadata/profiles, and configures
-the overlay in `repos.conf`. Published weekly (Mondays at
-04:00 UTC) via `publish-testenv.yml`. Used for linting and
-building most packages.
+Built from `gentoo/stage3:amd64-desktop-systemd` — the
+official Gentoo desktop stage3 with systemd and the
+`default/linux/amd64/23.0/desktop/systemd` profile
+pre-configured. This avoids the painful openrc→systemd
+migration that the generic `stage3:latest` required.
+Installs `pkgcheck` and `pkgdev`, copies overlay
+metadata/profiles, configures repos.conf, and disables
+sandbox features for rootless containers. Published
+weekly (Mondays at 04:00 UTC) via `publish-testenv.yml`.
+Used for linting and building most packages.
 
 **Rust image — `testenv-rust`**
 (`ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest`)
 
 Extends `testenv` with everything needed to build
 `app-editors/zed`: LLVM 21, Rust 1.93, Wayland/X11 libs,
-and ~60+ build dependencies pre-installed. Published
-automatically after `testenv` via `publish-testenv-rust.yml`.
+and ~76 build dependencies pre-installed. Includes
+circular dep breakers for tiff/glib/pillow/w3m.
+Published automatically after `testenv` via
+`publish-testenv-rust.yml` (workflow_run chain).
 
 **Audio image — `testenv-audio`**
 (`ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest`)
@@ -413,8 +424,12 @@ Extends `testenv` with everything needed to build
 not `wow64` — see note below), MinGW cross-toolchain,
 JACK, ALSA, PulseAudio, PipeWire, FluidSynth, multilib
 X11/XCB libraries, LV2/LADSPA, GTK3, Qt6, PyQt5, Rust,
-and Meson. Covers build deps for Carla, yabridge,
-Surge XT, Bitwig Studio, amp-locker, and drum-locker.
+and Meson. Includes circular dep breakers for
+tiff/glib/pillow/w3m/ncurses. ~271 packages installed.
+Covers build deps for Carla, yabridge, Surge XT, Bitwig
+Studio, amp-locker, and drum-locker. Published
+automatically after `testenv` via
+`publish-testenv-audio.yml` (workflow_run chain).
 
 > **wow64 vs abi_x86_32:** Carla's `wine32` build
 > target uses `winegcc -m32` to produce a 32-bit
@@ -428,21 +443,28 @@ Containerfiles live in `containers/testenv/`,
 `containers/testenv-rust/`, and
 `containers/testenv-audio/` respectively.
 
-At workflow runtime, the repo contents are bind-mounted into
-the container so that the latest ebuild changes are visible.
+At workflow runtime, the repo contents are bind-mounted
+into the container so that the latest ebuild changes are
+visible.
 
 ### 6.3 Caching
 
-* The portage tree is synced at image build time and baked
-  into the container layer.
-* The `testenv-rust` image pre-installs ~60+ build
+* The portage tree is synced at image build time and
+  baked into the container layer.
+* The `testenv-rust` image pre-installs ~76 build
   dependencies so Zed builds don't start from scratch.
 * The `testenv-audio` image pre-installs Wine (with
   full multilib dep chain), JACK, and all audio build
-  dependencies.
-* Both images are published to GHCR and rebuilt weekly.
-* Explicit distfiles/portage tree caching in CI workflows
-  is not yet implemented (Phase 2.4, partial).
+  dependencies (~271 packages).
+* All three images are published to GHCR. Weekly
+  scheduled rebuilds keep the portage tree fresh.
+  Containers are also maintained locally and pushed
+  to GHCR manually when Containerfiles change.
+* Publish workflows have no push triggers — only
+  schedule, manual dispatch, and workflow_run chain.
+* Explicit distfiles/portage tree caching in CI
+  workflows is not yet implemented (Phase 2.4,
+  partial).
 
 ### 6.4 Local Usage
 
@@ -483,8 +505,14 @@ mirroring the CI workflows exactly.
 
 1. Start `testenv` container from GHCR.
 2. Symlink checkout into the portage repo location.
-3. Run `pkgcheck scan --exit error` — fail on errors, warn
-   on warnings.
+3. Run `pkgcheck scan` with:
+   * `--profiles default/linux/amd64/23.0/desktop` —
+     restricts checks to multilib desktop profiles
+     (overlay doesn't target no-multilib or musl).
+   * `--exit error,-DeprecatedDep` — fail on errors,
+     but allow deprecated deps (upstream Qt5/PyQt5).
+   * Warnings are surfaced in the log but do not
+     block the PR.
 
 **Callers:** `ci-lint.yml` (PR/push to main, auto-detects
 changed packages).
@@ -947,11 +975,11 @@ produces usable, testable deliverables.
 
 | Item | Status | Description |
 |---|---|---|
-| 1.1 | ✅ | `containers/testenv/Containerfile` + bonus `testenv-rust/` for Zed. |
-| 1.2 | ✅ | `publish-testenv.yml` (weekly) + chained `publish-testenv-rust.yml`. |
-| 1.3 | ✅ | `lint-ebuild.yml` — reusable `pkgcheck scan`. |
+| 1.1 | ✅ | `containers/testenv/Containerfile` (base, `stage3:amd64-desktop-systemd`) + `testenv-rust/` for Zed + `testenv-audio/` for media-sound. |
+| 1.2 | ✅ | `publish-testenv.yml` (weekly + manual) + chained `publish-testenv-rust.yml` + `publish-testenv-audio.yml`. No push triggers — containers maintained locally. |
+| 1.3 | ✅ | `lint-ebuild.yml` — reusable `pkgcheck scan`, restricted to desktop profiles. |
 | 1.4 | ✅ | `scripts/lint.sh` — local Podman/Docker. |
-| 1.5 | ✅ | `ci-lint.yml` — lints changed ebuilds on PR/push. |
+| 1.5 | ✅ | `ci-lint.yml` — lints changed ebuilds on PR/push. Filters non-package dirs (`.agent/`, `.github/`, `containers/`, etc.). |
 
 ### Phase 2 — Build Testing ✅
 
@@ -961,7 +989,7 @@ produces usable, testable deliverables.
 |---|---|---|
 | 2.1 | ✅ | `test-ebuild.yml` — reusable, verify-script support. |
 | 2.2 | ✅ | `scripts/test-build.sh` — local, `--no-clean`, Rust auto-select. |
-| 2.3 | ✅ | `ci-build.yml` — opt-in via `build-test` label. |
+| 2.3 | ✅ | `ci-build.yml` — opt-in via `build-test` label. Routes `media-sound/*` to `testenv-audio`, `app-editors/zed` to `testenv-rust`. |
 | 2.4 | ⚠️ | Partial — images pre-bake deps. No distfiles cache yet. |
 
 ### Phase 3 — Package Registry & Version Checking ✅
@@ -1126,19 +1154,65 @@ The workflow system is considered complete when:
 
 ## 15. Next Steps (Session Resume Point)
 
-> **Last updated:** End of Phase 4 agent integration
-> session. Items 1–4 are implemented. Only the
-> end-to-end test (item 5) remains.
+> **Last updated:** After PR #43 merged (container
+> profile migration + Carla wine32 fix). Phases 1–3
+> complete. Phase 4 items 4.1–4.10 implemented.
+> Phase 4.11 (end-to-end test) and items 4.5–4.6
+> remain.
+
+### What Was Done (PR #43 Session)
+
+PR #43 (`fix/carla-wine32-build`) is **merged** into
+`main`. This session accomplished:
+
+**Container profile migration:**
+
+* Switched `testenv` base from `stage3:latest`
+  (OpenRC) to `stage3:amd64-desktop-systemd` —
+  eliminates the openrc→systemd bootstrap (no more
+  `emerge --unmerge systemd-utils`, no circular dep
+  breakers for systemd migration).
+* Rebuilt all three containers locally:
+  * testenv (3.87 GB)
+    * testenv-rust (6.58 GB)
+    * testenv-audio (9.75 GB)
+* Pushed all three to GHCR.
+
+**Publish workflow cleanup:**
+
+* Removed `push` triggers from all three publish
+  workflows. Containers are now maintained locally
+  and pushed manually. Publish workflows only fire
+  on weekly schedule, manual dispatch, or
+  workflow_run chain (rust/audio after base).
+
+**pkgcheck profile restriction:**
+
+* `lint-ebuild.yml` now uses
+  `--profiles default/linux/amd64/23.0/desktop` to
+  restrict checks to multilib desktop profiles.
+  This overlay targets multilib desktop systems, so
+  no-multilib and musl profiles are out of scope.
+  `NonsolvableDeps` errors on those profiles
+  (e.g. `wine-staging[abi_x86_32]`) no longer block
+  CI, but real errors on desktop profiles still fail.
+
+**Carla ebuild finalized:**
+
+* `carla-2.5.10-r1.ebuild` — KEYWORDS narrowed to
+  `~amd64` (dropped `~x86`, overlay is amd64 only).
+* CI lint and build tests both pass.
 
 ### Context for Resuming
 
-Phase 4 items 4.1–4.10 are now complete. The full
-agent integration is built for both CI and local
-paths. Additionally, a new `testenv-audio` container
-image has been created to support building all
-`media-sound/*` packages, and the Carla ebuild has
-been bumped to `2.5.10-r1` to fix Wine bridge build
-dependencies.
+**Working packages:**
+
+* `app-editors/zed` — builds in `testenv-rust`
+  container, lint passes, CI working.
+* `media-sound/carla` — builds in `testenv-audio`
+  container, lint passes, CI working.
+
+**Agent integration (Phase 4.7–4.10):**
 
 * **CI path (Approach B — issue-first):**
   `upgrade-ebuild.yml` runs the upgrade script to
@@ -1163,91 +1237,53 @@ goes through the agent — no branching logic for
 even simple bumps, keeping the workflow simple and
 ensuring intelligent review on every upgrade.
 
-### Completed Items
+### Remaining Items
 
-#### 1. `.devcontainer/devcontainer.json` ✅
+#### 1. End-to-End Test (Phase 4 item 4.11) ❌
 
-Lightweight Ubuntu devcontainer for Copilot coding
-agent. Includes `gh` CLI feature. Gentoo tooling
-lives in the testenv containers, not here.
-
-#### 2. `.github/copilot-instructions.md` ✅
-
-Repo-level instructions covering: what the repo is,
-safety rules (pointing at `.agent/instructions/`),
-agent context files, available scripts, workflow for
-upgrade issues, overlay structure, and the key
-constraint that the agent runs on Ubuntu and uses
-`scripts/` wrappers for all Gentoo operations.
-
-#### 3. `scripts/agent-finalize-ebuild.sh` ✅
-
-Local Copilot CLI wrapper. Features:
-- Reads JSON from `upgrade-ebuild.sh --apply --json`
-- Resolves package-specific skills doc
-- Constructs structured prompt (skills + JSON +
-  ebuild content)
-- Pipes to `copilot -s --no-ask-user --model
-  claude-sonnet-4.6` via stdin
-- Post-processes: strips code fences, removes C0
-  control chars, validates EAPI presence
-- Writes edited ebuild, shows diff summary
-- Runs `manifest.sh` and `lint.sh` automatically
-- Options: `--model`, `--dry-run`, `--skip-manifest`,
-  `--skip-lint`
-
-#### 4. `upgrade-ebuild.yml` — Approach B ✅
-
-Rewrote the workflow as a "detect and delegate"
-pipeline with three jobs:
-
-1. **detect** — runs `upgrade-ebuild.sh --apply
-   --json`, captures JSON report + ebuild content,
-   uploads artifact
-2. **delegate** — creates a GitHub Issue with
-   structured body (metadata table, instructions,
-   changes summary, JSON report in `<details>`,
-   ebuild content in `<details>`), assigns to
-   `copilot-swe-agent[bot]` via REST API
-3. **summary** — always runs, writes GitHub Actions
-   step summary with status and issue link (or
-   manual fallback instructions if delegation failed)
-
-Removed: `peter-evans/create-pull-request`,
-in-workflow manifest generation, lint job. These are
-now the agent's responsibility.
-
-### Remaining Item
-
-#### 5. End-to-End Test (Phase 4 item 4.11)
-
-Test the full pipeline with the real Zed 0.229.0
-upgrade:
+Test the full pipeline with a real Zed upgrade:
 
 * Trigger the workflow via `workflow_dispatch` for
-  `app-editors/zed` version `0.229.0`
+  `app-editors/zed`
 * Verify the detect job produces valid JSON output
 * Verify an Issue is created with correct structure
 * Verify `copilot-swe-agent[bot]` is assigned
-* Verify the agent (or manually using the local
-  path) correctly:
-  - Inserts `proptest` GIT_CRATES entry with subpath
-  - Updates all commit hashes
-  - Updates `WEBRTC_COMMIT`
-  - Generates Manifest successfully
-  - Passes lint
+* Verify the agent correctly finalizes the ebuild
 * Human reviews the final PR
 
-**Local path test (can run immediately):**
+#### 2. Generalize Repackage (Phase 4 item 4.5) ❌
 
-```/dev/null/test-local.sh#L1-2
-# Single command — runs upgrade, agent, manifest, lint:
+Generalize `repackage-surge.yml` into a reusable
+`repackage-source.yml` workflow.
+
+#### 3. Wire Version-Check → Upgrade (Phase 4.6) ❌
+
+Connect scheduled version-check results to
+automatically trigger upgrade workflows.
+
+#### 4. Remaining Phases (5–7)
+
+* **Phase 5** — New ebuild creation workflow
+  (agent-assisted scaffolding).
+* **Phase 6** — Upstream release triggers
+  (near-real-time via `repository_dispatch` or
+  polling).
+* **Phase 7** — Polish and documentation (README,
+  CONTRIBUTING, Makefile/Taskfile, workflow
+  hardening).
+
+### Suggested Next Step
+
+Run the end-to-end test (item 4.11) for the Zed
+upgrade workflow. This validates the entire Phase 4
+pipeline before moving on. Can be done locally:
+
+```bash
 scripts/agent-finalize-ebuild.sh app-editors/zed
-
-# With specific version and build test:
-scripts/agent-finalize-ebuild.sh app-editors/zed \
-  --version 0.229.0 --build
 ```
+
+Or via CI by triggering `upgrade-ebuild.yml` from
+the Actions UI.
 
 ### Files Summary
 
@@ -1260,10 +1296,14 @@ scripts/agent-finalize-ebuild.sh app-editors/zed \
 | `scripts/agent-finalize-ebuild.sh` | ✅ | Local Copilot CLI wrapper |
 | `.agent/instructions/general.md` | ✅ | Agent safety rules |
 | `.agent/skills/update-zed-editor.md` | ✅ | Zed upgrade procedure |
+| `.agent/skills/update-carla.md` | ✅ | Carla upgrade procedure |
 | `.agent/packages.json` | ✅ | Package registry |
 | `.github/workflows/upgrade-ebuild.yml` | ✅ | CI detect + delegate workflow |
+| `.github/workflows/ci-lint.yml` | ✅ | Lint CI (desktop profiles only) |
+| `.github/workflows/ci-build.yml` | ✅ | Build CI (routes to correct container) |
 | `.github/copilot-instructions.md` | ✅ | Repo-level Copilot context |
 | `.devcontainer/devcontainer.json` | ✅ | Devcontainer for Copilot agent |
+| `containers/testenv/Containerfile` | ✅ | Base env (`stage3:amd64-desktop-systemd`) |
+| `containers/testenv-rust/Containerfile` | ✅ | Rust/Zed build env |
 | `containers/testenv-audio/Containerfile` | ✅ | Audio build env (Wine, JACK, multilib) |
-| `.agent/skills/update-carla.md` | ✅ | Carla upgrade procedure |
-| `media-sound/carla/carla-2.5.10-r1.ebuild` | 🔶 | Wine32 build dep fix (testing) |
+| `media-sound/carla/carla-2.5.10-r1.ebuild` | ✅ | Wine32 build dep fix (merged) |
