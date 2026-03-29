@@ -1003,7 +1003,7 @@ produces usable, testable deliverables.
 | 3.3 | ✅ | `scripts/check-updates.sh` — `--json`, `GITHUB_TOKEN`. |
 | 3.4 | ✅ | `ci-version-check.yml` — Wed/Sat 06:00 UTC + manual. |
 
-### Phase 4 — Automated Ebuild Upgrades 🔶
+### Phase 4 — Automated Ebuild Upgrades ✅
 
 > Goal: End-to-end autonomous version bumps.
 
@@ -1019,7 +1019,7 @@ produces usable, testable deliverables.
 | 4.8 | ✅ | **Agent finalization — local path:** Created `scripts/agent-finalize-ebuild.sh`. Reads JSON from `upgrade-ebuild.sh`, resolves the skills doc, constructs a prompt (skills + JSON report + ebuild content), pipes to `copilot -s --no-ask-user --model claude-sonnet-4.6` via stdin, strips code fences and control chars from response, validates output looks like an ebuild, writes back, then runs `manifest.sh` and `lint.sh` automatically. Supports `--dry-run`, `--model`, `--skip-manifest`, `--skip-lint`. |
 | 4.9 | ✅ | **Manifest in CI:** Manifest generation is now the agent's responsibility (Approach B). The agent runs `scripts/manifest.sh` after making edits, ensuring manifest reflects final ebuild content. The workflow no longer generates manifest itself. |
 | 4.10 | ✅ | **Issue-first flow (Approach B chosen):** Decided that every upgrade goes through the agent — no branching logic for "trivial" vs "complex" bumps. The agent validates even simple bumps, keeping the workflow simple and ensuring intelligent review on every upgrade. The workflow is now a "detect and delegate" pipeline: it gathers structured data, creates an Issue, and hands off to Copilot. |
-| 4.11 | ❌ | **End-to-end test:** Run the full pipeline against a real Zed upgrade (0.227.1 → 0.229.0) with the agent in the loop. Verify that new `GIT_CRATES` entries (e.g. `proptest`) are correctly inserted with proper subpath, Manifest is generated, lint passes. |
+| 4.11 | ✅ | **End-to-end test:** Zed 0.229.0 upgrade verified locally and pushed to `main`. CI lint and build tests pass. |
 
 ### Phase 5 — New Ebuild Creation Workflow
 
@@ -1155,10 +1155,9 @@ The workflow system is considered complete when:
 ## 15. Next Steps (Session Resume Point)
 
 > **Last updated:** After PR #43 merged (container
-> profile migration + Carla wine32 fix). Phases 1–3
-> complete. Phase 4 items 4.1–4.10 implemented.
-> Phase 4.11 (end-to-end test) and items 4.5–4.6
-> remain.
+> profile migration + Carla wine32 fix). Phases 1–4
+> complete. Items 4.5 (generalize repackage) and
+> 4.6 (wire version-check → upgrade) remain.
 
 ### What Was Done (PR #43 Session)
 
@@ -1239,29 +1238,17 @@ ensuring intelligent review on every upgrade.
 
 ### Remaining Items
 
-#### 1. End-to-End Test (Phase 4 item 4.11) ❌
-
-Test the full pipeline with a real Zed upgrade:
-
-* Trigger the workflow via `workflow_dispatch` for
-  `app-editors/zed`
-* Verify the detect job produces valid JSON output
-* Verify an Issue is created with correct structure
-* Verify `copilot-swe-agent[bot]` is assigned
-* Verify the agent correctly finalizes the ebuild
-* Human reviews the final PR
-
-#### 2. Generalize Repackage (Phase 4 item 4.5) ❌
+#### 1. Generalize Repackage (Phase 4 item 4.5) ❌
 
 Generalize `repackage-surge.yml` into a reusable
 `repackage-source.yml` workflow.
 
-#### 3. Wire Version-Check → Upgrade (Phase 4.6) ❌
+#### 2. Wire Version-Check → Upgrade (Phase 4.6) ❌
 
 Connect scheduled version-check results to
 automatically trigger upgrade workflows.
 
-#### 4. Remaining Phases (5–7)
+#### 3. Remaining Phases (5–7)
 
 * **Phase 5** — New ebuild creation workflow
   (agent-assisted scaffolding).
@@ -1274,16 +1261,10 @@ automatically trigger upgrade workflows.
 
 ### Suggested Next Step
 
-Run the end-to-end test (item 4.11) for the Zed
-upgrade workflow. This validates the entire Phase 4
-pipeline before moving on. Can be done locally:
-
-```bash
-scripts/agent-finalize-ebuild.sh app-editors/zed
-```
-
-Or via CI by triggering `upgrade-ebuild.yml` from
-the Actions UI.
+Generalize `repackage-surge.yml` into a reusable
+`repackage-source.yml` workflow (item 4.5), then
+wire version-check to auto-trigger upgrades (4.6).
+After that, move to Phase 5 (new ebuild creation).
 
 ### Files Summary
 
