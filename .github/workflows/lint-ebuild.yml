@@ -61,12 +61,16 @@ jobs:
       #
       # We use --exit error so that warnings (DeprecatedEclass, etc.)
       # are surfaced in the log but do not block the PR.
-      # DeprecatedDep is excluded from the error threshold because
-      # some upstream packages (e.g. Carla) legitimately depend on
-      # deprecated Qt5/PyQt5 — we can't fix that without upstream.
+      # Excluded from the error threshold:
+      #   DeprecatedDep — upstream packages (e.g. Carla) legitimately
+      #     depend on deprecated Qt5/PyQt5; can't fix without upstream.
+      #   NonsolvableDepsInStable / NonsolvableDepsInDev — this overlay
+      #     targets multilib desktop systems; packages like Carla require
+      #     wine-staging[abi_x86_32] which is unsolvable on no-multilib
+      #     and musl profiles. That's expected and not actionable.
       - name: Run pkgcheck scan
         run: |
           pkgcheck scan \
-            --exit error,-DeprecatedDep \
+            --exit error,-DeprecatedDep,-NonsolvableDepsInStable,-NonsolvableDepsInDev \
             -r adaptive-overlay \
             "${{ inputs.package_dir }}"
