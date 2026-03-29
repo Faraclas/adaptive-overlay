@@ -28,13 +28,6 @@ on:
         type: boolean
         default: false
 
-  # Rebuild when the Containerfile itself changes
-  push:
-    branches:
-      - main
-    paths:
-      - "containers/testenv-rust/Containerfile"
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest

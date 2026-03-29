@@ -24,15 +24,6 @@ on:
         type: boolean
         default: false
 
-  # Rebuild when the Containerfile itself changes
-  push:
-    branches:
-      - main
-    paths:
-      - "containers/testenv/Containerfile"
-      - "metadata/**"
-      - "profiles/**"
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
