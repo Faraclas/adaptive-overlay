@@ -14,7 +14,7 @@ SRC_URI="https://github.com/falkTX/Carla/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 S="${WORKDIR}/${MY_P}"
 LICENSE="GPL-2 LGPL-3"
 SLOT="0"
-KEYWORDS="amd64 x86"
+KEYWORDS="~amd64 ~x86"
 IUSE="+alsa +gtk +opengl osc +pulseaudio qt5 rdf +sf2 sndfile +X abi_x86_32 wine wine32"
 REQUIRED_USE="
 	${PYTHON_REQUIRED_USE}
