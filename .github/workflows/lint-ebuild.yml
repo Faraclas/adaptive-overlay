@@ -42,7 +42,7 @@ jobs:
       # Checkout into the path portage already knows about so the
       # bind-mount pattern from local usage is mirrored exactly.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: overlay
 
