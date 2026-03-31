@@ -193,8 +193,9 @@ UPSTREAM_TYPE=$(echo "${PKG_ENTRY}" | jq -r '.upstream_type // empty')
 VERSION_PATTERN=$(echo "${PKG_ENTRY}" | jq -r '.version_pattern // empty')
 BUILD_SYSTEM=$(echo "${PKG_ENTRY}" | jq -r '.build_system // "cargo"')
 
-if [[ -z "${UPSTREAM_REPO}" ]]; then
-    echo "error: ${PACKAGE_DIR} has no upstream_repo defined — cannot auto-upgrade." >&2
+if [[ -z "${UPSTREAM_REPO}" && -z "${TARGET_VERSION}" ]]; then
+    echo "error: ${PACKAGE_DIR} has no upstream_repo defined and no --version provided — cannot auto-upgrade." >&2
+    echo "  Use --version <ver> to specify the target version explicitly." >&2
     exit 1
 fi
 
@@ -277,6 +278,11 @@ else
                 exit 1
             fi
             ;;
+        manual)
+            echo "error: ${PACKAGE_DIR} has upstream_type 'manual' — auto-detection not available." >&2
+            echo "  Use --version <ver> to specify the target version explicitly." >&2
+            exit 1
+            ;;
         *)
             echo "error: upstream_type '${UPSTREAM_TYPE}' is not supported for auto-detection." >&2
             echo "  Use --version <ver> to specify the target version explicitly." >&2
@@ -328,26 +334,41 @@ fi
 
 SOURCES_OK=1
 
-# Main source tarball.
-if curl -sfI --max-time 15 \
-    "https://github.com/${UPSTREAM_REPO}/archive/refs/tags/v${UPSTREAM_VERSION}.tar.gz" \
-    >/dev/null 2>&1; then
-    [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Main source tarball"
-else
-    [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Main source tarball NOT available"
-    SOURCES_OK=0
-fi
-
-# Crates tarball (Zed-specific — gentoo-crate-dist).
-if [[ "${PKG_NAME}" == "zed" ]]; then
+if [[ -n "${UPSTREAM_REPO}" ]]; then
+    # GitHub-hosted package — check main source tarball.
     if curl -sfI --max-time 15 \
-        "https://github.com/gentoo-crate-dist/zed/releases/download/v${UPSTREAM_VERSION}/zed-${UPSTREAM_VERSION}-crates.tar.xz" \
+        "https://github.com/${UPSTREAM_REPO}/archive/refs/tags/v${UPSTREAM_VERSION}.tar.gz" \
         >/dev/null 2>&1; then
-        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Crates tarball (gentoo-crate-dist)"
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Main source tarball"
     else
-        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Crates tarball not yet available (may lag by hours)"
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Main source tarball NOT available"
         SOURCES_OK=0
     fi
+
+    # Crates tarball (Zed-specific — gentoo-crate-dist).
+    if [[ "${PKG_NAME}" == "zed" ]]; then
+        if curl -sfI --max-time 15 \
+            "https://github.com/gentoo-crate-dist/zed/releases/download/v${UPSTREAM_VERSION}/zed-${UPSTREAM_VERSION}-crates.tar.xz" \
+            >/dev/null 2>&1; then
+            [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Crates tarball (gentoo-crate-dist)"
+        else
+            [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Crates tarball not yet available (may lag by hours)"
+            SOURCES_OK=0
+        fi
+    fi
+elif [[ "${PKG_NAME}" == "bitwig-studio" ]]; then
+    # Bitwig Studio — check download URL on bitwig.com.
+    HTTP_CODE=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 15 \
+        "https://www.bitwig.com/dl/Bitwig%20Studio/${UPSTREAM_VERSION}/installer_linux/" 2>/dev/null || echo "000")
+    if [[ "${HTTP_CODE}" == "302" ]]; then
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Bitwig download URL (HTTP 302)"
+    else
+        [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✗ Bitwig download URL returned HTTP ${HTTP_CODE} (expected 302)"
+        SOURCES_OK=0
+    fi
+else
+    # Manual package with no specific source check — skip.
+    [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ⚠ No upstream_repo — skipping source availability check"
 fi
 
 if [[ "${SOURCES_OK}" -eq 0 ]]; then

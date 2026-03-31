@@ -220,6 +220,9 @@ jobs:
             media-sound/carla)
               SKILLS_FILE=".agent/skills/update-carla.md"
               ;;
+            media-sound/bitwig-studio)
+              SKILLS_FILE=".agent/skills/update-bitwig-studio.md"
+              ;;
           esac
 
           if [[ -n "${SKILLS_FILE}" && -f "${SKILLS_FILE}" ]]; then

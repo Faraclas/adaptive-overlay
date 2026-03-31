@@ -67,9 +67,10 @@
     "upstream_repo": null,
     "upstream_type": "manual",
     "version_pattern": null,
+    "build_system": "binary",
     "repackage": false,
     "auto_upgrade": false,
-    "notes": "Downloads directly from bitwig.com. No public release API. Updates must be checked manually at https://www.bitwig.com/download/"
+    "notes": "Downloads directly from bitwig.com. No public release API. Updates must be checked manually at https://www.bitwig.com/download/. Use --version to trigger upgrade-ebuild.sh manually. Version strings can be 2-component (6.0) or 3-component (5.3.13). Verify download URL returns HTTP 302 before upgrading."
   },
   {
     "category": "net-vpn",
