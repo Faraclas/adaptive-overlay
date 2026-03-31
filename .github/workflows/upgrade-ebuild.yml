@@ -386,7 +386,7 @@ jobs:
 
       - name: Assign issue to Copilot coding agent
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         shell: bash
         run: |
           set -euo pipefail
