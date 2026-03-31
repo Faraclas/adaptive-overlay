@@ -243,6 +243,12 @@ jobs:
         id: create-issue
         env:
           GH_TOKEN: ${{ github.token }}
+          # Pass content that contains shell metacharacters (${PV},
+          # ${DEPEND}, etc.) via environment variables so GitHub
+          # Actions handles them safely without shell interpretation.
+          EBUILD_CONTENT: ${{ needs.detect.outputs.ebuild_content }}
+          JSON_REPORT: ${{ needs.detect.outputs.json_report }}
+          CHANGES_SUMMARY: ${{ needs.detect.outputs.changes_summary }}
         shell: bash
         run: |
           set -euo pipefail
@@ -256,9 +262,13 @@ jobs:
           SKILLS_FILE="${{ steps.skills.outputs.skills_file }}"
 
           # -------------------------------------------------------
-          # Compose the issue body.
+          # Build the issue body in a temp file to avoid shell
+          # expansion of ebuild variables like ${PV}, ${DEPEND}.
           # -------------------------------------------------------
-          BODY="## Upgrade ${PACKAGE} from ${CURRENT} to ${VERSION}
+          BODY_FILE=$(mktemp)
+
+          cat >> "${BODY_FILE}" <<EOF
+          ## Upgrade ${PACKAGE} from ${CURRENT} to ${VERSION}
 
           | Field | Value |
           |-------|-------|
@@ -308,7 +318,12 @@ jobs:
 
           ---
 
-          ${{ needs.detect.outputs.changes_summary }}
+          EOF
+
+          # Append sections with dangerous content via env vars.
+          printf '%s\n' "${CHANGES_SUMMARY}" >> "${BODY_FILE}"
+
+          cat >> "${BODY_FILE}" <<'STATIC_EOF'
 
           ---
 
@@ -317,9 +332,13 @@ jobs:
           <details>
           <summary>Full JSON output from upgrade-ebuild.sh</summary>
 
-          \`\`\`json
-          ${{ needs.detect.outputs.json_report }}
-          \`\`\`
+          ```json
+          STATIC_EOF
+
+          printf '%s\n' "${JSON_REPORT}" >> "${BODY_FILE}"
+
+          cat >> "${BODY_FILE}" <<'STATIC_EOF'
+          ```
 
           </details>
 
@@ -330,26 +349,32 @@ jobs:
           <details>
           <summary>Ebuild after mechanical updates (before agent edits)</summary>
 
-          \`\`\`bash
-          ${{ needs.detect.outputs.ebuild_content }}
-          \`\`\`
+          ```bash
+          STATIC_EOF
+
+          printf '%s\n' "${EBUILD_CONTENT}" >> "${BODY_FILE}"
+
+          cat >> "${BODY_FILE}" <<'STATIC_EOF'
+          ```
 
           </details>
 
           ---
 
-          *This issue was created automatically by the \`upgrade-ebuild\` workflow.*
-          "
+          *This issue was created automatically by the `upgrade-ebuild` workflow.*
+          STATIC_EOF
 
           # Strip leading whitespace from heredoc indentation.
-          BODY=$(echo "${BODY}" | sed 's/^          //')
+          sed -i 's/^          //' "${BODY_FILE}"
 
           # Create the issue.
           ISSUE_URL=$(gh issue create \
             --title "Upgrade ${PACKAGE} to ${VERSION}" \
-            --body "${BODY}" \
+            --body-file "${BODY_FILE}" \
             --label "upgrade,automated" \
             2>&1)
+
+          rm -f "${BODY_FILE}"
 
           echo "==> Created issue: ${ISSUE_URL}"
 
