@@ -1154,53 +1154,105 @@ The workflow system is considered complete when:
 
 ## 15. Next Steps (Session Resume Point)
 
-> **Last updated:** After PR #43 merged (container
-> profile migration + Carla wine32 fix). Phases 1–4
-> complete. Items 4.5 (generalize repackage) and
-> 4.6 (wire version-check → upgrade) remain.
+> **Last updated:** After bitwig-studio 6.0 upgrade
+> session. First successful end-to-end agent-driven
+> upgrade completed (PR #46 merged). GHCR publish
+> workflows fixed. Container build optimization.
+> All GitHub Actions updated to Node.js 24.
 
-### What Was Done (PR #43 Session)
+### What Was Done (Bitwig 6.0 / CI Fix Session)
 
-PR #43 (`fix/carla-wine32-build`) is **merged** into
-`main`. This session accomplished:
+**GHCR publish workflow fixes:**
 
-**Container profile migration:**
+* Fixed `permission_denied: write_package` error on
+  all three `publish-testenv` workflows. Root cause:
+  GHCR package-level "Manage Actions access" did not
+  list the repository. Fix: added `adaptive-overlay`
+  with Write role under each package's settings.
+* Enabled "Inherit access from source repository"
+  on all three GHCR packages (testenv, testenv-audio,
+  testenv-rust).
 
-* Switched `testenv` base from `stage3:latest`
-  (OpenRC) to `stage3:amd64-desktop-systemd` —
-  eliminates the openrc→systemd bootstrap (no more
-  `emerge --unmerge systemd-utils`, no circular dep
-  breakers for systemd migration).
-* Rebuilt all three containers locally:
-  * testenv (3.87 GB)
-    * testenv-rust (6.58 GB)
-    * testenv-audio (9.75 GB)
-* Pushed all three to GHCR.
+**Node.js 20 → 24 action version bumps:**
 
-**Publish workflow cleanup:**
+* Updated all 10 workflow files to latest major
+  versions with Node.js 24 support:
+  * `actions/checkout` v4 → v6
+  * `docker/login-action` v3 → v4
+  * `docker/metadata-action` v5 → v6
+  * `docker/setup-buildx-action` v3 → v4
+  * `docker/build-push-action` v6 → v7
+  * `actions/upload-artifact` v4 → v7
 
-* Removed `push` triggers from all three publish
-  workflows. Containers are now maintained locally
-  and pushed manually. Publish workflows only fire
-  on weekly schedule, manual dispatch, or
-  workflow_run chain (rust/audio after base).
+**testenv-audio container optimization:**
 
-**pkgcheck profile restriction:**
+* Split single monolithic `RUN emerge` (270
+  packages, >6 hr timeout) into 4 cached layers:
+  1. Core libs, X11, audio stack, light tools
+  2. FFmpeg + multimedia codecs
+  3. PyQt5 + WebKit-GTK + Python tools
+  4. Wine + MinGW cross-toolchain
+* Added parallel build settings:
+  `MAKEOPTS="-j3"`,
+  `EMERGE_DEFAULT_OPTS="--jobs=2 --load-average=3"`
+* Configured Gentoo official binary package host
+  (`getbinpkg`, `binpkg-request-signature`,
+  `PORTAGE_BINHOST` for 23.0/x86-64). Packages
+  with matching USE flags download as binaries;
+  mismatched (e.g. `abi_x86_32`) compile from
+  source automatically.
+* Built locally and pushed to GHCR to seed the
+  layer cache. Subsequent CI rebuilds now only
+  recompile changed layers.
 
-* `lint-ebuild.yml` now uses
-  `--profiles default/linux/amd64/23.0/desktop` to
-  restrict checks to multilib desktop profiles.
-  This overlay targets multilib desktop systems, so
-  no-multilib and musl profiles are out of scope.
-  `NonsolvableDeps` errors on those profiles
-  (e.g. `wine-staging[abi_x86_32]`) no longer block
-  CI, but real errors on desktop profiles still fail.
+**Bitwig Studio upgrade infrastructure:**
 
-**Carla ebuild finalized:**
+* Created `.agent/skills/update-bitwig-studio.md` —
+  skills doc covering version numbering quirks
+  (2-component `6.0` vs 3-component `5.3.13`),
+  download URL verification (HTTP 302 check),
+  `.deb` structural checks for major bumps, and
+  USE flag review.
+* Updated `.agent/packages.json` — added
+  `build_system: "binary"` for bitwig-studio,
+  updated notes with version format guidance.
+* Updated `scripts/upgrade-ebuild.sh`:
+  * Allows `manual` upstream type when `--version`
+    is provided (no longer requires `upstream_repo`)
+  * Adds Bitwig download URL verification (HTTP 302)
+  * Skips GitHub tarball check for non-GitHub pkgs
+  * Added explicit `manual` case to auto-detection
+    with helpful error message
+* Added bitwig-studio to skills mapping in
+  `upgrade-ebuild.yml` delegate job.
 
-* `carla-2.5.10-r1.ebuild` — KEYWORDS narrowed to
-  `~amd64` (dropped `~x86`, overlay is amd64 only).
-* CI lint and build tests both pass.
+**Upgrade workflow bug fixes:**
+
+* Fixed artifact name containing `/` (invalid char)
+  — added sanitization step replacing `/` with `-`.
+* Fixed shell escaping bug in issue body: ebuild
+  content containing `${PV}`, `${DEPEND}`, etc. was
+  interpreted by the shell. Fix: pass dangerous
+  content via `env:` block (safe from shell
+  expansion), write body to temp file, use
+  `gh issue create --body-file` instead of `--body`.
+* Fixed Copilot agent assignment 403 Forbidden:
+  `GITHUB_TOKEN` lacks permission to assign
+  `copilot-swe-agent[bot]`. Fix: use `secrets.GH_PAT`
+  (Personal Access Token with `repo` scope) for the
+  assignment step.
+
+**First successful end-to-end agent upgrade:**
+
+* Triggered `upgrade-ebuild.yml` via workflow
+  dispatch for `media-sound/bitwig-studio` v6.0.
+* Workflow detected version, verified download URL,
+  created issue #45 with structured report, assigned
+  to Copilot coding agent.
+* Agent read the skills doc, copied the ebuild,
+  removed the old version, ran `manifest.sh` and
+  `lint.sh`, opened PR #46.
+* PR #46 merged — bitwig-studio 5.3.13 → 6.0.
 
 ### Context for Resuming
 
@@ -1210,6 +1262,8 @@ PR #43 (`fix/carla-wine32-build`) is **merged** into
   container, lint passes, CI working.
 * `media-sound/carla` — builds in `testenv-audio`
   container, lint passes, CI working.
+* `media-sound/bitwig-studio` — binary repackage,
+  agent-driven upgrade proven (PR #46).
 
 **Agent integration (Phase 4.7–4.10):**
 
@@ -1219,8 +1273,10 @@ PR #43 (`fix/carla-wine32-build`) is **merged** into
   Issue with the JSON report + ebuild content +
   skills reference + step-by-step instructions,
   then assigns it to `copilot-swe-agent[bot]` via
-  REST API. The agent owns the entire finalization
-  flow: edits, manifest, lint, and PR creation.
+  REST API (using `GH_PAT` secret). The agent owns
+  the entire finalization flow: edits, manifest,
+  lint, and PR creation. **Proven end-to-end** with
+  bitwig-studio 6.0 upgrade (PR #46).
 
 * **Local path:** `scripts/agent-finalize-ebuild.sh`
   reads JSON from `upgrade-ebuild.sh`, constructs a
@@ -1248,7 +1304,15 @@ Generalize `repackage-surge.yml` into a reusable
 Connect scheduled version-check results to
 automatically trigger upgrade workflows.
 
-#### 3. Remaining Phases (5–7)
+#### 3. Automated Version Detection for Bitwig ❌
+
+Add `bitwig-web` upstream type to
+`check-updates.sh` that scrapes the download page
+at `https://www.bitwig.com/download/` for the
+current version. Currently using `manual` type
+with explicit `--version` on workflow dispatch.
+
+#### 4. Remaining Phases (5–7)
 
 * **Phase 5** — New ebuild creation workflow
   (agent-assisted scaffolding).
@@ -1261,16 +1325,17 @@ automatically trigger upgrade workflows.
 
 ### Suggested Next Step
 
-Generalize `repackage-surge.yml` into a reusable
-`repackage-source.yml` workflow (item 4.5), then
-wire version-check to auto-trigger upgrades (4.6).
+Wire version-check to auto-trigger upgrades (4.6)
+for GitHub-hosted packages (Zed, Carla, Surge).
+Then add `bitwig-web` scraping to
+`check-updates.sh` for Bitwig version detection.
 After that, move to Phase 5 (new ebuild creation).
 
 ### Files Summary
 
 | File | Status | Description |
 |---|---|---|
-| `scripts/upgrade-ebuild.sh` | ✅ | Mechanical detection + safe apply |
+| `scripts/upgrade-ebuild.sh` | ✅ | Mechanical detection + safe apply (supports `manual` upstream type) |
 | `scripts/manifest.sh` | ✅ | Manifest generation in container |
 | `scripts/lint.sh` | ✅ | pkgcheck in container |
 | `scripts/test-build.sh` | ✅ | Build test in container |
@@ -1278,13 +1343,18 @@ After that, move to Phase 5 (new ebuild creation).
 | `.agent/instructions/general.md` | ✅ | Agent safety rules |
 | `.agent/skills/update-zed-editor.md` | ✅ | Zed upgrade procedure |
 | `.agent/skills/update-carla.md` | ✅ | Carla upgrade procedure |
-| `.agent/packages.json` | ✅ | Package registry |
-| `.github/workflows/upgrade-ebuild.yml` | ✅ | CI detect + delegate workflow |
+| `.agent/skills/update-bitwig-studio.md` | ✅ | Bitwig upgrade procedure |
+| `.agent/packages.json` | ✅ | Package registry (incl. `build_system` field) |
+| `.github/workflows/upgrade-ebuild.yml` | ✅ | CI detect + delegate workflow (uses `GH_PAT` for agent assignment) |
 | `.github/workflows/ci-lint.yml` | ✅ | Lint CI (desktop profiles only) |
 | `.github/workflows/ci-build.yml` | ✅ | Build CI (routes to correct container) |
+| `.github/workflows/publish-testenv.yml` | ✅ | Base container publish (Node.js 24 actions) |
+| `.github/workflows/publish-testenv-audio.yml` | ✅ | Audio container publish (Node.js 24 actions) |
+| `.github/workflows/publish-testenv-rust.yml` | ✅ | Rust container publish (Node.js 24 actions) |
 | `.github/copilot-instructions.md` | ✅ | Repo-level Copilot context |
 | `.devcontainer/devcontainer.json` | ✅ | Devcontainer for Copilot agent |
 | `containers/testenv/Containerfile` | ✅ | Base env (`stage3:amd64-desktop-systemd`) |
 | `containers/testenv-rust/Containerfile` | ✅ | Rust/Zed build env |
-| `containers/testenv-audio/Containerfile` | ✅ | Audio build env (Wine, JACK, multilib) |
+| `containers/testenv-audio/Containerfile` | ✅ | Audio build env (4-layer cached, binpkg, parallel emerge) |
 | `media-sound/carla/carla-2.5.10-r1.ebuild` | ✅ | Wine32 build dep fix (merged) |
+| `media-sound/bitwig-studio/bitwig-studio-6.0.ebuild` | ✅ | Agent-driven upgrade (PR #46 merged) |
