@@ -34,14 +34,21 @@
 FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
 # -------------------------------------------------------------------
-# Portage: disable sandbox features that fail in rootless containers
-# and enable parallel builds for the 2-core GitHub Actions runner
+# Portage: disable sandbox features that fail in rootless containers,
+# enable parallel builds for the 2-core GitHub Actions runner, and
+# configure Gentoo's official binary package host.
+#
+# getbinpkg: download pre-built binaries when USE flags match,
+#            fall back to source compilation when they don't.
+# binpkg-request-signature: verify binary package signatures.
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage && \
-    echo 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"' \
+    echo 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox getbinpkg binpkg-request-signature"' \
     >> /etc/portage/make.conf && \
     echo 'MAKEOPTS="-j3"' >> /etc/portage/make.conf && \
     echo 'EMERGE_DEFAULT_OPTS="--jobs=2 --load-average=3"' \
+    >> /etc/portage/make.conf && \
+    echo 'PORTAGE_BINHOST="https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/"' \
     >> /etc/portage/make.conf
 
 # -------------------------------------------------------------------
