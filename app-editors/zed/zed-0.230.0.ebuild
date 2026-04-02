@@ -199,6 +199,8 @@ src_prepare() {
 	local LIVEKIT_PATH="livekit = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/livekit\""
 	local LIBWEBRTC_GIT="libwebrtc = { git = \"https://github.com/zed-industries/livekit-rust-sdks\", rev = \"${LIVEKIT_COMMIT}\""
 	local LIBWEBRTC_PATH="libwebrtc = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/libwebrtc\""
+	local WEBRTC_SYS_GIT="webrtc-sys = { git = \"https://github.com/zed-industries/livekit-rust-sdks\", rev = \"${LIVEKIT_COMMIT}\""
+	local WEBRTC_SYS_PATH="webrtc-sys = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/webrtc-sys\""
 
 	sed -e "s#${CALLOOP_GIT}#${CALLOOP_PATH}#" \
 		-e "s#${NOTIFY_GIT}#${NOTIFY_PATH}#" \
@@ -207,6 +209,7 @@ src_prepare() {
 		-e "s#${ASYNC_TASK_GIT}#${ASYNC_TASK_PATH}#" \
 		-e "s#${LIVEKIT_GIT}#${LIVEKIT_PATH}#" \
 		-e "s#${LIBWEBRTC_GIT}#${LIBWEBRTC_PATH}#" \
+		-e "s#${WEBRTC_SYS_GIT}#${WEBRTC_SYS_PATH}#" \
 		-i "${S}/Cargo.toml" || die "Cargo fetch workaround failed"
 }
 
