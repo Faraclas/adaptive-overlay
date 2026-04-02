@@ -662,7 +662,7 @@ if [[ "${DO_APPLY}" -eq 1 && "${BUILD_SYSTEM}" == "cargo" && ${#CHANGE_DESCRIPTI
     if [[ -n "${NEW_WEBRTC_COMMIT}" ]]; then
         OLD_WC=$(grep -oP 'WEBRTC_COMMIT="\K[^"]+' "${EBUILD_FILE}" || true)
         if [[ -n "${OLD_WC}" ]]; then
-            sed -i "s/WEBRTC_COMMIT=\"${OLD_WC}\"/WEBRTC_COMMIT=\"${NEW_WEBRTC_COMMIT}\"/" "${EBUILD_FILE}"
+            sed -i "s|WEBRTC_COMMIT=\"${OLD_WC}\"|WEBRTC_COMMIT=\"${NEW_WEBRTC_COMMIT}\"|" "${EBUILD_FILE}"
             APPLIED+=("WEBRTC_COMMIT: ${OLD_WC} → ${NEW_WEBRTC_COMMIT}")
         fi
     fi
