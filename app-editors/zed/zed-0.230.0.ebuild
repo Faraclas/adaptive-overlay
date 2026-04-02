@@ -64,6 +64,7 @@ declare -A GIT_CRATES=(
 	[tree-sitter-yaml]='https://github.com/zed-industries/tree-sitter-yaml;baff0b51c64ef6a1fb1f8390f3ad6015b83ec13a;tree-sitter-yaml-%commit%'
 	[webrtc-sys-build]='https://github.com/zed-industries/livekit-rust-sdks;147fbca3d4b592d96d33f5e6a84b59fc0b5d9bf1;livekit-rust-sdks-%commit%/webrtc-sys/build'
 	[webrtc-sys]='https://github.com/zed-industries/livekit-rust-sdks;147fbca3d4b592d96d33f5e6a84b59fc0b5d9bf1;livekit-rust-sdks-%commit%/webrtc-sys'
+	[wgpu]='https://github.com/zed-industries/wgpu;a466bc382ea747f8e1ac810efdb6dcd49a514575;wgpu-%commit%/wgpu'
 	[windows-capture]='https://github.com/zed-industries/windows-capture;f0d6c1b6691db75461b732f6d5ff56eed002eeb9;windows-capture-%commit%'
 	[wprcontrol]='https://github.com/zed-industries/wprcontrol;cd811f7d744f65291e13131b1d907fda63ed91a1;wprcontrol-%commit%'
 	[xim-ctext]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%/xim-ctext'
@@ -77,7 +78,7 @@ declare -A GIT_CRATES=(
 LLVM_COMPAT=( 21 )
 RUST_MIN_VER="1.93.0"
 RUST_NEEDS_LLVM=1
-WEBRTC_COMMIT="7af9351"
+WEBRTC_COMMIT="24f6822-3"
 
 inherit cargo check-reqs desktop flag-o-matic llvm-r1 xdg
 
@@ -194,6 +195,10 @@ src_prepare() {
 	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
 	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
 
+	local WGPU_COMMIT="a466bc382ea747f8e1ac810efdb6dcd49a514575"
+	local WGPU_GIT="wgpu = { git = \"https://github.com/zed-industries/wgpu.git\", branch = \"v29\""
+	local WGPU_PATH="wgpu = \\{ path = \"${WORKDIR}/wgpu-${WGPU_COMMIT}/wgpu\""
+
 	local LIVEKIT_COMMIT="147fbca3d4b592d96d33f5e6a84b59fc0b5d9bf1"
 	local LIVEKIT_GIT="livekit = { git = \"https://github.com/zed-industries/livekit-rust-sdks\", rev = \"${LIVEKIT_COMMIT}\""
 	local LIVEKIT_PATH="livekit = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/livekit\""
@@ -210,6 +215,7 @@ src_prepare() {
 		-e "s#${LIVEKIT_GIT}#${LIVEKIT_PATH}#" \
 		-e "s#${LIBWEBRTC_GIT}#${LIBWEBRTC_PATH}#" \
 		-e "s#${WEBRTC_SYS_GIT}#${WEBRTC_SYS_PATH}#" \
+		-e "s#${WGPU_GIT}#${WGPU_PATH}#" \
 		-i "${S}/Cargo.toml" || die "Cargo fetch workaround failed"
 }
 
