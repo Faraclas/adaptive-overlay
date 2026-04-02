@@ -1,19 +1,30 @@
-# Scheduled Version Check — runs the check-upstream-versions reusable
-# workflow on a regular cadence to detect new upstream releases.
+# Scheduled Version Check — detects upstream releases and automatically
+# kicks off the upgrade workflow for each package that needs updating.
 #
-# Schedule: twice weekly — Wednesday and Saturday at 06:00 UTC.
+# Schedule: twice weekly — Thursday and Sunday at 06:00 UTC.
+# Thursday is used instead of Wednesday because Zed typically releases
+# on Wednesdays; Thursday morning ensures the release is available.
+#
 # Can also be triggered manually via workflow_dispatch.
 #
-# When updates are detected, GitHub issues are created automatically
-# (one per package, deduplicated by title).
+# Flow:
+#   1. check-upstream-versions scans all packages against upstream APIs.
+#   2. prepare-upgrades filters results to packages with update-available
+#      status and builds a matrix of category/name strings.
+#   3. upgrade (matrix) calls upgrade-ebuild.yml once per package, which
+#      runs the upgrade script, creates a detailed GitHub issue, and
+#      assigns the Copilot coding agent to open a PR.
 #
-# Phase 3.4 of the implementation plan.
+# Note: create_issues is false on the version-check call because
+# upgrade-ebuild.yml creates the authoritative issue itself (with the
+# full JSON report and ebuild content).  Creating a plain issue here
+# would produce a duplicate with the same title.
 
 name: Scheduled Version Check
 
 on:
   schedule:
-    - cron: "0 6 * * 3,6" # Wednesday and Saturday at 06:00 UTC
+    - cron: "0 6 * * 4,0" # Thursday and Sunday at 06:00 UTC
 
   workflow_dispatch: # Allow manual trigger from the Actions UI
 
@@ -21,4 +32,74 @@ jobs:
   version-check:
     uses: ./.github/workflows/check-upstream-versions.yml
     with:
-      create_issues: true
+      create_issues: false # upgrade-ebuild.yml creates the detailed issue
+
+  # -------------------------------------------------------------------
+  # Filter the results down to just the packages that need upgrading
+  # AND have auto_upgrade: true in .agent/packages.json, then emit
+  # them as a JSON array for the matrix job below.
+  # -------------------------------------------------------------------
+  prepare-upgrades:
+    name: Prepare upgrade matrix
+    needs: version-check
+    if: needs.version-check.outputs.updates_available == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: .agent/packages.json
+
+      - name: Filter upgradeable auto_upgrade packages
+        id: filter
+        env:
+          RESULTS: ${{ needs.version-check.outputs.results }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=$(
+            jq -c \
+              --slurpfile pkgs .agent/packages.json \
+              '
+                [ .[]
+                  | select(.status == "update-available")
+                  | . as $r
+                  | "\($r.category)/\($r.name)"
+                  | select(
+                      . as $pkg
+                      | $pkgs[0]
+                        | map(select(.auto_upgrade == true)
+                              | "\(.category)/\(.name)")
+                        | index($pkg) != null
+                    )
+                ]
+              ' <<< "${RESULTS}"
+          )
+          echo "Packages to upgrade: ${packages}"
+          echo "packages=${packages}" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------
+  # One upgrade job per package — each calls upgrade-ebuild.yml which
+  # runs the upgrade script, creates a rich GitHub issue, and assigns
+  # the Copilot coding agent to handle the intelligent edits and PR.
+  # -------------------------------------------------------------------
+  upgrade:
+    name: Upgrade ${{ matrix.package }}
+    needs: prepare-upgrades
+    if: needs.prepare-upgrades.outputs.packages != '[]'
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.prepare-upgrades.outputs.packages) }}
+      fail-fast: false # attempt all packages even if one fails
+    uses: ./.github/workflows/upgrade-ebuild.yml
+    permissions:
+      contents: read
+      issues: write
+    secrets: inherit
+    with:
+      package: ${{ matrix.package }}
+      version: "" # auto-detect latest upstream version

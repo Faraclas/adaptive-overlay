@@ -185,8 +185,8 @@ machine-consumed and may be auto-generated or auto-updated.
 | Trigger | Mechanism |
 |---|---|
 | **On-demand** | `workflow_dispatch` with inputs `package` and `version`. |
-| **Scheduled** | Cron (twice weekly) version-check across tracked packages. |
-| **Upstream release** | Webhook or watcher polling GitHub Releases/Tags API. |
+| **Scheduled** | Cron (twice weekly, Thu/Sun 06:00 UTC) — version-check detects updates, filters by `auto_upgrade: true`, then fans out to `upgrade-ebuild.yml` per package. Thursday is used instead of Wednesday because Zed typically releases on Wednesdays. |
+| **Upstream release** | Evaluated `repository_dispatch` vs. polling. Cross-repo webhooks require a GitHub App installed on the upstream repo — not viable for third-party projects. Polling is the correct approach. |
 
 ### 5.2 Package Registry
 
@@ -219,8 +219,8 @@ for the `.agent/` directory rationale):
     "upstream_type": "github-release",
     "version_pattern": "v(.*)",
     "repackage": false,
-    "auto_upgrade": false,
-    "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks..."
+    "auto_upgrade": true,
+    "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks. Upgrade workflow proven end-to-end."
   },
   {
     "category": "media-sound",
@@ -245,6 +245,18 @@ for the `.agent/` directory rationale):
 
 **Fields:**
 
+* `auto_upgrade` — gate for the automated upgrade pipeline.
+  When `true`, a detected upstream update will automatically
+  trigger `upgrade-ebuild.yml` (via the scheduled
+  `ci-version-check.yml`), which runs the upgrade script,
+  creates a detailed GitHub issue, and assigns the Copilot
+  coding agent to finalize the ebuild and open a PR.
+  When `false`, version-check will still detect the update
+  but will take no automated action — a human must trigger
+  `upgrade-ebuild.yml` manually via `workflow_dispatch`.
+  Set to `true` only after the upgrade workflow has been
+  proven end-to-end for that package.
+  **Currently `true`:** `app-editors/zed`, `media-sound/carla`.
 * `notes` — free-text field for human and agent context
   (upgrade caveats, special handling, etc.)
 
@@ -585,12 +597,23 @@ planned for Phase 4.5.
 4. Write a formatted summary table to
    `$GITHUB_STEP_SUMMARY`.
 
-**Callers:** `ci-version-check.yml` (scheduled Wed/Sat at
-06:00 UTC + manual dispatch, with `create_issues: true`).
+**Callers:** `ci-version-check.yml` (scheduled Thu/Sun at
+06:00 UTC + manual dispatch, with `create_issues: false` —
+issue creation is delegated to `upgrade-ebuild.yml` which
+produces the authoritative detailed issue).
 
-**Not yet implemented (Phase 4.6):**
+**Auto-dispatch (Phase 4.6 — ✅ implemented):**
 
-* Auto-dispatch of upgrade/repackage workflows.
+The `ci-version-check.yml` workflow now fans out to
+`upgrade-ebuild.yml` for every package where the version
+check returns `update-available` **and** `auto_upgrade:
+true` in `.agent/packages.json`.  A `prepare-upgrades`
+job does a sparse checkout of `packages.json`, joins it
+against the version-check results via `jq`, and emits a
+matrix of `category/name` strings.  The `upgrade` matrix
+job then calls `upgrade-ebuild.yml` once per package with
+`secrets: inherit` so `GH_PAT` is available for the
+Copilot agent assignment step.
 
 ### 7.5 `upgrade-ebuild` (Workflow) ✅
 
@@ -1001,7 +1024,7 @@ produces usable, testable deliverables.
 | 3.1 | ✅ | `.agent/packages.json` — all 8 packages. Types: `github-release`, `github-tag`, `manual`. |
 | 3.2 | ✅ | `check-upstream-versions.yml` — JSON output, issue creation, summary. |
 | 3.3 | ✅ | `scripts/check-updates.sh` — `--json`, `GITHUB_TOKEN`. |
-| 3.4 | ✅ | `ci-version-check.yml` — Wed/Sat 06:00 UTC + manual. |
+| 3.4 | ✅ | `ci-version-check.yml` — Thu/Sun 06:00 UTC + manual. |
 
 ### Phase 4 — Automated Ebuild Upgrades ✅
 
@@ -1014,7 +1037,7 @@ produces usable, testable deliverables.
 | 4.3 | ✅ | Lint runs automatically in the upgrade workflow. Build test deferred to reviewer via `build-test` label (handled by existing `ci-build.yml`). |
 | 4.4 | ✅ | `upgrade-ebuild.yml` creates PRs with `upgrade` + `automated` labels, change summary table, manifest instructions. |
 | 4.5 | ❌ | Generalize `repackage-surge.yml` → `repackage-source.yml`. |
-| 4.6 | ❌ | Wire version-check → upgrade triggers. |
+| 4.6 | ✅ | Wire version-check → upgrade triggers. `ci-version-check.yml` now fans out to `upgrade-ebuild.yml` for every package with `update-available` status and `auto_upgrade: true` in `.agent/packages.json`. A `prepare-upgrades` job does a sparse checkout + `jq` join; an `upgrade` matrix job calls `upgrade-ebuild.yml` per package with `secrets: inherit`. |
 | 4.7 | ✅ | **Agent finalization — CI path:** Created `.devcontainer/devcontainer.json` (lightweight Ubuntu base + gh CLI for Copilot coding agent). Created `.github/copilot-instructions.md` (repo-level Copilot context pointing at `.agent/instructions/general.md`, `.agent/skills/`, `scripts/`, and `.agent/packages.json`). Rewrote `upgrade-ebuild.yml` to use Approach B (issue-first): detect job runs `upgrade-ebuild.sh --apply --json`, delegate job creates a GitHub Issue with structured JSON + ebuild content + skills reference + step-by-step instructions, then assigns to `copilot-swe-agent[bot]` via REST API. Copilot owns the entire finalization (edits, manifest, lint, PR). |
 | 4.8 | ✅ | **Agent finalization — local path:** Created `scripts/agent-finalize-ebuild.sh`. Reads JSON from `upgrade-ebuild.sh`, resolves the skills doc, constructs a prompt (skills + JSON report + ebuild content), pipes to `copilot -s --no-ask-user --model claude-sonnet-4.6` via stdin, strips code fences and control chars from response, validates output looks like an ebuild, writes back, then runs `manifest.sh` and `lint.sh` automatically. Supports `--dry-run`, `--model`, `--skip-manifest`, `--skip-lint`. |
 | 4.9 | ✅ | **Manifest in CI:** Manifest generation is now the agent's responsibility (Approach B). The agent runs `scripts/manifest.sh` after making edits, ensuring manifest reflects final ebuild content. The workflow no longer generates manifest itself. |
@@ -1033,15 +1056,15 @@ produces usable, testable deliverables.
 | 5.4 | Human-in-the-loop (labels, PR comments, reviews). |
 | 5.5 | Populate `.agent/skills/` and `.agent/instructions/`. |
 
-### Phase 6 — Upstream Release Triggers
+### Phase 6 — Upstream Release Triggers ✅ (evaluated & closed)
 
 > Goal: React to upstream GitHub releases in near-real-time.
 
-| Item | Description |
-|---|---|
-| 6.1 | Evaluate `repository_dispatch` vs. polling workflow. |
-| 6.2 | Implement trigger for GitHub-hosted upstreams. |
-| 6.3 | Connect release triggers to the upgrade workflow. |
+| Item | Status | Description |
+|---|---|---|
+| 6.1 | ✅ | Evaluated `repository_dispatch` vs. polling. Cross-repo webhooks require a GitHub App installed on the upstream repo — not viable for third-party projects we don't control. Polling is the correct and sufficient approach. |
+| 6.2 | ✅ | Polling implemented via `check-upstream-versions.yml` (GitHub Releases + Tags APIs). Schedule shifted to Thu/Sun to align with Zed's typical Wednesday release cadence. |
+| 6.3 | ✅ | Release detection is now connected to `upgrade-ebuild.yml` via the `ci-version-check.yml` fan-out (Phase 4.6). |
 
 ### Phase 7 — Polish & Documentation
 
@@ -1299,10 +1322,14 @@ ensuring intelligent review on every upgrade.
 Generalize `repackage-surge.yml` into a reusable
 `repackage-source.yml` workflow.
 
-#### 2. Wire Version-Check → Upgrade (Phase 4.6) ❌
+#### 2. Wire Version-Check → Upgrade (Phase 4.6) ✅
 
-Connect scheduled version-check results to
-automatically trigger upgrade workflows.
+`ci-version-check.yml` now fans out to `upgrade-ebuild.yml`
+for every package with `update-available` status and
+`auto_upgrade: true` in `.agent/packages.json`.
+Schedule shifted to Thu/Sun (was Wed/Sat).
+`app-editors/zed` and `media-sound/carla` are the first
+two packages with `auto_upgrade: true`.
 
 #### 3. Automated Version Detection for Bitwig ❌
 
@@ -1325,16 +1352,20 @@ with explicit `--version` on workflow dispatch.
 
 ### Suggested Next Step
 
-Wire version-check to auto-trigger upgrades (4.6)
-for GitHub-hosted packages (Zed, Carla, Surge).
-Then add `bitwig-web` scraping to
-`check-updates.sh` for Bitwig version detection.
-After that, move to Phase 5 (new ebuild creation).
+Phase 4 is now complete. Remaining items before Phase 5:
+
+1. Add `bitwig-web` scraping to `check-updates.sh` for
+   Bitwig version detection (manual → automated detection).
+2. Generalize `repackage-surge.yml` → `repackage-source.yml`
+   (Phase 4.5) when Surge XT needs its next upgrade.
+
+After those, move to Phase 5 (new ebuild creation workflow).
 
 ### Files Summary
 
 | File | Status | Description |
 |---|---|---|
+| `ci-version-check.yml` | ✅ | Scheduled Thu/Sun 06:00 UTC + manual dispatch. Fans out to `upgrade-ebuild.yml` for packages with `update-available` + `auto_upgrade: true`. |
 | `scripts/upgrade-ebuild.sh` | ✅ | Mechanical detection + safe apply (supports `manual` upstream type) |
 | `scripts/manifest.sh` | ✅ | Manifest generation in container |
 | `scripts/lint.sh` | ✅ | pkgcheck in container |

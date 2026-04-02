@@ -7,7 +7,7 @@
     "version_pattern": "v(.*)",
     "build_system": "cargo",
     "repackage": false,
-    "auto_upgrade": false,
+    "auto_upgrade": true,
     "notes": "Requires GIT_CRATES and WEBRTC_COMMIT checks on every bump. See update_zed_editor.md."
   },
   {
@@ -18,8 +18,8 @@
     "version_pattern": "v(.*)",
     "build_system": "make",
     "repackage": false,
-    "auto_upgrade": false,
-    "notes": "Standard GitHub release. auto_upgrade can be enabled once upgrade workflow is proven."
+    "auto_upgrade": true,
+    "notes": "Standard GitHub release. Upgrade workflow proven end-to-end."
   },
   {
     "category": "media-sound",
