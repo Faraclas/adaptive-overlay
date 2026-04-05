@@ -367,12 +367,14 @@ jobs:
           # Strip leading whitespace from heredoc indentation.
           sed -i 's/^          //' "${BODY_FILE}"
 
-          # Create the issue.
+          # Create the issue.  Do NOT merge stderr into
+          # stdout — gh may print progress messages that
+          # would corrupt ISSUE_URL and break the
+          # downstream issue-number extraction.
           ISSUE_URL=$(gh issue create \
             --title "Upgrade ${PACKAGE} to ${VERSION}" \
             --body-file "${BODY_FILE}" \
-            --label "upgrade,automated" \
-            2>&1)
+            --label "upgrade,automated")
 
           rm -f "${BODY_FILE}"
 
@@ -381,7 +383,16 @@ jobs:
           # Extract issue number from the URL.
           ISSUE_NUMBER=$(echo "${ISSUE_URL}" \
             | grep -oE '[0-9]+$')
-          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "${ISSUE_NUMBER}" ]; then
+              echo "::error::Failed to extract issue number" \
+                   "from URL: ${ISSUE_URL}"
+              exit 1
+          fi
+
+          echo "==> Extracted issue number: ${ISSUE_NUMBER}"
+          echo "issue_number=${ISSUE_NUMBER}" \
+              >> "$GITHUB_OUTPUT"
           echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Assign issue to Copilot coding agent
@@ -396,19 +407,40 @@ jobs:
           VERSION="${{ needs.detect.outputs.version }}"
           SKILLS_FILE="${{ steps.skills.outputs.skills_file }}"
 
+          # --- diagnostics ---
+          if [ -z "${GH_TOKEN}" ]; then
+              echo "::error::GH_PAT secret is empty or" \
+                   "not set — cannot assign Copilot agent"
+              exit 1
+          fi
+          echo "==> GH_PAT fingerprint:" \
+               "$(printf '%s' "${GH_TOKEN}" \
+                   | sha256sum | cut -c1-8)"
+
+          if [ -z "${ISSUE_NUMBER}" ]; then
+              echo "::error::ISSUE_NUMBER is empty —" \
+                   "issue creation may have failed"
+              exit 1
+          fi
+
           echo "==> Assigning issue #${ISSUE_NUMBER} to" \
                "copilot-swe-agent[bot]"
 
           # Assign the Copilot coding agent to the issue.
-          # The agent_assignment field provides model selection
-          # and custom instructions.
-          printf '{"assignees":["copilot-swe-agent[bot]"]}' \
+          RESPONSE=$(
+            printf \
+              '{"assignees":["copilot-swe-agent[bot]"]}' \
             | gh api \
                 --method POST \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/assignees" \
-                --input -
+                --input - 2>&1
+          ) || {
+              echo "::error::gh api failed. Response:"
+              echo "${RESPONSE}"
+              exit 1
+          }
 
           echo "==> Issue #${ISSUE_NUMBER} assigned to" \
                "copilot-swe-agent[bot]."
