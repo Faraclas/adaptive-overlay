@@ -1,0 +1,15 @@
+BDEPEND=virtual/pkgconfig dev-util/glib-utils || ( >=dev-lang/rust-bin-1.74.1:* >=dev-lang/rust-1.74.1:* ) >=dev-vcs/git-1.8.2.1[curl]
+DEFINED_PHASES=compile configure install postinst postrm preinst prepare setup test unpack
+DEPEND=>=gui-libs/gtk-4.20:4 >=gui-libs/libadwaita-1.8 gui-libs/gtksourceview:5 media-libs/gstreamer:1.0 dev-db/sqlite:3 dev-libs/openssl:0/3
+DESCRIPTION=Modern terminal emulator with AI assistant built with Rust and GTK 4
+EAPI=8
+HOMEPAGE=https://github.com/boxxy-dev/boxxy
+IDEPEND=dev-util/desktop-file-utils x11-misc/shared-mime-info
+INHERIT=cargo desktop xdg git-r3
+IUSE=debug
+LICENSE=MIT
+PROPERTIES=live
+RDEPEND=>=gui-libs/gtk-4.20:4 >=gui-libs/libadwaita-1.8 gui-libs/gtksourceview:5 media-libs/gstreamer:1.0 dev-db/sqlite:3 dev-libs/openssl:0/3
+SLOT=0
+_eclasses_=toolchain-funcs	5195689ff6a73b0e789acfa09d4fbcb9	flag-o-matic	fd3558f73f6503093adee69adf41020d	multiprocessing	45d0620f25c2f063ad6276ecd9ed9399	rust	c5ae4c9b5eca97bd7fc77fede663873f	rust-toolchain	76468983281b0a7fc167ca224f84ecfd	cargo	53bab5a62cfc3526d8ed02c0a38a6033	desktop	26d57169ca094c04be416993844ec8bc	xdg-utils	42869b3c8d86a70ef3cf75165a395e09	xdg	3ef49a87c52c8b77c476351195dfe575	git-r3	7b584b5dc33e3bc66ff5b9271bf41764
+_md5_=31a7dfa10f3dc26e850a1050bef0b4ca
