@@ -4,10 +4,15 @@
 #
 #   1. **PR (automatic)** — detects changed packages when the
 #      'build-test' label is present on the pull request.
+#      PRs from copilot-swe-agent[bot] with ebuild changes get
+#      the label applied automatically.
 #
 #   2. **Manual dispatch** — pick a specific package and ebuild
 #      from the GitHub Actions UI (Actions → Build Test Changed
 #      Ebuilds → Run workflow).
+#
+# Additionally, every PR with a new ebuild version posts a diff
+# comment comparing the new ebuild against the previous version.
 #
 # Phase 2.3 of the implementation plan.
 
@@ -16,6 +21,7 @@ name: Build Test Changed Ebuilds
 on:
   pull_request:
     types:
+      - opened
       - labeled
       - synchronize
     paths:
@@ -55,13 +61,206 @@ on:
 
 jobs:
   # -----------------------------------------------------------------------
+  # Auto-label: if the PR author is copilot-swe-agent[bot] and the PR
+  # contains ebuild changes, apply the 'build-test' label automatically.
+  # This makes the build-test pipeline fire without manual intervention.
+  # Only runs on 'opened' and 'synchronize' events (not 'labeled', to
+  # avoid a re-trigger loop).
+  # -----------------------------------------------------------------------
+  auto-label:
+    name: Auto-label Copilot PRs
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.action != 'labeled'
+      && github.event.pull_request.user.login == 'copilot-swe-agent[bot]'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check if build-test label already present
+        id: check
+        run: |
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          if echo "${LABELS}" | jq -e '.[] | select(. == "build-test")' > /dev/null 2>&1; then
+            echo "already_labeled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_labeled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add build-test label
+        if: steps.check.outputs.already_labeled == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --add-label "build-test"
+          echo "Added 'build-test' label to PR #${{ github.event.pull_request.number }}"
+
+  # -----------------------------------------------------------------------
+  # Ebuild diff: post a PR comment showing the diff between the new
+  # ebuild and the previous version. Since version bumps create a new
+  # file (e.g. zed-0.229.0.ebuild), git sees it as an addition — this
+  # job finds the old version on the base branch and diffs them.
+  # -----------------------------------------------------------------------
+  ebuild-diff:
+    name: Post ebuild diff comment
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.action != 'labeled'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate and post ebuild diffs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Find new ebuild files added in this PR.
+          NEW_EBUILDS=$(git diff --name-status "${BASE}" "${HEAD}" \
+            | grep -E '^A.*\.ebuild$' \
+            | awk '{print $2}' || true)
+
+          if [ -z "${NEW_EBUILDS}" ]; then
+            echo "No new ebuild files in this PR — skipping diff comment."
+            exit 0
+          fi
+
+          COMMENT_BODY=""
+
+          while IFS= read -r NEW_EBUILD; do
+            PKG_DIR=$(dirname "${NEW_EBUILD}")
+            NEW_BASENAME=$(basename "${NEW_EBUILD}")
+
+            # Find the previous version ebuild on the base branch.
+            # List ebuilds that existed on the base, exclude the new one,
+            # sort by version, take the highest.
+            OLD_EBUILD=$(git ls-tree --name-only "${BASE}" -- "${PKG_DIR}/" \
+              | grep '\.ebuild$' \
+              | grep -v "^${NEW_BASENAME}$" \
+              | sort -V \
+              | tail -1 || true)
+
+            if [ -z "${OLD_EBUILD}" ]; then
+              echo "No previous ebuild found for ${NEW_EBUILD} — skipping."
+              continue
+            fi
+
+            OLD_PATH="${PKG_DIR}/${OLD_EBUILD}"
+            OLD_BASENAME="${OLD_EBUILD}"
+
+            echo "Diffing: ${OLD_PATH} (base) -> ${NEW_EBUILD} (head)"
+
+            # Extract file contents from the respective commits.
+            OLD_CONTENT=$(git show "${BASE}:${OLD_PATH}" 2>/dev/null || true)
+            NEW_CONTENT=$(git show "${HEAD}:${NEW_EBUILD}" 2>/dev/null || true)
+
+            if [ -z "${OLD_CONTENT}" ]; then
+              echo "Could not read ${OLD_PATH} from base — skipping."
+              continue
+            fi
+
+            # Generate the diff. git diff --no-index exits non-zero when
+            # files differ, which is expected.
+            DIFF=$(diff -u \
+              --label "a/${OLD_PATH}" \
+              --label "b/${NEW_EBUILD}" \
+              <(echo "${OLD_CONTENT}") \
+              <(echo "${NEW_CONTENT}") || true)
+
+            if [ -z "${DIFF}" ]; then
+              DIFF_SECTION="No differences (files are identical)."
+            else
+              DIFF_SECTION="${DIFF}"
+            fi
+
+            COMMENT_BODY="${COMMENT_BODY}
+### Ebuild diff: \`${OLD_BASENAME}\` → \`${NEW_BASENAME}\`
+
+<details>
+<summary>Click to expand diff</summary>
+
+\`\`\`diff
+${DIFF_SECTION}
+\`\`\`
+
+</details>
+
+"
+          done <<< "${NEW_EBUILDS}"
+
+          if [ -z "${COMMENT_BODY}" ]; then
+            echo "No diffs to post."
+            exit 0
+          fi
+
+          # Delete any previous diff comment from this bot to avoid
+          # accumulating stale comments on synchronize events.
+          MARKER="<!-- ebuild-diff-bot -->"
+          EXISTING_COMMENT_ID=$(gh api \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" \
+            | head -1 || true)
+
+          if [ -n "${EXISTING_COMMENT_ID}" ]; then
+            gh api \
+              --method DELETE \
+              "/repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
+              || echo "Warning: could not delete old diff comment"
+          fi
+
+          # Build final comment with marker.
+          FULL_COMMENT="${MARKER}
+## 📋 Ebuild Version Diff
+
+Comparing previous ebuild version(s) against the new one(s) in this PR.
+
+${COMMENT_BODY}
+---
+*Auto-generated by the Build Test CI workflow.*"
+
+          # Post the comment.
+          COMMENT_FILE=$(mktemp)
+          printf '%s' "${FULL_COMMENT}" > "${COMMENT_FILE}"
+
+          gh pr comment "${PR_NUMBER}" \
+            --repo "${{ github.repository }}" \
+            --body-file "${COMMENT_FILE}"
+
+          rm -f "${COMMENT_FILE}"
+          echo "Posted ebuild diff comment on PR #${PR_NUMBER}."
+
+  # -----------------------------------------------------------------------
   # Gate: only proceed if the 'build-test' label is present.
   # Skipped entirely for manual dispatch runs.
   # -----------------------------------------------------------------------
   check-label:
     name: Check for build-test label
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: auto-label
+    # Always run even if auto-label was skipped (non-copilot PRs) or
+    # the label was already present.
+    if: >
+      github.event_name == 'pull_request'
+      && !failure() && !cancelled()
 
     permissions:
       contents: read
@@ -71,13 +270,21 @@ jobs:
       has_label: ${{ steps.label.outputs.has_label }}
 
     steps:
+      # Re-fetch PR data so we pick up labels added by auto-label.
       - name: Check label
         id: label
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
-          echo "PR labels: ${LABELS}"
+          # Fetch current labels from the API (not the event payload)
+          # so we see any labels added by the auto-label job.
+          LABELS=$(gh api \
+            "/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" \
+            --jq '.[].name')
 
-          if echo "${LABELS}" | jq -e '.[] | select(. == "build-test")' > /dev/null 2>&1; then
+          echo "Current PR labels: ${LABELS}"
+
+          if echo "${LABELS}" | grep -qx 'build-test'; then
             echo "has_label=true" >> "$GITHUB_OUTPUT"
             echo "build-test label is present — proceeding with build tests"
           else
