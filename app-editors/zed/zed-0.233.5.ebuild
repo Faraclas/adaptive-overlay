@@ -54,6 +54,7 @@ declare -A GIT_CRATES=(
 	[mermaid-rs-renderer]='https://github.com/zed-industries/mermaid-rs-renderer;374db9ead5426697c6c2111151d9f246899bc638;mermaid-rs-renderer-%commit%'
 	[rodio]='https://github.com/RustAudio/rodio;e50e726ddd0292f6ef9de0dda6b90af4ed1fb66a;rodio-%commit%'
 	[tiktoken-rs]='https://github.com/zed-industries/tiktoken-rs;2570c4387a8505fb8f1d3f3557454b474f1e8271;tiktoken-rs-%commit%/tiktoken-rs'
+	[trash]='https://github.com/zed-industries/trash-rs;3bf27effd4eb8699f2e484d3326b852fe3e53af7;trash-rs-%commit%'
 	[tree-sitter-cpp]='https://github.com/tree-sitter/tree-sitter-cpp;5cb9b693cfd7bfacab1d9ff4acac1a4150700609;tree-sitter-cpp-%commit%'
 	[tree-sitter-gitcommit]='https://github.com/zed-industries/tree-sitter-git-commit;88309716a69dd13ab83443721ba6e0b491d37ee9;tree-sitter-git-commit-%commit%'
 	[tree-sitter-gomod]='https://github.com/camdencheek/tree-sitter-go-mod;2e886870578eeba1927a2dc4bd2e2b3f598c5f9a;tree-sitter-go-mod-%commit%'
