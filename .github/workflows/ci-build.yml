@@ -4,7 +4,7 @@
 #
 #   1. **PR (automatic)** — detects changed packages when the
 #      'build-test' label is present on the pull request.
-#      PRs from copilot-swe-agent[bot] with ebuild changes get
+#      PRs from the Copilot coding agent with ebuild changes get
 #      the label applied automatically.
 #
 #   2. **Manual dispatch** — pick a specific package and ebuild
@@ -61,7 +61,7 @@ on:
 
 jobs:
   # -----------------------------------------------------------------------
-  # Auto-label: if the PR author is copilot-swe-agent[bot] and the PR
+  # Auto-label: if the PR author is the Copilot coding agent and the PR
   # contains ebuild changes, apply the 'build-test' label automatically.
   # This makes the build-test pipeline fire without manual intervention.
   # Only runs on 'opened' and 'synchronize' events (not 'labeled', to
@@ -73,7 +73,8 @@ jobs:
     if: >
       github.event_name == 'pull_request'
       && github.event.action != 'labeled'
-      && github.event.pull_request.user.login == 'copilot-swe-agent[bot]'
+      && (github.event.pull_request.user.login == 'Copilot'
+          || github.event.pull_request.user.login == 'copilot-swe-agent[bot]')
 
     permissions:
       contents: read
@@ -300,13 +301,17 @@ jobs:
   # -----------------------------------------------------------------------
   # Detect which package directories have changed.
   # Skipped entirely for manual dispatch runs.
+  # Uses !cancelled() to opt out of transitive skip-propagation from
+  # auto-label → check-label chain (GitHub Actions skips downstream
+  # jobs when any ancestor was skipped, unless explicitly overridden).
   # -----------------------------------------------------------------------
   detect-changes:
     name: Detect changed packages
     runs-on: ubuntu-latest
     needs: check-label
     if: >
-      github.event_name == 'pull_request'
+      !cancelled()
+      && needs.check-label.result == 'success'
       && needs.check-label.outputs.has_label == 'true'
 
     permissions:
@@ -395,7 +400,8 @@ jobs:
     name: Build (PR)
     needs: detect-changes
     if: >
-      github.event_name == 'pull_request'
+      !cancelled()
+      && needs.detect-changes.result == 'success'
       && needs.detect-changes.outputs.any_changed == 'true'
 
     strategy:
