@@ -172,6 +172,8 @@ virtual/glu abi_x86_32
 
 # -- Vulkan --
 media-libs/vulkan-loader abi_x86_32 wayland X
+media-libs/shaderc abi_x86_32
+dev-util/glslang abi_x86_32
 media-libs/libsdl2 abi_x86_32
 
 # -- PipeWire (pulled in by desktop profile) --
