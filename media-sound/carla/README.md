@@ -8,21 +8,49 @@ https://kx.studio/Applications:Carla
 
 ## USE Flags
 
+The overlay currently ships two frontend variants:
+
+- `carla-2.5.10-r2`: released upstream `2.5.10`, using the `qt5` flag
+- `carla-2.5.10-r99`: experimental fixed snapshot from upstream `main`, using the `qt6` flag
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `abi_x86_32` | No | Build the Linux 32-bit bridge (`carla-bridge-posix32`) for running 32-bit Linux plugins on a 64-bit system. Requires multilib support. |
 | `alsa` | **Yes** | Enable ALSA (Advanced Linux Sound Architecture) audio driver support. |
-| `gtk` | **Yes** | Enable GTK+ 3 UI support for plugins that use GTK+ interfaces. |
-| `opengl` | **Yes** | Enable OpenGL support in the PyQt5 GUI. |
+| `gtk` | **Yes** | Enable GTK+ 3 LV2 UI bridge support for plugins that expose GTK-based UIs. This does not provide Carla's main application GUI. |
+| `opengl` | **Yes** | Enable OpenGL support in Carla's PyQt frontend when the relevant Qt frontend flag (`qt5` or `qt6`) is enabled. |
 | `osc` | No | Enable OSC (Open Sound Control) support via liblo for remote control capabilities. |
 | `pulseaudio` | **Yes** | Enable PulseAudio audio driver support. |
-| `qt5` | No | Build the Qt5-based theme and enable Qt5 UI support. |
+| `qt5` | **Yes** on `-r2` | Build Carla's PyQt5 frontend (`carla`, `carla-rack`, `carla-patchbay`, `carla-settings`) and Qt5-based theme support. |
+| `qt6` | **Yes** on `-r99` | Build Carla's experimental PyQt6 frontend and Qt6-based theme support on the fixed snapshot ebuild. |
 | `rdf` | No | Enable RDF (Resource Description Framework) support via rdflib for enhanced LV2 plugin metadata. |
 | `sf2` | **Yes** | Enable SoundFont2 support via FluidSynth for SF2/SF3 instrument playback. |
 | `sndfile` | No | Enable audio file loading support via libsndfile. |
 | `wine` | No | Build Windows 64-bit bridge (`carla-bridge-win64.exe`) for running 64-bit Windows VST plugins via Wine. Requires `dev-util/mingw64-toolchain`. |
 | `wine32` | No | Build Windows 32-bit bridge (`carla-bridge-win32.exe`) for running 32-bit Windows VST plugins via Wine. Requires `dev-util/mingw64-toolchain[abi_x86_32]`. |
 | `X` | **Yes** | Enable X11 support for plugin UIs. |
+
+## How the Qt frontend flags and `gtk` relate
+
+In this package, the Qt frontend flag (`qt5` on `-r2`, `qt6` on `-r99`) and `gtk` are not competing "pick one toolkit" options.
+They control different parts of Carla:
+
+- `qt5` or `qt6` enables Carla's own Python/Qt frontend, meaning the main desktop applications such as `carla`, `carla-rack`, `carla-patchbay`, and `carla-settings`.
+- `gtk` enables GTK+ 3 LV2 UI bridge support, which is used for plugins whose own UIs are GTK-based.
+
+That means a user may reasonably want **both** enabled:
+
+- `qt5`/`qt6` for Carla's main GUI
+- `gtk` for GTK-based plugin UIs inside bridges
+
+Common combinations:
+
+- `qt5 gtk` or `qt6 gtk`: Carla's main GUI plus GTK plugin UI bridge support
+- `qt5 -gtk` or `qt6 -gtk`: Carla's main GUI, but no GTK LV2 UI bridge support
+- `-qt5 gtk` or `-qt6 gtk`: no main Carla Qt frontend, but still build GTK UI bridge support for plugins
+- `-qt5 -gtk` or `-qt6 -gtk`: no main Carla Qt frontend and no GTK UI bridge support
+
+So disabling the Qt frontend flag does **not** mean "build the GTK frontend instead". It means Carla skips its PyQt frontend; `gtk` only controls GTK plugin UI bridge support.
 
 ## Plugin Bridges
 

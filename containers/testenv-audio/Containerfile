@@ -70,6 +70,9 @@ dev-util/mingw64-toolchain abi_x86_32
 media-sound/fluidsynth jack ladspa
 net-libs/webkit-gtk X
 
+dev-python/pyqt6 gui opengl svg widgets
+dev-qt/qtbase:6 gui widgets
+
 # === Multilib X11/XCB ===
 x11-libs/libX11 abi_x86_32
 x11-libs/libxcb abi_x86_32
@@ -334,13 +337,14 @@ RUN emerge --oneshot --quiet-build \
     media-video/ffmpeg
 
 # -------------------------------------------------------------------
-# Layer 3: PyQt5, WebKit-GTK, and Python tools
+# Layer 3: PyQt6, Qt6, WebKit-GTK, and Python tools
 #
-# Heavy layer — WebKit and Qt5 are large builds. Cached
+# Heavy layer — WebKit and Qt6 are large builds. Cached
 # independently so Wine rebuilds don't re-trigger them.
 # -------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build \
-    dev-python/pyqt5 \
+    dev-python/pyqt6 \
+    dev-qt/qtbase:6 \
     dev-python/rdflib \
     net-libs/webkit-gtk:4.1
 
