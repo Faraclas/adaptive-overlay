@@ -5,7 +5,7 @@ way to use Windows VST2, VST3, and CLAP audio plugins on Linux.
 
 ## Package Information
 
-- **Version**: 5.1.1
+- **Version**: 5.1.2-r1 (master snapshot)
 - **Homepage**: https://github.com/robbert-vdh/yabridge
 - **License**: GPL-3
 
@@ -16,9 +16,9 @@ from the binary `yabridge-bin` package by compiling everything locally.
 
 ## USE Flags
 
-- `bitbridge` (enabled by default): Build 32-bit plugin host to support legacy
-32-bit Windows plugins in 64-bit Linux hosts. Note that this requires Wine to be
-built with 32-bit support and is not compatible with Wine's new WoW64 mode.
+- `bitbridge`: Build the 32-bit plugin host to support legacy 32-bit
+Windows plugins in 64-bit Linux hosts. This requires Wine to be built with
+32-bit support and is not compatible with Wine's new WoW64 mode.
 
 ## Dependencies
 

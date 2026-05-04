@@ -39,7 +39,7 @@
     "version_pattern": "(.*)",
     "repackage": false,
     "auto_upgrade": false,
-    "notes": "Current ebuild (5.1.2) tracks a development branch by commit SHA rather than a release tag due to Wine 10 embedding fixes. Version checking against release tags will lag behind actual ebuild state until a stable release incorporates the fixes."
+    "notes": "Current ebuild (5.1.2-r1) tracks upstream master by commit SHA until a stable release newer than 5.1.1 is tagged. Version checking against release tags will lag behind the actual ebuild state until that happens."
   },
   {
     "category": "media-sound",

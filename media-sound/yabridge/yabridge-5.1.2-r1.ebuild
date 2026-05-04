@@ -3,118 +3,118 @@
 
 EAPI=8
 
-# This ebuild builds from the new-wine10-embedding branch which contains
-# fixes for Wine 9.22+ and Wine 10 GUI embedding issues.
+# This ebuild tracks upstream master by commit SHA after the Wine 9.22+/10+/11
+# GUI embedding fixes were merged from the new-wine10-embedding branch.
 # Tracking issue: https://github.com/robbert-vdh/yabridge/issues/409
-# Development branch: https://github.com/robbert-vdh/yabridge/tree/new-wine10-embedding
+# Upstream branch: https://github.com/robbert-vdh/yabridge/tree/master
 
-# Commit SHA for new-wine10-embedding branch (2026-01-11)
-COMMIT="945528cd7f898d717d772b93f939343dad122d91"
+# Commit SHA for upstream master (2026-04-28)
+COMMIT="48ea9749b682c48875366134a42073d6b3d0a8c4"
 
 CRATES="
-	anstream-0.3.2
-	anstyle-1.0.1
-	anstyle-parse-0.2.1
-	anstyle-query-1.0.0
-	anstyle-wincon-1.0.2
-	anyhow-1.0.72
-	autocfg-1.1.0
-	bitflags-1.3.2
-	bitflags-2.4.0
-	cc-1.0.82
-	cfg-if-1.0.0
-	clap-4.3.21
-	clap_builder-4.3.21
-	clap_derive-4.3.12
-	clap_lex-0.5.0
-	clipboard-win-4.5.0
-	colorchoice-1.0.0
-	colored-2.0.4
-	crossbeam-channel-0.5.8
-	crossbeam-deque-0.8.3
-	crossbeam-epoch-0.9.15
-	crossbeam-utils-0.8.16
-	dirs-next-2.0.0
-	dirs-sys-next-0.1.2
-	either-1.9.0
-	endian-type-0.1.2
-	errno-0.3.2
-	errno-dragonfly-0.1.2
-	error-code-2.3.1
-	fd-lock-3.0.13
-	getrandom-0.2.10
-	goblin-0.6.1
-	heck-0.4.1
-	hermit-abi-0.3.2
-	io-lifetimes-1.0.11
-	is_executable-1.0.1
-	is-terminal-0.4.9
-	itoa-0.4.8
-	lazy_static-1.4.0
-	libc-0.2.147
-	libloading-0.7.4
-	linux-raw-sys-0.3.8
-	linux-raw-sys-0.4.5
-	log-0.4.20
-	memchr-2.5.0
-	memoffset-0.6.5
-	memoffset-0.9.0
-	nibble_vec-0.1.0
-	nix-0.23.2
-	num_cpus-1.16.0
-	once_cell-1.18.0
-	plain-0.2.3
-	proc-macro2-1.0.66
-	promptly-0.3.1
-	quote-1.0.32
-	radix_trie-0.2.1
-	rayon-1.7.0
-	rayon-core-1.11.0
-	redox_syscall-0.2.16
-	redox_users-0.4.3
-	rustix-0.37.23
-	rustix-0.38.8
-	rustyline-9.1.2
-	ryu-0.2.8
-	same-file-1.0.6
-	scopeguard-1.2.0
-	scroll-0.11.0
-	scroll_derive-0.11.1
-	serde-1.0.183
-	serde_derive-1.0.183
-	serde_jsonrc-0.1.0
-	smallvec-1.11.0
-	smawk-0.3.1
-	str-buf-1.0.6
-	strsim-0.10.0
-	syn-2.0.28
-	terminal_size-0.2.6
-	textwrap-0.16.0
-	thiserror-1.0.44
-	thiserror-impl-1.0.44
-	toml-0.5.11
-	unicode-ident-1.0.11
-	unicode-linebreak-0.1.5
-	unicode-segmentation-1.10.1
-	unicode-width-0.1.10
-	utf8parse-0.2.1
-	walkdir-2.3.3
-	wasi-0.11.0+wasi-snapshot-preview1
-	which-4.4.0
-	winapi-0.3.9
-	winapi-i686-pc-windows-gnu-0.4.0
-	winapi-util-0.1.5
-	winapi-x86_64-pc-windows-gnu-0.4.0
-	windows_aarch64_gnullvm-0.48.0
-	windows_aarch64_msvc-0.48.0
-	windows_i686_gnu-0.48.0
-	windows_i686_msvc-0.48.0
-	windows-sys-0.48.0
-	windows-targets-0.48.1
-	windows_x86_64_gnu-0.48.0
-	windows_x86_64_gnullvm-0.48.0
-	windows_x86_64_msvc-0.48.0
-	xdg-2.5.2
+	anstream@0.3.2
+	anstyle@1.0.1
+	anstyle-parse@0.2.1
+	anstyle-query@1.0.0
+	anstyle-wincon@1.0.2
+	anyhow@1.0.72
+	autocfg@1.1.0
+	bitflags@1.3.2
+	bitflags@2.4.0
+	cc@1.0.82
+	cfg-if@1.0.0
+	clap@4.3.21
+	clap_builder@4.3.21
+	clap_derive@4.3.12
+	clap_lex@0.5.0
+	clipboard-win@4.5.0
+	colorchoice@1.0.0
+	colored@2.0.4
+	crossbeam-channel@0.5.8
+	crossbeam-deque@0.8.3
+	crossbeam-epoch@0.9.15
+	crossbeam-utils@0.8.16
+	dirs-next@2.0.0
+	dirs-sys-next@0.1.2
+	either@1.9.0
+	endian-type@0.1.2
+	errno@0.3.2
+	errno-dragonfly@0.1.2
+	error-code@2.3.1
+	fd-lock@3.0.13
+	getrandom@0.2.10
+	goblin@0.6.1
+	heck@0.4.1
+	hermit-abi@0.3.2
+	io-lifetimes@1.0.11
+	is_executable@1.0.1
+	is-terminal@0.4.9
+	itoa@0.4.8
+	lazy_static@1.4.0
+	libc@0.2.147
+	libloading@0.7.4
+	linux-raw-sys@0.3.8
+	linux-raw-sys@0.4.5
+	log@0.4.20
+	memchr@2.5.0
+	memoffset@0.6.5
+	memoffset@0.9.0
+	nibble_vec@0.1.0
+	nix@0.23.2
+	num_cpus@1.16.0
+	once_cell@1.18.0
+	plain@0.2.3
+	proc-macro2@1.0.66
+	promptly@0.3.1
+	quote@1.0.32
+	radix_trie@0.2.1
+	rayon@1.7.0
+	rayon-core@1.11.0
+	redox_syscall@0.2.16
+	redox_users@0.4.3
+	rustix@0.37.23
+	rustix@0.38.8
+	rustyline@9.1.2
+	ryu@0.2.8
+	same-file@1.0.6
+	scopeguard@1.2.0
+	scroll@0.11.0
+	scroll_derive@0.11.1
+	serde@1.0.183
+	serde_derive@1.0.183
+	serde_jsonrc@0.1.0
+	smallvec@1.11.0
+	smawk@0.3.1
+	str-buf@1.0.6
+	strsim@0.10.0
+	syn@2.0.28
+	terminal_size@0.2.6
+	textwrap@0.16.0
+	thiserror@1.0.44
+	thiserror-impl@1.0.44
+	toml@0.5.11
+	unicode-ident@1.0.11
+	unicode-linebreak@0.1.5
+	unicode-segmentation@1.10.1
+	unicode-width@0.1.10
+	utf8parse@0.2.1
+	walkdir@2.3.3
+	wasi@0.11.0+wasi-snapshot-preview1
+	which@4.4.0
+	winapi@0.3.9
+	winapi-i686-pc-windows-gnu@0.4.0
+	winapi-util@0.1.5
+	winapi-x86_64-pc-windows-gnu@0.4.0
+	windows_aarch64_gnullvm@0.48.0
+	windows_aarch64_msvc@0.48.0
+	windows_i686_gnu@0.48.0
+	windows_i686_msvc@0.48.0
+	windows-sys@0.48.0
+	windows-targets@0.48.1
+	windows_x86_64_gnu@0.48.0
+	windows_x86_64_gnullvm@0.48.0
+	windows_x86_64_msvc@0.48.0
+	xdg@2.5.2
 "
 
 inherit meson cargo
@@ -122,19 +122,26 @@ inherit meson cargo
 DESCRIPTION="A modern and transparent way to use Windows VST2, VST3 and CLAP plugins on Linux"
 HOMEPAGE="https://github.com/robbert-vdh/yabridge"
 SRC_URI="
-	https://github.com/robbert-vdh/yabridge/archive/${COMMIT}.tar.gz -> ${P}-wine10-embedding.tar.gz
+	https://github.com/robbert-vdh/yabridge/archive/${COMMIT}.tar.gz -> ${P}-master-snapshot.tar.gz
 	https://github.com/chriskohlhoff/asio/archive/ed6aa8a13d51dfc6c00ae453fc9fb7df5d6ea963.tar.gz -> asio-1.34.2.tar.gz
 	https://github.com/fraillt/bitsery/archive/d1a47e06e2104b195a19c73b61f1d5c1dceaa228.tar.gz -> bitsery-5.2.3.tar.gz
 	https://github.com/free-audio/clap/archive/094bb76c85366a13cc6c49292226d8608d6ae50c.tar.gz -> clap-1.1.9.tar.gz
 	https://github.com/Naios/function2/archive/9e303865d14f1204f09379e37bbeb30c4375139a.tar.gz -> function2-4.2.3.tar.gz
-	https://github.com/gulrak/filesystem/archive/8a2edd6d92ed820521d42c94d179462bf06b5ed3.tar.gz -> ghc_filesystem-1.5.14.tar.gz
-	https://github.com/marzer/tomlplusplus/archive/30172438cee64926dc41fdd9c11fb3ba5b2ba9de.tar.gz -> tomlplusplus-3.4.0.tar.gz
-	https://github.com/robbert-vdh/vst3sdk/archive/refs/tags/v3.7.7_build_19-patched.tar.gz -> vst3sdk-3.7.7_build_19-patched.tar.gz
-	https://github.com/steinbergmedia/vst3_base/archive/ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz -> vst3_base-ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz
-	https://github.com/steinbergmedia/vst3_pluginterfaces/archive/bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz -> vst3_pluginterfaces-bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz
-	https://github.com/steinbergmedia/vst3_public_sdk/archive/bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz -> vst3_public_sdk-bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz
-	https://github.com/nicokoch/reflink/archive/e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz -> reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz
-	$(cargo_crate_uris)
+	https://github.com/gulrak/filesystem/archive/8a2edd6d92ed820521d42c94d179462bf06b5ed3.tar.gz
+		-> ghc_filesystem-1.5.14.tar.gz
+	https://github.com/marzer/tomlplusplus/archive/30172438cee64926dc41fdd9c11fb3ba5b2ba9de.tar.gz
+		-> tomlplusplus-3.4.0.tar.gz
+	https://github.com/robbert-vdh/vst3sdk/archive/refs/tags/v3.7.7_build_19-patched.tar.gz
+		-> vst3sdk-3.7.7_build_19-patched.tar.gz
+	https://github.com/steinbergmedia/vst3_base/archive/ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz
+		-> vst3_base-ea2bac9a109cce69ced21833fa6ff873dd6e368a.tar.gz
+	https://github.com/steinbergmedia/vst3_pluginterfaces/archive/bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz
+		-> vst3_pluginterfaces-bc5ff0f87aaa3cd28c114810f4f03c384421ad2c.tar.gz
+	https://github.com/steinbergmedia/vst3_public_sdk/archive/bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz
+		-> vst3_public_sdk-bbb0538535b171e805c8a8b612c2cd8a5f95738b.tar.gz
+	https://github.com/nicokoch/reflink/archive/e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz
+		-> reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2.tar.gz
+	${CARGO_CRATE_URIS}
 "
 
 # Source directory uses commit hash instead of version
@@ -143,7 +150,7 @@ S="${WORKDIR}/yabridge-${COMMIT}"
 LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="+bitbridge"
+IUSE="bitbridge"
 
 DEPEND="
 	>=sys-devel/gcc-10
@@ -234,9 +241,10 @@ src_prepare() {
 
 	# Patch yabridgectl's Cargo.toml to use local path for reflink instead of git
 	# The cargo eclass doesn't handle git dependencies well in offline mode
+	local reflink_path="${WORKDIR}/reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2"
 	cd "${S}/tools/yabridgectl" || die
 	sed -i \
-		-e 's|reflink = { git = "https://github.com/nicokoch/reflink", rev = "e8d93b465f5d9ad340cd052b64bbc77b8ee107e2" }|reflink = { path = "'"${WORKDIR}"'/reflink-e8d93b465f5d9ad340cd052b64bbc77b8ee107e2" }|' \
+		-e '/^reflink = { git = /c\reflink = { path = "'"${reflink_path}"'" }' \
 		Cargo.toml || die "Failed to patch Cargo.toml for reflink dependency"
 	cd "${S}" || die
 }
@@ -290,17 +298,16 @@ src_install() {
 
 pkg_postinst() {
 	#      12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	ewarn "This is a DEVELOPMENT BUILD from the new-wine10-embedding branch."
-	ewarn "It includes experimental fixes for Wine 9.22+ and Wine 10 GUI embedding."
+	ewarn "This is a SNAPSHOT BUILD tracking upstream master by commit SHA."
+	ewarn "It includes the Wine 9.22+/10+/11 GUI embedding fixes merged after 5.1.1."
 	ewarn ""
-	ewarn "Known issues with this branch:"
-	ewarn "  - Plugin client area may be cropped when using DPI scaling"
-	ewarn "  - Cursor positions may still be offset in some hosts/desktop environments"
-	ewarn "  - Moving the plugin window slightly can work around offset issues"
+	ewarn "Remaining issues may still exist with some plugin, host, Wine, or"
+	ewarn "desktop-environment combinations. See the tracking issue for current"
+	ewarn "status and known regressions:"
+	ewarn "  https://github.com/robbert-vdh/yabridge/issues/409"
 	ewarn ""
-	ewarn "For stable usage with Wine 9.21 or earlier, use yabridge-5.1.1 instead."
-	ewarn ""
-	ewarn "Tracking issue: https://github.com/robbert-vdh/yabridge/issues/409"
+	ewarn "If you already have a stable Wine 9.21 + yabridge-5.1.1 setup, that"
+	ewarn "remains a conservative fallback while upstream works towards a new tag."
 	einfo ""
 	einfo "To set up yabridge for your Windows plugins:"
 	einfo ""
