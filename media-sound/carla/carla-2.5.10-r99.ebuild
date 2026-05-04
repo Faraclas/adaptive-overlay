@@ -143,10 +143,13 @@ src_compile() {
 
 		# Build the Windows 32-bit bridge using mingw cross-compiler
 		# Unset LDFLAGS - MinGW doesn't understand Gentoo hardening flags (-z relro, etc.)
+		# Force HAVE_X11=false for the Windows target so the cross-build does not
+		# try to include native Linux X11 headers.
 		einfo "Building Windows 32-bit bridge (win32)..."
 		LDFLAGS="" emake \
 			PREFIX="/usr" \
 			"${myemakeargs[@]}" \
+			HAVE_X11=false \
 			AR=i686-w64-mingw32-ar \
 			CC=i686-w64-mingw32-gcc \
 			CXX=i686-w64-mingw32-g++ \
@@ -162,10 +165,13 @@ src_compile() {
 
 		# Build the Windows 64-bit bridge using mingw cross-compiler
 		# Unset LDFLAGS - MinGW doesn't understand Gentoo hardening flags (-z relro, etc.)
+		# Force HAVE_X11=false for the Windows target so the cross-build does not
+		# try to include native Linux X11 headers.
 		einfo "Building Windows 64-bit bridge (win64)..."
 		LDFLAGS="" emake \
 			PREFIX="/usr" \
 			"${myemakeargs[@]}" \
+			HAVE_X11=false \
 			AR=x86_64-w64-mingw32-ar \
 			CC=x86_64-w64-mingw32-gcc \
 			CXX=x86_64-w64-mingw32-g++ \

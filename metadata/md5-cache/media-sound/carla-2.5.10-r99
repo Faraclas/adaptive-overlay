@@ -14,4 +14,4 @@ REQUIRED_USE=^^ ( python_single_target_python3_11 python_single_target_python3_1
 SLOT=0
 SRC_URI=https://github.com/falkTX/Carla/archive/97a9e0740baf6df2df942495c02532a624c44682.tar.gz -> carla-2.5.10-r99.tar.gz
 _eclasses_=eapi9-pipestatus	d2c134036ac31c3085aebc9147f572bd	multiprocessing	d4511f019dc17ec44bfe46b9e672ca64	toolchain-funcs	5195689ff6a73b0e789acfa09d4fbcb9	python-utils-r1	9c4180f103a0e8340bc993fc85dbdadd	python-single-r1	47d8ac9be330c9366112b78fd4f8ce57	xdg-utils	42869b3c8d86a70ef3cf75165a395e09	xdg	3ef49a87c52c8b77c476351195dfe575
-_md5_=57bb6a9811bc6847aa49ca15967479fb
+_md5_=24b19cf75ca40efc588d10723ce2d554
