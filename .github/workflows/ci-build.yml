@@ -169,7 +169,7 @@ jobs:
             # sort by version, take the highest.
             OLD_EBUILD=$(git ls-tree --name-only "${BASE}" -- "${PKG_DIR}/" \
               | grep '\.ebuild$' \
-              | grep -v "^${NEW_BASENAME}$" \
+              | grep -v "/${NEW_BASENAME}$" \
               | sort -V \
               | tail -1 || true)
 
@@ -178,8 +178,8 @@ jobs:
               continue
             fi
 
-            OLD_PATH="${PKG_DIR}/${OLD_EBUILD}"
-            OLD_BASENAME="${OLD_EBUILD}"
+            OLD_PATH="${OLD_EBUILD}"
+            OLD_BASENAME=$(basename "${OLD_EBUILD}")
 
             echo "Diffing: ${OLD_PATH} (base) -> ${NEW_EBUILD} (head)"
 
