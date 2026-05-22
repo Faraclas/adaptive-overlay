@@ -61,7 +61,7 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
         >> /etc/portage/package.accept_keywords/zed && \
     printf '# rust-bin: accept ~amd64 for minimum required version\n' \
         >> /etc/portage/package.accept_keywords/zed && \
-    printf '=dev-lang/rust-bin-1.93.0 ~amd64\n' \
+    printf '=dev-lang/rust-bin-1.95.0 ~amd64\n' \
         >> /etc/portage/package.accept_keywords/zed
 
 # -----------------------------------------------------------------------
@@ -89,7 +89,7 @@ RUN emerge --oneshot --quiet-build \
     llvm-core/llvm-toolchain-symlinks:21 \
     llvm-core/llvmgold \
     media-fonts/dejavu \
-    dev-lang/rust-bin:1.93.0 \
+    dev-lang/rust-bin:1.95.0 \
     sys-apps/lsb-release \
     app-eselect/eselect-rust \
     virtual/libelf \
