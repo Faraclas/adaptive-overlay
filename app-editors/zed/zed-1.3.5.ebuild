@@ -75,8 +75,8 @@ declare -A GIT_CRATES=(
 	[zed-xim]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%'
 )
 
-LLVM_COMPAT=( 21 )
-RUST_MIN_VER="1.93.0"
+LLVM_COMPAT=( 22 )
+RUST_MIN_VER="1.95.0"
 RUST_NEEDS_LLVM=1
 WEBRTC_COMMIT="24f6822-3"
 
