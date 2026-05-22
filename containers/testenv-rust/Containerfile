@@ -62,6 +62,12 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
     printf '# rust-bin: accept ~amd64 for minimum required version\n' \
         >> /etc/portage/package.accept_keywords/zed && \
     printf '=dev-lang/rust-bin-1.95.0 ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf '# LLVM 22: accept ~amd64 for all LLVM toolchain packages\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf 'llvm-core/* ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf 'llvm-runtimes/* ~amd64\n' \
         >> /etc/portage/package.accept_keywords/zed
 
 # -----------------------------------------------------------------------
@@ -80,13 +86,13 @@ RUN emerge --oneshot --quiet-build \
     dev-util/desktop-file-utils \
     x11-misc/shared-mime-info \
     dev-libs/glib \
-    llvm-core/clang:21 \
-    llvm-runtimes/clang-runtime:21 \
-    llvm-runtimes/compiler-rt-sanitizers:21 \
-    llvm-runtimes/compiler-rt:21 \
-    llvm-core/clang-toolchain-symlinks:21 \
-    llvm-core/llvm:21 \
-    llvm-core/llvm-toolchain-symlinks:21 \
+    llvm-core/clang:22 \
+    llvm-runtimes/clang-runtime:22 \
+    llvm-runtimes/compiler-rt-sanitizers:22 \
+    llvm-runtimes/compiler-rt:22 \
+    llvm-core/clang-toolchain-symlinks:22 \
+    llvm-core/llvm:22 \
+    llvm-core/llvm-toolchain-symlinks:22 \
     llvm-core/llvmgold \
     media-fonts/dejavu \
     dev-lang/rust-bin:1.95.0 \
@@ -137,14 +143,14 @@ RUN emerge --oneshot --quiet-build \
     dev-python/olefile \
     dev-python/pygments \
     app-text/xmlto \
-    llvm-runtimes/clang-unwindlib-config:21 \
+    llvm-runtimes/clang-unwindlib-config:22 \
     llvm-runtimes/openmp \
     llvm-core/llvm-common \
     dev-util/vulkan-tools \
     dev-libs/mimalloc \
-    llvm-runtimes/clang-stdlib-config:21 \
-    llvm-runtimes/clang-rtlib-config:21 \
-    llvm-core/clang-linker-config:21 \
+    llvm-runtimes/clang-stdlib-config:22 \
+    llvm-runtimes/clang-rtlib-config:22 \
+    llvm-core/clang-linker-config:22 \
     dev-util/vulkan-headers \
     x11-base/xorg-proto \
     app-arch/zstd \

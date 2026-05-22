@@ -51,7 +51,7 @@ declare -A GIT_CRATES=(
 	[pet-windows-store]='https://github.com/microsoft/python-environment-tools;9e61a22af989fe54937bf07c9f9cff1bc53d9056;python-environment-tools-%commit%/crates/pet-windows-store'
 	[pet]='https://github.com/microsoft/python-environment-tools;9e61a22af989fe54937bf07c9f9cff1bc53d9056;python-environment-tools-%commit%/crates/pet'
 	[proptest]='https://github.com/proptest-rs/proptest;3dca198a8fef1b32e3a66f1e1897c955b4dc5b5b;proptest-%commit%/proptest'
-	[mermaid-rs-renderer]='https://github.com/zed-industries/mermaid-rs-renderer;374db9ead5426697c6c2111151d9f246899bc638;mermaid-rs-renderer-%commit%'
+	[mermaid-rs-renderer]='https://github.com/zed-industries/mermaid-rs-renderer;782b89a7da3f0e91e51f98d00a93acba679be6fb;mermaid-rs-renderer-%commit%'
 	[rodio]='https://github.com/RustAudio/rodio;e50e726ddd0292f6ef9de0dda6b90af4ed1fb66a;rodio-%commit%'
 	[trash]='https://github.com/zed-industries/trash-rs;3bf27effd4eb8699f2e484d3326b852fe3e53af7;trash-rs-%commit%'
 	[tree-sitter-cpp]='https://github.com/tree-sitter/tree-sitter-cpp;5cb9b693cfd7bfacab1d9ff4acac1a4150700609;tree-sitter-cpp-%commit%'
@@ -64,7 +64,7 @@ declare -A GIT_CRATES=(
 	[tree-sitter-yaml]='https://github.com/zed-industries/tree-sitter-yaml;baff0b51c64ef6a1fb1f8390f3ad6015b83ec13a;tree-sitter-yaml-%commit%'
 	[webrtc-sys-build]='https://github.com/zed-industries/livekit-rust-sdks;147fbca3d4b592d96d33f5e6a84b59fc0b5d9bf1;livekit-rust-sdks-%commit%/webrtc-sys/build'
 	[webrtc-sys]='https://github.com/zed-industries/livekit-rust-sdks;147fbca3d4b592d96d33f5e6a84b59fc0b5d9bf1;livekit-rust-sdks-%commit%/webrtc-sys'
-	[wgpu]='https://github.com/zed-industries/wgpu;a466bc382ea747f8e1ac810efdb6dcd49a514575;wgpu-%commit%/wgpu'
+	[wgpu]='https://github.com/zed-industries/wgpu;357a0c56e0070480ad9daea5d2eaa83150b79e88;wgpu-%commit%/wgpu'
 	[windows-capture]='https://github.com/zed-industries/windows-capture;f0d6c1b6691db75461b732f6d5ff56eed002eeb9;windows-capture-%commit%'
 	[wprcontrol]='https://github.com/zed-industries/wprcontrol;cd811f7d744f65291e13131b1d907fda63ed91a1;wprcontrol-%commit%'
 	[xim-ctext]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%/xim-ctext'
@@ -75,8 +75,8 @@ declare -A GIT_CRATES=(
 	[zed-xim]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%'
 )
 
-LLVM_COMPAT=( 21 )
-RUST_MIN_VER="1.93.0"
+LLVM_COMPAT=( 22 )
+RUST_MIN_VER="1.95.0"
 RUST_NEEDS_LLVM=1
 WEBRTC_COMMIT="24f6822-3"
 
@@ -195,7 +195,7 @@ src_prepare() {
 	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
 	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
 
-	local WGPU_COMMIT="a466bc382ea747f8e1ac810efdb6dcd49a514575"
+	local WGPU_COMMIT="357a0c56e0070480ad9daea5d2eaa83150b79e88"
 	local WGPU_GIT="wgpu = { git = \"https://github.com/zed-industries/wgpu.git\", branch = \"v29\""
 	local WGPU_PATH="wgpu = \\{ path = \"${WORKDIR}/wgpu-${WGPU_COMMIT}/wgpu\""
 
