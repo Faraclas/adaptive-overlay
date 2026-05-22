@@ -62,6 +62,12 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
     printf '# rust-bin: accept ~amd64 for minimum required version\n' \
         >> /etc/portage/package.accept_keywords/zed && \
     printf '=dev-lang/rust-bin-1.95.0 ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf '# LLVM 22: accept ~amd64 for all LLVM toolchain packages\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf 'llvm-core/* ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/zed && \
+    printf 'llvm-runtimes/* ~amd64\n' \
         >> /etc/portage/package.accept_keywords/zed
 
 # -----------------------------------------------------------------------
