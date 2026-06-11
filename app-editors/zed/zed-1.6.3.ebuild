@@ -6,7 +6,7 @@ CRATES="
 "
 
 declare -A GIT_CRATES=(
-	[alacritty_terminal]='https://github.com/zed-industries/alacritty;fcf32feacb367b75ec84dd40f041e4fd411d3cc1e56d67a09d049f9c0a300aae08d4f61e;alacritty-%commit%/alacritty_terminal'
+	[alacritty_terminal]='https://github.com/zed-industries/alacritty;fcf32feacb367b75ec84dd40f041e4fd411d3cc1;alacritty-%commit%/alacritty_terminal'
 	[async-pipe]='https://github.com/zed-industries/async-pipe-rs;82d00a04211cf4e1236029aa03e6b6ce2a74c553;async-pipe-rs-%commit%'
 	[async-task]='https://github.com/smol-rs/async-task;b4486cd71e4e94fbda54ce6302444de14f4d190e;async-task-%commit%'
 	[calloop]='https://github.com/zed-industries/calloop;eb6b4fd17b9af5ecc226546bdd04185391b3e265;calloop-%commit%'
@@ -78,7 +78,7 @@ declare -A GIT_CRATES=(
 LLVM_COMPAT=( 22 )
 RUST_MIN_VER="1.95.0"
 RUST_NEEDS_LLVM=1
-WEBRTC_COMMIT="sys/v0.3.34"
+WEBRTC_COMMIT="0001d84-4"
 
 inherit cargo check-reqs desktop flag-o-matic llvm-r1 xdg
 
@@ -88,11 +88,11 @@ SRC_URI="
 	https://github.com/zed-industries/zed/archive/refs/tags/v${PV/_/-}.tar.gz -> ${P}.tar.gz
 	https://github.com/gentoo-crate-dist/zed/releases/download/v${PV/_/-}/${P/_/-}-crates.tar.xz
 	amd64? (
-		https://github.com/livekit/rust-sdks/releases/download/webrtc-${WEBRTC_COMMIT}/webrtc-linux-x64-release.zip ->
+		https://github.com/zed-industries/livekit-rust-sdks/releases/download/webrtc-${WEBRTC_COMMIT}/webrtc-linux-x64-release.zip ->
 			webrtc-${WEBRTC_COMMIT}-linux-x64-release.zip
 	)
 	arm64? (
-		https://github.com/livekit/rust-sdks/releases/download/webrtc-${WEBRTC_COMMIT}/webrtc-linux-arm64-release.zip ->
+		https://github.com/zed-industries/livekit-rust-sdks/releases/download/webrtc-${WEBRTC_COMMIT}/webrtc-linux-arm64-release.zip ->
 			webrtc-${WEBRTC_COMMIT}-linux-arm64-release.zip
 	)
 	${CARGO_CRATE_URIS}"
