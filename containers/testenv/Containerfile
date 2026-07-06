@@ -1,41 +1,35 @@
-# Stage 1: portage tree snapshot
-FROM docker.io/gentoo/portage:latest AS portage
+# Base build/test environment for adaptive-overlay
+#
+# Provides a disposable Gentoo container with the overlay tooling
+# needed to lint, manifest, and build-test ebuilds without touching
+# the host system. Downstream images (testenv-rust, testenv-audio)
+# layer on top of this one to add package-family-specific
+# dependencies.
 
-# Stage 2: our test environment
-#
-# Use the official desktop-systemd stage3 which ships with:
-#   - systemd (not openrc)
-#   - default/linux/amd64/23.0/desktop/systemd profile
-#   - Desktop dependencies pre-installed
-#
-# This avoids the painful openrc→systemd migration that the
-# generic stage3:latest required (circular deps, blockers).
+FROM docker.io/gentoo/portage:latest AS portage
 FROM docker.io/gentoo/stage3:amd64-desktop-systemd
 
-# Copy the portage tree from the portage image
 COPY --from=portage /var/db/repos/gentoo /var/db/repos/gentoo
 
-# Disable sandbox features that fail in rootless containers
+# Containers commonly lack the kernel features Portage's sandboxing
+# relies on (user namespaces, network namespaces, etc.), so disable
+# it here rather than fighting it per-build.
 RUN mkdir -p /etc/portage && \
     printf 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\n' \
     >> /etc/portage/make.conf
 
+# Hold dev-libs/glib below 2.88 until the desktop-systemd stage3's
+# already-installed GNOME/accessibility stack (gdbus-codegen,
+# gobject-introspection, pango, gtk+, at-spi2-core, etc.) is
+# deliberately upgraded in lockstep. glib-2.88 went stable upstream
+# and requires newer gdbus-codegen/gobject-introspection than the
+# stage3 image ships with, which otherwise blocks any --oneshot
+# install that touches dev-libs/glib.
+RUN mkdir -p /etc/portage/package.mask && \
+    printf '# Hold glib below 2.88 pending a deliberate desktop-stack upgrade\n' \
+        > /etc/portage/package.mask/glib && \
+    printf '>=dev-libs/glib-2.88\n' \
+        >> /etc/portage/package.mask/glib
+
 # Install overlay tooling
 RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
-
-# Create the overlay mount point
-RUN mkdir -p /var/db/repos/adaptive-overlay
-
-# Tell portage about both repos.
-# When /etc/portage/repos.conf/ exists as a directory, portage ignores the
-# system default at /usr/share/portage/config/repos.conf entirely, so we
-# must declare the gentoo repo here explicitly alongside our overlay.
-RUN mkdir -p /etc/portage/repos.conf && \
-    printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nauto-sync = no\n' \
-    > /etc/portage/repos.conf/gentoo.conf && \
-    printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nauto-sync = no\n' \
-    > /etc/portage/repos.conf/adaptive-overlay.conf
-
-# Bake in overlay metadata and profiles so portage recognises the overlay
-COPY metadata/ /var/db/repos/adaptive-overlay/metadata/
-COPY profiles/ /var/db/repos/adaptive-overlay/profiles/
