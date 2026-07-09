@@ -54,6 +54,11 @@ jobs:
           # it with a symlink to the checked-out source tree.
           rm -rf /var/db/repos/adaptive-overlay
           ln -s "${GITHUB_WORKSPACE}/overlay" /var/db/repos/adaptive-overlay
+          # Ensure portage and pkgcheck can locate the overlay by name.
+          # The image may not have this entry pre-configured.
+          mkdir -p /etc/portage/repos.conf
+          printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\n' \
+            > /etc/portage/repos.conf/adaptive-overlay.conf
 
       # pkgcheck exit codes:
       #   0 — no results, or only results below the --exit threshold

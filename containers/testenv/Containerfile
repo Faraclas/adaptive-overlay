@@ -31,5 +31,14 @@ RUN mkdir -p /etc/portage/package.mask && \
     printf '>=dev-libs/glib-2.88\n' \
         >> /etc/portage/package.mask/glib
 
+# Configure the adaptive-overlay repo location so that portage and
+# pkgcheck can find it by name ("-r adaptive-overlay").  In CI the
+# directory is replaced with a symlink to the checked-out source tree;
+# locally it is bind-mounted at this path.
+RUN mkdir -p /var/db/repos/adaptive-overlay && \
+    mkdir -p /etc/portage/repos.conf && \
+    printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\n' \
+    > /etc/portage/repos.conf/adaptive-overlay.conf
+
 # Install overlay tooling
 RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
