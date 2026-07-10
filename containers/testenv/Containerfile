@@ -31,5 +31,14 @@ RUN mkdir -p /etc/portage/package.mask && \
     printf '>=dev-libs/glib-2.88\n' \
         >> /etc/portage/package.mask/glib
 
+# Register both repositories. The stage3 image does not provide repos.conf,
+# while the Gentoo tree is copied above. Explicitly defining it lets Portage
+# resolve the overlay's `masters = gentoo` relationship in CI and locally.
+RUN mkdir -p /var/db/repos/adaptive-overlay /etc/portage/repos.conf && \
+    printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nauto-sync = no\n' \
+        > /etc/portage/repos.conf/gentoo.conf && \
+    printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nauto-sync = no\n' \
+        > /etc/portage/repos.conf/adaptive-overlay.conf
+
 # Install overlay tooling
 RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
