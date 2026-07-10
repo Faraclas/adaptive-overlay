@@ -54,10 +54,13 @@ jobs:
           # it with a symlink to the checked-out source tree.
           rm -rf /var/db/repos/adaptive-overlay
           ln -s "${GITHUB_WORKSPACE}/overlay" /var/db/repos/adaptive-overlay
-          # Ensure portage and pkgcheck can locate the overlay by name.
-          # The image may not have this entry pre-configured.
+          # The stage3 image does not provide repos.conf. Define both the
+          # copied Gentoo tree and this overlay so the masters relationship
+          # is valid even before a refreshed testenv image is published.
           mkdir -p /etc/portage/repos.conf
-          printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\n' \
+          printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nauto-sync = no\n' \
+            > /etc/portage/repos.conf/gentoo.conf
+          printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nauto-sync = no\n' \
             > /etc/portage/repos.conf/adaptive-overlay.conf
 
       # pkgcheck exit codes:
