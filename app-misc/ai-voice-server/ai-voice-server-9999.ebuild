@@ -16,7 +16,7 @@ IUSE="+client +server +vulkan +nvidia rocm"
 REQUIRED_USE="|| ( client server )"
 
 # Allow cargo to download dependencies during src_compile for 9999 live ebuilds
-RESTRICT="network-sandbox"
+PROPERTIES="live"
 
 DEPEND="
 	client? (
@@ -26,7 +26,7 @@ DEPEND="
 		media-video/pipewire
 	)
 	nvidia? (
-		>=dev-util/nvidia-cuda-toolkit-13.0
+		>=dev-util/nvidia-cuda-toolkit-12.0
 		x11-drivers/nvidia-drivers
 	)
 "
@@ -58,7 +58,7 @@ src_compile() {
 			cargo build --release --features rocm || die "Failed to build ROCm server"
 			mv target/release/server target/release/ai-voice-server-rocm || die
 		fi
-		
+
 		# Always build a pure CPU fallback if no GPU backend is explicitly requested
 		if ! use nvidia && ! use vulkan && ! use rocm; then
 			einfo "Building Server (Pure CPU)..."
@@ -84,28 +84,25 @@ src_install() {
 		if ! use nvidia && ! use vulkan && ! use rocm; then
 			dobin "${S}/src/server/target/release/ai-voice-server-cpu"
 		fi
-		
 		# Install the wrapper script as the primary entrypoint
 		exeinto /usr/bin
 		newexe "${S}/packaging/ai-voice-server.sh" ai-voice-server
 
 		# Install systemd service and config
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
-		
-		insinto /etc/conf.d
-		newins "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
+		newconfd "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
 	fi
 
 	if use client; then
 		# Install main client (renaming from 'daemon' to 'ai-voice-client')
 		newbin "${S}/src/client/target/release/daemon" ai-voice-client
-		
+
 		# Install plugin
 		dobin "${S}/src/client/target/release/interception_plugin"
-		
+
 		# Install systemd user service
 		systemd_douserunit "${S}/packaging/systemd/ai-voice-client.service"
-		
+
 		# Install udevmon config
 		insinto /etc/interception/udevmon.d
 		doins "${S}/packaging/systemd/udevmon.yaml"
