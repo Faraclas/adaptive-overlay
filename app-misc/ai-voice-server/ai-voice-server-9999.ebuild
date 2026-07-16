@@ -3,6 +3,7 @@
 
 EAPI=8
 
+RUST_MIN_VER="1.85.0"
 inherit cargo git-r3 systemd
 
 DESCRIPTION="A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline"
@@ -90,7 +91,8 @@ src_install() {
 
 		# Install systemd service and config
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
-		newconfd "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
+		insinto /etc/default
+		newins "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
 	fi
 
 	if use client; then
