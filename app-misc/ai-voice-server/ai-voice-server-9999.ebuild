@@ -33,38 +33,49 @@ DEPEND="
 "
 RDEPEND="${DEPEND}"
 
+
+
 src_unpack() {
 	git-r3_src_unpack
+
+	# Fetch cargo dependencies while the network sandbox is open
+	if use server; then
+		cd "${S}/src/server" || die
+		cargo fetch || die
+	fi
+	
+	if use client; then
+		cd "${S}/src/client" || die
+		cargo fetch || die
+	fi
 }
 
 src_compile() {
 	if use server; then
+		cd "${S}/src/server" || die
+
 		if use nvidia; then
 			einfo "Building Server (CUDA)..."
-			cd "${S}/src/server" || die
-			cargo build --release --features nvidia || die "Failed to build CUDA server"
+			cargo build --release --offline --features nvidia || die "Failed to build CUDA server"
 			mv target/release/server target/release/ai-voice-server-cuda || die
 		fi
 
 		if use vulkan; then
 			einfo "Building Server (Vulkan)..."
-			cd "${S}/src/server" || die
-			cargo build --release --features vulkan || die "Failed to build Vulkan server"
+			cargo build --release --offline --features vulkan || die "Failed to build Vulkan server"
 			mv target/release/server target/release/ai-voice-server-vulkan || die
 		fi
 
 		if use rocm; then
 			einfo "Building Server (ROCm)..."
-			cd "${S}/src/server" || die
-			cargo build --release --features rocm || die "Failed to build ROCm server"
+			cargo build --release --offline --features rocm || die "Failed to build ROCm server"
 			mv target/release/server target/release/ai-voice-server-rocm || die
 		fi
 
 		# Always build a pure CPU fallback if no GPU backend is explicitly requested
 		if ! use nvidia && ! use vulkan && ! use rocm; then
 			einfo "Building Server (Pure CPU)..."
-			cd "${S}/src/server" || die
-			cargo build --release || die "Failed to build CPU server"
+			cargo build --release --offline || die "Failed to build CPU server"
 			mv target/release/server target/release/ai-voice-server-cpu || die
 		fi
 	fi
@@ -73,7 +84,7 @@ src_compile() {
 		einfo "Building Client and Plugins..."
 		cd "${S}/src/client" || die
 		# This workspace builds both 'daemon' and 'interception_plugin'
-		cargo build --release || die "Failed to build client"
+		cargo build --release --offline || die "Failed to build client"
 	fi
 }
 
