@@ -91,8 +91,7 @@ src_install() {
 
 		# Install systemd service and config
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
-		insinto /etc/default
-		newins "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
+		newconfd "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
 	fi
 
 	if use client; then
