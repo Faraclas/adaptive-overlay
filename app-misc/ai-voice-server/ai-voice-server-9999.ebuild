@@ -26,7 +26,7 @@ DEPEND="
 		media-video/pipewire
 	)
 	nvidia? (
-		>=dev-util/nvidia-cuda-toolkit-12.0
+		>=dev-util/nvidia-cuda-toolkit-13.0
 		x11-drivers/nvidia-drivers
 	)
 "
