@@ -58,6 +58,11 @@ src_unpack() {
 src_compile() {
 	if use server; then
 		cd "${S}/src/server" || die
+		
+		# Allow ggml's build script to query the GPU for the correct CUDA architecture
+		addpredict /dev/nvidiactl
+		addpredict /dev/nvidia-uvm
+		addpredict /dev/nvidia0
 
 		if use nvidia; then
 			einfo "Building Server (CUDA)..."
