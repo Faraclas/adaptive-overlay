@@ -9,17 +9,19 @@ inherit cargo git-r3 systemd
 DESCRIPTION="A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline"
 HOMEPAGE="https://github.com/Faraclas/ai-voice-server"
 EGIT_REPO_URI="https://github.com/Faraclas/ai-voice-server.git"
-SRC_URI="server? ( https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin -> small.en.bin )"
+SRC_URI="server? ( https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin -> ${P}-small.en.bin )"
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS=""
 IUSE="+client +server +vulkan +nvidia rocm"
 REQUIRED_USE="|| ( client server )"
 
-# Allow cargo to download dependencies during src_compile for 9999 live ebuilds
+# Allow cargo to download dependencies for live ebuilds
 PROPERTIES="live"
-RESTRICT="network-sandbox"
 
+BDEPEND="
+	client? ( virtual/pkgconfig )
+"
 DEPEND="
 	server? (
 		acct-group/aivoice
@@ -37,8 +39,6 @@ DEPEND="
 	)
 "
 RDEPEND="${DEPEND}"
-
-
 
 pkg_setup() {
 	if use nvidia && [[ -z "${CMAKE_CUDA_ARCHITECTURES}" ]]; then
@@ -63,19 +63,23 @@ src_unpack() {
 
 	# Fetch cargo dependencies while the network sandbox is open
 	if use server; then
-		cd "${S}/src/server" || die
+		pushd "${S}/src/server" >/dev/null || die
 		cargo fetch || die
+		popd >/dev/null || die
 	fi
 	
 	if use client; then
-		cd "${S}/src/client" || die
+		pushd "${S}/src/client" >/dev/null || die
 		cargo fetch || die
+		popd >/dev/null || die
 	fi
 }
 
 src_compile() {
+	local my_target_dir=$(cargo_target_dir)
+	
 	if use server; then
-		cd "${S}/src/server" || die
+		pushd "${S}/src/server" >/dev/null || die
 		
 		# Allow ggml's build script to query the GPU for the correct CUDA architecture
 		addpredict /dev/nvidiactl
@@ -86,47 +90,52 @@ src_compile() {
 			einfo "Building Server (CUDA) for architecture: ${CMAKE_CUDA_ARCHITECTURES}"
 			export CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}"
 			cargo build --release --offline --features nvidia || die "Failed to build CUDA server"
-			mv target/release/server target/release/ai-voice-server-cuda || die
+			mv "${my_target_dir}/server" "${my_target_dir}/ai-voice-server-cuda" || die
 		fi
 
 		if use vulkan; then
 			einfo "Building Server (Vulkan)..."
 			cargo build --release --offline --features vulkan || die "Failed to build Vulkan server"
-			mv target/release/server target/release/ai-voice-server-vulkan || die
+			mv "${my_target_dir}/server" "${my_target_dir}/ai-voice-server-vulkan" || die
 		fi
 
 		if use rocm; then
 			einfo "Building Server (ROCm)..."
 			cargo build --release --offline --features rocm || die "Failed to build ROCm server"
-			mv target/release/server target/release/ai-voice-server-rocm || die
+			mv "${my_target_dir}/server" "${my_target_dir}/ai-voice-server-rocm" || die
 		fi
-		# Always build a pure CPU fallback if no GPU backend is explicitly requested
+		
 		if ! use nvidia && ! use vulkan && ! use rocm; then
 			einfo "Building Server (Pure CPU)..."
 			cargo build --release --offline || die "Failed to build CPU server"
-			mv target/release/server target/release/ai-voice-server-cpu || die
+			mv "${my_target_dir}/server" "${my_target_dir}/ai-voice-server-cpu" || die
 		fi
+		
+		popd >/dev/null || die
 	fi
 
 	if use client; then
 		einfo "Building Client and Plugins..."
-		cd "${S}/src/client" || die
+		pushd "${S}/src/client" >/dev/null || die
 		# This workspace builds both 'daemon' and 'interception_plugin'
 		cargo build --release --offline || die "Failed to build client"
+		popd >/dev/null || die
 	fi
 }
 
 src_install() {
+	local my_target_dir=$(cargo_target_dir)
+
 	if use server; then
-		use nvidia && dobin "${S}/src/server/target/release/ai-voice-server-cuda"
-		use vulkan && dobin "${S}/src/server/target/release/ai-voice-server-vulkan"
-		use rocm && dobin "${S}/src/server/target/release/ai-voice-server-rocm"
+		use nvidia && dobin "${my_target_dir}/ai-voice-server-cuda"
+		use vulkan && dobin "${my_target_dir}/ai-voice-server-vulkan"
+		use rocm && dobin "${my_target_dir}/ai-voice-server-rocm"
 		if ! use nvidia && ! use vulkan && ! use rocm; then
-			dobin "${S}/src/server/target/release/ai-voice-server-cpu"
+			dobin "${my_target_dir}/ai-voice-server-cpu"
 		fi
+		
 		# Install the wrapper script as the primary entrypoint
-		exeinto /usr/bin
-		newexe "${S}/packaging/ai-voice-server.sh" ai-voice-server
+		newbin "${S}/packaging/ai-voice-server.sh" ai-voice-server
 
 		# Install systemd service and config
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
@@ -134,16 +143,16 @@ src_install() {
 
 		# Install models and set ownership
 		insinto /var/lib/ai-voice-server/models
-		doins "${DISTDIR}/small.en.bin"
+		newins "${DISTDIR}/${P}-small.en.bin" small.en.bin
 		fowners -R aivoice:aivoice /var/lib/ai-voice-server
 	fi
 
 	if use client; then
 		# Install main client (renaming from 'daemon' to 'ai-voice-client')
-		newbin "${S}/src/client/target/release/daemon" ai-voice-client
+		newbin "${my_target_dir}/daemon" ai-voice-client
 
 		# Install plugin
-		dobin "${S}/src/client/target/release/interception_plugin"
+		dobin "${my_target_dir}/interception_plugin"
 
 		# Install systemd user service
 		systemd_douserunit "${S}/packaging/systemd/ai-voice-client.service"
