@@ -123,16 +123,26 @@ src_install() {
 }
 
 pkg_postinst() {
+	if use server; then
+		elog "====================================================================="
+		elog "To start the AI Voice Server locally, enable and start the service:"
+		elog ""
+		elog "  sudo systemctl enable --now ai-voice-server"
+		elog ""
+		elog "You can configure the server via /etc/conf.d/ai-voice-server"
+		elog "====================================================================="
+	fi
+
 	if use client; then
 		elog "====================================================================="
-		elog "To use the kernel-level dictation hotkey and auto-typing, you must"
-		elog "enable and start the required daemons on your system:"
+		elog "To use the AI Voice Client overlay and kernel-level dictation hotkeys,"
+		elog "you must enable and start the following three services:"
 		elog ""
 		elog "  sudo systemctl enable --now udevmon"
 		elog "  systemctl --user enable --now ydotool"
+		elog "  systemctl --user enable --now ai-voice-client"
 		elog ""
-		elog "The AI Voice Client overlay will start automatically on login via"
-		elog "the installed systemd user service (ai-voice-client.service)."
+		elog "The AI Voice Client overlay will now start automatically on login."
 		elog "====================================================================="
 	fi
 }
