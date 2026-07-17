@@ -126,9 +126,10 @@ pkg_postinst() {
 	if use client; then
 		elog "====================================================================="
 		elog "To use the kernel-level dictation hotkey and auto-typing, you must"
-		elog "enable and start the required root daemons on your system:"
+		elog "enable and start the required daemons on your system:"
 		elog ""
-		elog "  sudo systemctl enable --now udevmon ydotoold"
+		elog "  sudo systemctl enable --now udevmon"
+		elog "  systemctl --user enable --now ydotool"
 		elog ""
 		elog "The AI Voice Client overlay will start automatically on login via"
 		elog "the installed systemd user service (ai-voice-client.service)."
