@@ -77,12 +77,9 @@ src_compile() {
 			mv target/release/server target/release/ai-voice-server-rocm || die
 		fi
 
-		# Always build a pure CPU fallback if no GPU backend is explicitly requested
-		if ! use nvidia && ! use vulkan && ! use rocm; then
-			einfo "Building Server (Pure CPU)..."
-			cargo build --release --offline || die "Failed to build CPU server"
-			mv target/release/server target/release/ai-voice-server-cpu || die
-		fi
+		einfo "Building Server (Pure CPU)..."
+		cargo build --release --offline || die "Failed to build CPU server"
+		mv target/release/server target/release/ai-voice-server-cpu || die
 	fi
 
 	if use client; then
@@ -98,9 +95,7 @@ src_install() {
 		use nvidia && dobin "${S}/src/server/target/release/ai-voice-server-cuda"
 		use vulkan && dobin "${S}/src/server/target/release/ai-voice-server-vulkan"
 		use rocm && dobin "${S}/src/server/target/release/ai-voice-server-rocm"
-		if ! use nvidia && ! use vulkan && ! use rocm; then
-			dobin "${S}/src/server/target/release/ai-voice-server-cpu"
-		fi
+		dobin "${S}/src/server/target/release/ai-voice-server-cpu"
 		# Install the wrapper script as the primary entrypoint
 		exeinto /usr/bin
 		newexe "${S}/packaging/ai-voice-server.sh" ai-voice-server
