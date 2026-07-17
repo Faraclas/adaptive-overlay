@@ -21,6 +21,10 @@ PROPERTIES="live"
 RESTRICT="network-sandbox"
 
 DEPEND="
+	server? (
+		acct-group/aivoice
+		acct-user/aivoice
+	)
 	client? (
 		gui-libs/gtk4-layer-shell
 		app-misc/interception-tools
