@@ -76,7 +76,8 @@ src_unpack() {
 }
 
 src_compile() {
-	local my_target_dir=$(cargo_target_dir)
+	export CARGO_TARGET_DIR="${WORKDIR}/cargo_target"
+	local my_target_dir="${CARGO_TARGET_DIR}/release"
 	
 	if use server; then
 		pushd "${S}/src/server" >/dev/null || die
@@ -124,7 +125,7 @@ src_compile() {
 }
 
 src_install() {
-	local my_target_dir=$(cargo_target_dir)
+	local my_target_dir="${WORKDIR}/cargo_target/release"
 
 	if use server; then
 		use nvidia && dobin "${my_target_dir}/ai-voice-server-cuda"
