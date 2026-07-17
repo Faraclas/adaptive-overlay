@@ -66,6 +66,7 @@ src_compile() {
 
 		if use nvidia; then
 			einfo "Building Server (CUDA)..."
+			export CMAKE_CUDA_ARCHITECTURES="all"
 			cargo build --release --offline --features nvidia || die "Failed to build CUDA server"
 			mv target/release/server target/release/ai-voice-server-cuda || die
 		fi
