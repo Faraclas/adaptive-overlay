@@ -40,6 +40,20 @@ RDEPEND="${DEPEND}"
 
 
 
+pkg_setup() {
+	if use nvidia && [[ -z "${CMAKE_CUDA_ARCHITECTURES}" ]]; then
+		eerror "You have enabled the 'nvidia' USE flag."
+		eerror "Because Gentoo's build sandbox blocks GPU hardware detection (NVML),"
+		eerror "you MUST explicitly set your GPU's compute capability in /etc/portage/make.conf."
+		eerror ""
+		eerror "For example, for an RTX 3060 Ti (Compute 8.6), add:"
+		eerror "  CMAKE_CUDA_ARCHITECTURES=\"86\""
+		eerror ""
+		eerror "To compile for all possible GPUs (slow!), set it to \"all\"."
+		die "CMAKE_CUDA_ARCHITECTURES is not set in make.conf"
+	fi
+}
+
 src_unpack() {
 	git-r3_src_unpack
 
@@ -65,30 +79,8 @@ src_compile() {
 		addpredict /dev/nvidia0
 
 		if use nvidia; then
-			einfo "Building Server (CUDA)..."
-			
-			# Proper Gentoo approach: Respect user's make.conf, otherwise auto-detect using nvidia-smi
-			local cuda_arch="${CMAKE_CUDA_ARCHITECTURES}"
-			if [[ -z "${cuda_arch}" ]]; then
-				if command -v nvidia-smi &> /dev/null; then
-					local compute_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -n1 | tr -d '.')
-					if [[ -n "${compute_cap}" ]]; then
-						cuda_arch="${compute_cap}"
-						einfo "Auto-detected NVIDIA Compute Capability: ${cuda_arch}"
-					fi
-				fi
-				
-				# Fallback if detection fails and user didn't specify
-				if [[ -z "${cuda_arch}" ]]; then
-					ewarn "Could not auto-detect NVIDIA architecture inside sandbox."
-					ewarn "If compilation fails, please set CMAKE_CUDA_ARCHITECTURES=\"86\" (or your specific architecture) in /etc/portage/make.conf"
-					cuda_arch="native"
-				fi
-			else
-				einfo "Using user-provided CMAKE_CUDA_ARCHITECTURES=${cuda_arch}"
-			fi
-			export CMAKE_CUDA_ARCHITECTURES="${cuda_arch}"
-			
+			einfo "Building Server (CUDA) for architecture: ${CMAKE_CUDA_ARCHITECTURES}"
+			export CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}"
 			cargo build --release --offline --features nvidia || die "Failed to build CUDA server"
 			mv target/release/server target/release/ai-voice-server-cuda || die
 		fi
