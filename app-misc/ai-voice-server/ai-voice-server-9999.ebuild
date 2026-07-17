@@ -17,6 +17,7 @@ IUSE="+client +server +vulkan +nvidia rocm"
 REQUIRED_USE="|| ( client server )"
 
 # Allow cargo to download dependencies during src_compile for 9999 live ebuilds
+PROPERTIES="live"
 RESTRICT="network-sandbox"
 
 DEPEND="
