@@ -4,4 +4,6 @@ inherit acct-user
 
 DESCRIPTION="User for ai-voice-server"
 ACCT_USER_ID=-1
-ACCT_USER_GROUPS=( aivoice )
+ACCT_USER_GROUPS=( aivoice video render )
+
+acct-user_add_deps
