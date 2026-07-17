@@ -108,6 +108,11 @@ src_install() {
 		# Install systemd service and config
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
 		newconfd "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
+
+		# Install models and set ownership
+		insinto /var/lib/ai-voice-server/models
+		doins "${S}/src/server/models/small.en.bin"
+		fowners -R aivoice:aivoice /var/lib/ai-voice-server
 	fi
 
 	if use client; then
