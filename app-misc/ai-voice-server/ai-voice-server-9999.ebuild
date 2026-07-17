@@ -9,7 +9,7 @@ inherit cargo git-r3 systemd
 DESCRIPTION="A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline"
 HOMEPAGE="https://github.com/Faraclas/ai-voice-server"
 EGIT_REPO_URI="https://github.com/Faraclas/ai-voice-server.git"
-
+SRC_URI="server? ( https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin -> small.en.bin )"
 LICENSE="MIT"
 SLOT="0"
 KEYWORDS=""
@@ -111,7 +111,7 @@ src_install() {
 
 		# Install models and set ownership
 		insinto /var/lib/ai-voice-server/models
-		doins "${S}/src/server/models/small.en.bin"
+		doins "${DISTDIR}/small.en.bin"
 		fowners -R aivoice:aivoice /var/lib/ai-voice-server
 	fi
 
