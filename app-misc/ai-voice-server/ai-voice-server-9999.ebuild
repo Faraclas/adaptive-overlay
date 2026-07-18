@@ -4,7 +4,7 @@
 EAPI=8
 
 RUST_MIN_VER="1.85.0"
-inherit cargo git-r3 systemd
+inherit cargo git-r3 systemd udev
 
 DESCRIPTION="A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline"
 HOMEPAGE="https://github.com/Faraclas/ai-voice-server"
@@ -161,6 +161,11 @@ src_install() {
 		# Install udevmon config
 		insinto /etc/interception/udevmon.d
 		doins "${S}/packaging/systemd/udevmon.yaml"
+
+		# Install udev rule for ydotool (requires uinput access)
+		echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' > "${T}/99-ydotool-uinput.rules" || die
+		insinto /lib/udev/rules.d
+		doins "${T}/99-ydotool-uinput.rules"
 	fi
 }
 
@@ -176,6 +181,8 @@ pkg_postinst() {
 	fi
 
 	if use client; then
+		udev_reload
+
 		elog "====================================================================="
 		elog "To use the AI Voice Client overlay and kernel-level dictation hotkeys,"
 		elog "you must enable and start the following three services:"
