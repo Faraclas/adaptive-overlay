@@ -138,9 +138,12 @@ src_install() {
 		# Install the wrapper script as the primary entrypoint
 		newbin "${S}/packaging/ai-voice-server.sh" ai-voice-server
 
-		# Install systemd service and config
+		# Install systemd service, config, and udev rules
 		systemd_dounit "${S}/packaging/systemd/ai-voice-server.service"
 		newconfd "${S}/packaging/systemd/ai-voice-server.conf" ai-voice-server
+		
+		# Install hot-plug udev rule for Nvidia eGPUs
+		use nvidia && udev_dorules "${S}/packaging/systemd/99-ai-voice-egpu.rules"
 
 		# Install models and set ownership
 		insinto /var/lib/ai-voice-server/models
