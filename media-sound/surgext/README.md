@@ -3,6 +3,7 @@
 ## What is Surge XT?
 
 Surge XT is a powerful, free, and open-source hybrid synthesizer with:
+
 - 3 oscillator sections with multiple algorithms
 - Flexible modulation engine
 - High-quality effects
@@ -23,18 +24,21 @@ Default USE flags will build: CLAP, LV2, VST3 plugins + standalone
 ### Custom Installation
 
 #### Plugins Only (No JACK dependency)
+
 ```bash
 echo "media-sound/surge-xt clap lv2 vst3 -standalone" >> /etc/portage/package.use/surge-xt
 sudo emerge --ask media-sound/surge-xt
 ```
 
 #### Standalone Only
+
 ```bash
 echo "media-sound/surge-xt standalone -clap -lv2 -vst3" >> /etc/portage/package.use/surge-xt
 sudo emerge --ask media-sound/surge-xt
 ```
 
 #### Minimal Install (VST3 only, fastest)
+
 ```bash
 echo "media-sound/surge-xt vst3 -clap -lv2 -standalone" >> /etc/portage/package.use/surge-xt
 sudo emerge --ask media-sound/surge-xt
@@ -45,6 +49,7 @@ sudo emerge --ask media-sound/surge-xt
 ### As a Plugin in Your DAW
 
 1. **Install with plugin formats:**
+
    ```bash
    sudo USE="clap lv2 vst3" emerge media-sound/surge-xt
    ```
@@ -62,11 +67,13 @@ sudo emerge --ask media-sound/surge-xt
 ### As a Standalone Application
 
 1. **Install with standalone flag:**
+
    ```bash
    sudo USE="standalone" emerge media-sound/surge-xt
    ```
 
 2. **Launch from terminal:**
+
    ```bash
    surge-xt              # Main synthesizer
    surge-xt-effects      # Effects version
@@ -79,14 +86,16 @@ sudo emerge --ask media-sound/surge-xt
 ## Where Are Things Installed?
 
 ### Plugins
-```
+
+```none
 /usr/lib64/clap/Surge XT.clap
 /usr/lib64/lv2/Surge XT.lv2/
 /usr/lib64/vst3/Surge XT.vst3/
 ```
 
 ### Factory Content
-```
+
+```none
 /usr/share/surge-xt/
 ├── patches_factory/     # Factory presets
 ├── patches_3rdparty/    # Community presets
@@ -96,7 +105,8 @@ sudo emerge --ask media-sound/surge-xt
 ```
 
 ### User Data Location
-```
+
+```none
 ~/.local/share/surge-xt/
 ```
 
@@ -137,6 +147,7 @@ Place your custom presets, patches, and skins here!
 ### Q: My DAW doesn't see the plugins?
 
 **Check installation:**
+
 ```bash
 ls /usr/lib64/vst3/    # Should show Surge XT.vst3
 ls /usr/lib64/clap/    # Should show Surge XT.clap
@@ -144,17 +155,21 @@ ls /usr/lib64/lv2/     # Should show Surge XT.lv2
 ```
 
 **Make sure:**
+
 1. You built with plugin USE flags enabled
 2. Your DAW is configured to scan those directories
 3. You rescanned plugins after installation
 
 ### Q: I see warnings about curl/webkit during build?
 
-**This is normal!** These are optional JUCE dependencies that Surge XT doesn't actually use. The build will succeed and work perfectly. You can safely ignore these warnings.
+**This is normal!** These are optional JUCE dependencies that Surge XT doesn't
+actually use. The build will succeed and work perfectly. You can safely ignore
+these warnings.
 
 ### Q: Standalone won't start?
 
 **Check JACK:**
+
 ```bash
 # Is JACK running?
 ps aux | grep jack
@@ -181,27 +196,32 @@ sudo emerge --ask --update media-sound/surge-xt
 ## Getting Help
 
 ### Documentation
-- **User Manual:** https://surge-synthesizer.github.io/manual-xt/
-- **Website:** https://surge-synthesizer.github.io/
+
+- **User Manual:** <https://surge-synthesizer.github.io/manual-xt/>
+- **Website:** <https://surge-synthesizer.github.io/>
 
 ### Community
-- **Discord:** https://discord.gg/spGANHw
-- **GitHub:** https://github.com/surge-synthesizer/surge
+
+- **Discord:** <https://discord.gg/spGANHw>
+- **GitHub:** <https://github.com/surge-synthesizer/surge>
 
 ### Reporting Issues
 
 **For build/install issues:**
+
 - Check if it's a Gentoo packaging issue (file with overlay)
 - Or upstream build issue (file with Surge developers)
 
 **For Surge XT bugs:**
-- Report at: https://github.com/surge-synthesizer/surge/issues
+
+- Report at: <https://github.com/surge-synthesizer/surge/issues>
 
 ## Tips & Tricks
 
 ### Performance
 
 **For better performance:**
+
 - Use Release build (default in ebuild)
 - Enable CPU optimizations in /etc/portage/make.conf
 - Consider using VST3 over other formats (often more efficient)
@@ -209,6 +229,7 @@ sudo emerge --ask --update media-sound/surge-xt
 ### Custom Skins
 
 Download skins from the community:
+
 1. Get .surge-skin files
 2. Place in `~/.local/share/surge-xt/`
 3. Select in Surge: Menu → Skins → [Your Skin]
@@ -216,6 +237,7 @@ Download skins from the community:
 ### Wavetables
 
 Add custom wavetables:
+
 1. Get .wav files (specific format, see manual)
 2. Place in `~/.local/share/surge-xt/wavetables/`
 3. Refresh wavetable list in Surge
@@ -223,6 +245,7 @@ Add custom wavetables:
 ### Tuning & Scales
 
 Surge supports microtonal tuning:
+
 1. Load .scl files (Scala format)
 2. Menu → Tuning → Load .scl file
 3. Explore different musical systems!
@@ -254,26 +277,29 @@ Surge supports microtonal tuning:
 
 ## Quick Reference: USE Flags
 
-| USE Flag | What It Does | When To Use |
-|----------|--------------|-------------|
-| clap | CLAP plugins | New format, good compatibility |
-| lv2 | LV2 plugins | Linux native, good for Ardour |
-| vst3 | VST3 plugins | Best compatibility with most DAWs |
-| standalone | Standalone apps | Want to use without DAW |
+| USE Flag   | What It Does    | When To Use                       |
+|------------|-----------------|-----------------------------------|
+| clap       | CLAP plugins    | New format, good compatibility    |
+| lv2        | LV2 plugins     | Linux native, good for Ardour     |
+| vst3       | VST3 plugins    | Best compatibility with most DAWs |
+| standalone | Standalone apps | Want to use without DAW           |
 
 ## Learn More
 
 ### Tutorials
+
 - Check the Discord #tutorials channel
 - YouTube: Search "Surge XT tutorial"
-- Manual: https://surge-synthesizer.github.io/manual-xt/
+- Manual: <https://surge-synthesizer.github.io/manual-xt/>
 
 ### Presets
+
 - Included: 1000+ factory presets
 - Community: Check Discord for user patches
 - Create your own and share!
 
 ### Sound Design
+
 - Surge excels at:
   - Complex evolving pads
   - Aggressive leads
@@ -281,8 +307,10 @@ Surge supports microtonal tuning:
   - Unique textures
   - Creative effects
 
-## Enjoy!
+## Enjoy
 
-Surge XT is a powerful and deep synthesizer. Take your time exploring its features, experiment with the modulation matrix, and don't hesitate to ask for help in the community!
+Surge XT is a powerful and deep synthesizer. Take your time exploring its
+features, experiment with the modulation matrix, and don't hesitate to ask for
+help in the community!
 
-**Happy music making! 🎵**
+Happy music making! 🎵
