@@ -63,6 +63,7 @@ declare -A GIT_CRATES=(
 	[tree-sitter-md]='https://github.com/zed-industries/tree-sitter-markdown;b596e737286780d7bfa9fcddceaeeb754574b352;tree-sitter-markdown-%commit%'
 	[tree-sitter-typescript]='https://github.com/zed-industries/tree-sitter-typescript;e2c53597d6a5d9cf7bbe8dccde576fe1e46c5899;tree-sitter-typescript-%commit%'
 	[tree-sitter-yaml]='https://github.com/zed-industries/tree-sitter-yaml;baff0b51c64ef6a1fb1f8390f3ad6015b83ec13a;tree-sitter-yaml-%commit%'
+	[wasm_thread]='https://github.com/zed-industries/wasm_thread;0cf96c7708dfb97ccf3da50347e25edcf75d6937;wasm_thread-%commit%'
 	[webrtc-sys-build]='https://github.com/zed-industries/livekit-rust-sdks;d0e27be0cdad89eadab3e36207cda0a2b6e359ee;livekit-rust-sdks-%commit%/webrtc-sys/build'
 	[webrtc-sys]='https://github.com/zed-industries/livekit-rust-sdks;d0e27be0cdad89eadab3e36207cda0a2b6e359ee;livekit-rust-sdks-%commit%/webrtc-sys'
 	[windows-capture]='https://github.com/zed-industries/windows-capture;f0d6c1b6691db75461b732f6d5ff56eed002eeb9;windows-capture-%commit%'
@@ -207,6 +208,12 @@ src_prepare() {
 	local LIBWEBRTC_PATH="libwebrtc = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/libwebrtc\""
 	local WEBRTC_SYS_GIT="webrtc-sys = { git = \"https://github.com/zed-industries/livekit-rust-sdks\", rev = \"${LIVEKIT_COMMIT}\""
 	local WEBRTC_SYS_PATH="webrtc-sys = \\{ path = \"${WORKDIR}/livekit-rust-sdks-${LIVEKIT_COMMIT}/webrtc-sys\""
+
+	local WASM_THREAD_COMMIT="0cf96c7708dfb97ccf3da50347e25edcf75d6937"
+	local WASM_THREAD_GIT="git = \"https://github.com/zed-industries/wasm_thread\", rev = \"0cf96c7708dfb97ccf3da50347e25edcf75d6937\""
+	local WASM_THREAD_PATH="path = \"${WORKDIR}/wasm_thread-${WASM_THREAD_COMMIT}\""
+
+	sed -i "s#${WASM_THREAD_GIT}#${WASM_THREAD_PATH}#g" "${S}/crates/gpui_web/Cargo.toml" || die "wasm_thread path replacement failed"
 
 	sed -e "s#${CALLOOP_GIT}#${CALLOOP_PATH}#" \
 		-e "s#${NOTIFY_GIT}#${NOTIFY_PATH}#" \
