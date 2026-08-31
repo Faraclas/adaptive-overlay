@@ -18,18 +18,7 @@ RUN mkdir -p /etc/portage && \
     printf 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\n' \
     >> /etc/portage/make.conf
 
-# Hold dev-libs/glib below 2.88 until the desktop-systemd stage3's
-# already-installed GNOME/accessibility stack (gdbus-codegen,
-# gobject-introspection, pango, gtk+, at-spi2-core, etc.) is
-# deliberately upgraded in lockstep. glib-2.88 went stable upstream
-# and requires newer gdbus-codegen/gobject-introspection than the
-# stage3 image ships with, which otherwise blocks any --oneshot
-# install that touches dev-libs/glib.
-RUN mkdir -p /etc/portage/package.mask && \
-    printf '# Hold glib below 2.88 pending a deliberate desktop-stack upgrade\n' \
-        > /etc/portage/package.mask/glib && \
-    printf '>=dev-libs/glib-2.88\n' \
-        >> /etc/portage/package.mask/glib
+
 
 # Register both repositories. The stage3 image does not provide repos.conf,
 # while the Gentoo tree is copied above. Explicitly defining it lets Portage
