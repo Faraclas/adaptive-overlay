@@ -263,6 +263,7 @@ virtual/libudev abi_x86_32
 virtual/libusb abi_x86_32
 virtual/zlib abi_x86_32
 net-print/cups abi_x86_32
+dev-libs/leancrypto abi_x86_32
 EOF
 
 # -------------------------------------------------------------------
