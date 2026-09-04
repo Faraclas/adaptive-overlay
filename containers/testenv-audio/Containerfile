@@ -188,7 +188,7 @@ media-plugins/alsa-plugins pulseaudio
 media-libs/alsa-lib abi_x86_32
 
 # -- JACK --
-media-video/pipewire echo-cancel extra ffmpeg gsettings jack-sdk lv2 modemmanager sound-server abi_x86_32
+media-video/pipewire echo-cancel extra gsettings jack-sdk lv2 modemmanager sound-server abi_x86_32
 
 # -- Fonts / rendering --
 media-libs/freetype abi_x86_32 harfbuzz
