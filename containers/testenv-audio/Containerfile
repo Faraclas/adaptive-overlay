@@ -188,7 +188,7 @@ media-plugins/alsa-plugins pulseaudio
 media-libs/alsa-lib abi_x86_32
 
 # -- JACK --
-media-sound/jack2 abi_x86_32
+media-video/pipewire echo-cancel extra ffmpeg gsettings jack-sdk lv2 modemmanager sound-server abi_x86_32
 
 # -- Fonts / rendering --
 media-libs/freetype abi_x86_32 harfbuzz
@@ -311,6 +311,7 @@ RUN emerge --oneshot --quiet-build \
     x11-libs/pixman \
     x11-libs/cairo \
     x11-libs/gtk+:3 \
+    media-video/pipewire \
     virtual/jack \
     media-libs/alsa-lib \
     media-libs/libpulse \
