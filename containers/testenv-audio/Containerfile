@@ -59,8 +59,8 @@ RUN mkdir -p /etc/portage && \
 # wine-staging[abi_x86_32] and manually curated.
 # -------------------------------------------------------------------
 RUN mkdir -p /etc/portage/package.use && \
-    printf '# Break circular deps\nmedia-libs/tiff -webp\ndev-libs/glib -sysprof\ndev-python/pillow -truetype -avif\nwww-client/w3m -gdk-pixbuf\nsys-libs/ncurses -gpm\n' \
-        > /etc/portage/package.use/circular-deps && \
+    printf '# Break circular deps\nmedia-libs/tiff -webp\ndev-libs/glib -sysprof\ndev-python/pillow -truetype -avif\nwww-client/w3m -gdk-pixbuf\nsys-libs/ncurses -gpm\nmedia-video/pipewire -ffmpeg\n' \
+        > /etc/portage/package.use/zz-circular-deps && \
     cat > /etc/portage/package.use/audio <<'EOF'
 # === Wine and MinGW (top-level) ===
 app-emulation/wine-staging abi_x86_32 -wow64 alsa dbus ffmpeg fontconfig gstreamer opengl pulseaudio ssl truetype udev unwind vulkan wayland x xinerama
@@ -188,7 +188,7 @@ media-plugins/alsa-plugins pulseaudio
 media-libs/alsa-lib abi_x86_32
 
 # -- JACK --
-media-video/pipewire echo-cancel extra gsettings jack-sdk lv2 modemmanager sound-server abi_x86_32
+media-video/pipewire echo-cancel extra ffmpeg gsettings jack-sdk lv2 modemmanager sound-server abi_x86_32
 
 # -- Fonts / rendering --
 media-libs/freetype abi_x86_32 harfbuzz
@@ -337,6 +337,16 @@ RUN emerge --oneshot --quiet-build \
 # -------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build \
     media-video/ffmpeg
+
+# -------------------------------------------------------------------
+# Layer 2.5: Pipewire FFmpeg Support
+#
+# Now that FFmpeg is built, we can remove the circular dependency
+# block and re-compile Pipewire with the ffmpeg USE flag enabled
+# to ensure full multimedia support.
+# -------------------------------------------------------------------
+RUN sed -i '/media-video\/pipewire -ffmpeg/d' /etc/portage/package.use/zz-circular-deps && \
+    emerge --oneshot --quiet-build media-video/pipewire
 
 # -------------------------------------------------------------------
 # Layer 3: PyQt6, Qt6, WebKit-GTK, and Python tools
