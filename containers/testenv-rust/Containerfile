@@ -22,6 +22,44 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
         >> /etc/portage/package.accept_keywords/rust
 
 # -----------------------------------------------------------------------
+# Portage: disable nvidia kernel modules globally
+# -----------------------------------------------------------------------
+RUN mkdir -p /etc/portage/package.use && \
+    printf '# We are in a container, no kernel sources available\n' \
+        > /etc/portage/package.use/nvidia && \
+    printf 'x11-drivers/nvidia-drivers -modules\n' \
+        >> /etc/portage/package.use/nvidia
+
+# -----------------------------------------------------------------------
+# Portage: enable binary packages to bypass massive compilations (e.g. GCC 14)
+# -----------------------------------------------------------------------
+RUN echo 'FEATURES="${FEATURES} getbinpkg binpkg-request-signature"' >> /etc/portage/make.conf && \
+    echo 'PORTAGE_BINHOST="https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/"' >> /etc/portage/make.conf
+
+# -----------------------------------------------------------------------
 # Install the Rust toolchain (bin package to avoid massive compilation)
 # -----------------------------------------------------------------------
 RUN emerge --oneshot --quiet-build dev-lang/rust-bin
+
+# -----------------------------------------------------------------------
+# Install dependencies for app-misc/ai-voice-server
+# -----------------------------------------------------------------------
+RUN mkdir -p /etc/portage/package.accept_keywords && \
+    printf 'app-misc/interception-tools ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/aivoice && \
+    printf 'dev-util/nvidia-cuda-toolkit ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/aivoice && \
+    printf 'x11-drivers/nvidia-drivers ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/aivoice && \
+    printf 'gui-libs/gtk4-layer-shell ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/aivoice && \
+    printf 'x11-misc/ydotool ~amd64\n' \
+        >> /etc/portage/package.accept_keywords/aivoice
+
+RUN ACCEPT_LICENSE="*" emerge --oneshot --quiet-build \
+    gui-libs/gtk4-layer-shell \
+    app-misc/interception-tools \
+    x11-misc/ydotool \
+    media-video/pipewire \
+    dev-util/nvidia-cuda-toolkit \
+    x11-drivers/nvidia-drivers
