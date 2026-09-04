@@ -90,6 +90,15 @@ src_compile() {
 		if use nvidia; then
 			einfo "Building Server (CUDA) for architecture: ${CMAKE_CUDA_ARCHITECTURES}"
 			export CMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}"
+			
+			# CUDA 12.9.x does not support GCC 15, so Portage installs GCC 14 in a side-slot.
+			# We must explicitly tell CMake and NVCC to use it instead of the system default.
+			if [[ -x /usr/bin/x86_64-pc-linux-gnu-gcc-14 ]]; then
+				export CC="x86_64-pc-linux-gnu-gcc-14"
+				export CXX="x86_64-pc-linux-gnu-g++-14"
+				export NVCC_CCBIN="/usr/x86_64-pc-linux-gnu/gcc-bin/14"
+			fi
+
 			cargo build --release --offline --features nvidia || die "Failed to build CUDA server"
 			mv "${my_target_dir}/server" "${my_target_dir}/ai-voice-server-cuda" || die
 		fi
