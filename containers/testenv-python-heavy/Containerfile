@@ -1,0 +1,18 @@
+# Stage 1: Build environment for AI tools in adaptive-overlay
+#
+# Builds on top of the testenv-rust image. Adds common
+# heavy compilation dependencies for Python ecosystems, notably
+# heavy math libraries and pydantic core.
+#
+# Build from repo root:
+#   podman build -t ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest \
+#       -f containers/testenv-python-heavy/Containerfile .
+#
+
+FROM ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+
+# Pre-emerge heavy lifters that Python AI tools constantly request.
+# (Rust is already provided by the base testenv-rust image).
+RUN emerge --oneshot --quiet-build \
+    dev-python/pydantic-core \
+    dev-python/numpy

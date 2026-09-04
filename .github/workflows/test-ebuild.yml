@@ -12,8 +12,8 @@
 #       with:
 #         package_dir: app-editors/zed
 #         ebuild_file: zed-0.227.1.ebuild
-#         container_image: ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
-#         verify_script: containers/testenv-rust/verify-zed.sh
+#         container_image: ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest
+#         verify_script: containers/testenv-rust-desktop/verify-zed.sh
 #
 # Minimal usage (no verification, default testenv image):
 #
@@ -44,8 +44,8 @@ on:
         description: >
           Container image to run the build in.
           Defaults to the general testenv image. Use
-          ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
-          for Rust/Zed builds.
+          ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest
+          for Zed builds.
         required: false
         type: string
         default: ghcr.io/faraclas/adaptive-overlay/testenv:latest

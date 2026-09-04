@@ -1,0 +1,61 @@
+name: Update Hermes Agent ebuild
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Check daily
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-ebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest Hermes Agent release
+        id: get_release
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | jq -r '.tag_name')
+          if [ "$LATEST_TAG" = "null" ] || [ -z "$LATEST_TAG" ]; then
+            echo "Failed to get latest release tag"
+            exit 1
+          fi
+          
+          # Remove 'v' prefix for ebuild version
+          VERSION=${LATEST_TAG#v}
+          echo "latest_version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Find current ebuild version
+          CURRENT_VERSION=$(ls app-ai/hermes-agent/hermes-agent-*.ebuild | grep -v 9999 | head -n 1 | sed -n 's/.*hermes-agent-\(.*\)\.ebuild/\1/p')
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update ebuild if new version exists
+        id: update
+        if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
+        run: |
+          cd app-ai/hermes-agent
+          LATEST_VER="${{ steps.get_release.outputs.latest_version }}"
+          CURRENT_VER="${{ steps.get_release.outputs.current_version }}"
+          
+          # Remove old ebuild
+          if [ -n "$CURRENT_VER" ]; then
+            rm hermes-agent-${CURRENT_VER}.ebuild
+          fi
+          
+          # Create new ebuild from 9999
+          cp hermes-agent-9999.ebuild hermes-agent-${LATEST_VER}.ebuild
+          
+          # Generate the manifest using a Gentoo container
+          docker run --rm \
+            -v ${{ github.workspace }}:/var/db/repos/overlay \
+            -e PORTDIR_OVERLAY=/var/db/repos/overlay \
+            gentoo/stage3 bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
+
+      - name: Create Pull Request
+        if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "bump(app-ai/hermes-agent): update to ${{ steps.get_release.outputs.latest_version }}"
+          title: "Update hermes-agent to ${{ steps.get_release.outputs.latest_version }}"
+          body: "Automated update for hermes-agent from upstream releases."
+          branch: "update-hermes-agent-${{ steps.get_release.outputs.latest_version }}"

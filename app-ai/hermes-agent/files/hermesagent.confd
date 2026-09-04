@@ -1,0 +1,17 @@
+# /etc/conf.d/hermesagent
+
+# Set the profile for Hermes Agent
+#HERMES_PROFILE="default"
+
+# Set the home directory for Hermes Agent
+#HERMES_HOME="/var/lib/hermesagent/.hermes"
+
+# User and group to run as
+#HERMES_USER="hermesagent"
+#HERMES_GROUP="hermesagent"
+
+# Additional arguments for the gateway command
+#HERMES_ARGS=""
+
+# Path to hermes binary
+#HERMES_BIN="/usr/bin/hermes"

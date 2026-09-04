@@ -51,6 +51,8 @@ on:
           - ghcr.io/faraclas/adaptive-overlay/testenv:latest
           - ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest
           - ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+          - ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest
+          - ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
         default: ghcr.io/faraclas/adaptive-overlay/testenv:latest
       verify_script:
         description: >
@@ -366,10 +368,13 @@ jobs:
             fi
 
             # Determine which container image to use for this package.
-            # app-editors/zed requires the Rust/LLVM image.
+            # app-editors/zed requires the Zed/LLVM image.
             if [ "${PKG_DIR}" = "app-editors/zed" ]; then
-              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
-              VERIFY="containers/testenv-rust/verify-zed.sh"
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
+              VERIFY="containers/testenv-rust-desktop/verify-zed.sh"
+            elif echo "${PKG_DIR}" | grep -q '^app-ai/'; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
+              VERIFY=""
             elif echo "${PKG_DIR}" | grep -q '^media-sound/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
               VERIFY=""

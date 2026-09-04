@@ -305,16 +305,17 @@ jobs:
              - Remove old \`GIT_CRATES\` entries
              - Handle \`RUST_MIN_VER\` changes if reported
              - Check \`new_workspace_members\` for additional git deps
-          4. **Generate the Manifest:**
+          4. **Clean up stale ebuilds**: Delete all older ebuild versions from the directory, keeping only the 2 most recent releases (plus \`9999\` if it exists).
+          5. **Generate the Manifest:**
              \`\`\`bash
              scripts/manifest.sh ${PACKAGE}
              \`\`\`
-          5. **Run the linter:**
+          6. **Run the linter:**
              \`\`\`bash
              scripts/lint.sh ${PACKAGE}
              \`\`\`
-          6. **Fix any issues** from manifest or lint, then re-run until clean.
-          7. **Open a PR** with a clear summary of all changes.
+          7. **Fix any issues** from manifest or lint, then re-run until clean.
+          8. **Open a PR** with a clear summary of all changes.
 
           ---
 
