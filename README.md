@@ -11,7 +11,12 @@ main Gentoo repository.
 
 Currently included packages:
 
+- **app-ai/hermes-agent** - The agent that grows with you
 - **app-editors/zed** - Fast, collaborative code editor
+- **app-misc/ai-voice-server** - A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
+- **dev-python/fire** - Python library for automatically generating command line interfaces
+- **dev-python/jiter** - Fast iterable JSON parser
+- **dev-python/openai** - The official Python library for the OpenAI API
 - **media-sound/amp-locker** - Audio plugin locker
 - **media-sound/bitwig-studio** - Digital audio workstation
 - **media-sound/carla** - Audio plugin host
@@ -20,6 +25,7 @@ Currently included packages:
 - **media-sound/yabridge** - VST bridge for Linux
 - **net-vpn/forticlient** - Fortinet VPN client
 - **net-vpn/openfortivpn** - Open-source Fortinet VPN client
+- **x11-terms/boxxy** - Modern terminal emulator with AI assistant built with Rust and GTK 4
 
 ## Installation
 
@@ -74,6 +80,18 @@ After installation, packages from this overlay can be installed using emerge:
 ```bash
 emerge --ask media-sound/carla
 ```
+
+## CI and Testing Containers
+
+To ensure build consistency, packages in this overlay are automatically tested using GitHub Actions inside specialized Gentoo container environments. If you are developing new ebuilds, they will be mapped to a container based on their category:
+
+- **`testenv-rust-desktop`**: Used for heavy desktop/GUI applications requiring Rust (e.g., `app-editors/zed`)
+- **`testenv-python-heavy`**: Used for AI applications and their dependencies (e.g., `app-ai/*` and `dev-python/*`)
+- **`testenv-audio`**: Used for digital audio workstations, hosts, and plugins (e.g., `media-sound/*`)
+- **`testenv-rust`**: Used for terminal or headless applications needing a Rust toolchain (e.g., `x11-terms/boxxy` and `app-misc/ai-voice-server`)
+- **`testenv`**: The lightweight base environment, used for everything else (e.g., `net-vpn/*`, `acct-user/*`, `acct-group/*`)
+
+When a pull request is submitted, `.github/workflows/ci-build.yml` automatically maps the ebuild to the correct container and attempts to build it using `emerge`.
 
 ## Contributing
 

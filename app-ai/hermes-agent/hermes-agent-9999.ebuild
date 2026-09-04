@@ -21,7 +21,6 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE=""
 
 RDEPEND="
 	acct-group/hermesagent
@@ -39,9 +38,10 @@ RDEPEND="
 DEPEND="${RDEPEND}"
 
 src_prepare() {
-	default
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
+	export HERMES_NIX_BUILD=1
+	distutils-r1_src_prepare
 }
 
 src_install() {

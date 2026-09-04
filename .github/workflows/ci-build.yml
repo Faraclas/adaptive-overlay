@@ -372,11 +372,14 @@ jobs:
             if [ "${PKG_DIR}" = "app-editors/zed" ]; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
               VERIFY="containers/testenv-rust-desktop/verify-zed.sh"
-            elif echo "${PKG_DIR}" | grep -q '^app-ai/'; then
+            elif echo "${PKG_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
               VERIFY=""
             elif echo "${PKG_DIR}" | grep -q '^media-sound/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
+              VERIFY=""
+            elif echo "${PKG_DIR}" | grep -qE '^(x11-terms/boxxy|app-misc/ai-voice-server)'; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
               VERIFY=""
             else
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"

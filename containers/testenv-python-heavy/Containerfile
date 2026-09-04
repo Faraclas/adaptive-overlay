@@ -14,5 +14,5 @@ FROM ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
 # Pre-emerge heavy lifters that Python AI tools constantly request.
 # (Rust is already provided by the base testenv-rust image).
 RUN emerge --oneshot --quiet-build \
-    dev-python/pydantic-core \
+    dev-python/pydantic \
     dev-python/numpy
