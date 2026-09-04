@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit cmake desktop xdg
+inherit cmake desktop flag-o-matic xdg
 
 PATCHES=(
 	"${FILESDIR}/${P}-fix-visibility.patch"
@@ -59,7 +59,21 @@ BDEPEND="
 
 S="${WORKDIR}/surge-${PV}"
 
+src_prepare() {
+	cmake_src_prepare
+	
+	# GCC 14 introduces new warnings that break the build. Strip -Werror from all CMake files.
+	find "${S}" -name "CMakeLists.txt" -exec sed -i -e 's/-Werror//g' -e 's/ -Werror//g' {} +
+	find "${S}" -name "*.cmake" -exec sed -i -e 's/-Werror//g' -e 's/ -Werror//g' {} +
+	find "${S}" -name "Makefile" -exec sed -i -e 's/-Werror//g' -e 's/ -Werror//g' {} +
+}
+
 src_configure() {
+	# Just in case they are injected via CFLAGS
+	append-flags -Wno-error
+	append-cflags -Wno-error
+	append-cxxflags -Wno-error
+
 	local mycmakeargs=(
 		-DCMAKE_BUILD_TYPE=Release
 		-DSURGE_BUILD_LV2=$(usex lv2 ON OFF)
