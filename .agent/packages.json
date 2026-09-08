@@ -81,5 +81,16 @@
     "repackage": false,
     "auto_upgrade": false,
     "notes": "Downloads from Fortinet's apt repo. No public release API. Updates must be checked manually at https://www.fortinet.com/support/product-downloads"
+  },
+  {
+    "category": "app-ai",
+    "name": "hermes-agent",
+    "upstream_repo": "NousResearch/hermes-agent",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Uses CalVer tags (e.g. v2026.9.7)."
   }
 ]
