@@ -18,20 +18,36 @@ jobs:
 
       - name: Fetch latest Hermes Agent release
         id: get_release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          LATEST_TAG=$(curl -s https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | jq -r '.tag_name')
+          set -euo pipefail
+
+          # Authenticate to the GitHub API to avoid anonymous rate limits.
+          AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"
+
+          LATEST_TAG=$(curl -sSf \
+            -H "${AUTH_HEADER}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/NousResearch/hermes-agent/releases/latest \
+            | jq -r '.tag_name')
           if [ "$LATEST_TAG" = "null" ] || [ -z "$LATEST_TAG" ]; then
-            echo "Failed to get latest release tag"
+            echo "::error::Failed to get latest release tag for NousResearch/hermes-agent"
             exit 1
           fi
-          
+
           # Remove 'v' prefix for ebuild version
           VERSION=${LATEST_TAG#v}
-          echo "latest_version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Find current ebuild version
-          CURRENT_VERSION=$(ls app-ai/hermes-agent/hermes-agent-*.ebuild | grep -v 9999 | head -n 1 | sed -n 's/.*hermes-agent-\(.*\)\.ebuild/\1/p')
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "latest_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Find current ebuild version (empty if only the 9999 live ebuild exists)
+          CURRENT_VERSION=$(find app-ai/hermes-agent -maxdepth 1 -name 'hermes-agent-*.ebuild' \
+            ! -name 'hermes-agent-9999.ebuild' -printf '%f\n' \
+            | sed -n 's/^hermes-agent-\(.*\)\.ebuild$/\1/p' | sort -V | tail -n 1)
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "latest=${VERSION} current=${CURRENT_VERSION:-<none>}"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -43,24 +59,66 @@ jobs:
       - name: Update ebuild if new version exists
         id: update
         if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
+        env:
+          LATEST_VER: ${{ steps.get_release.outputs.latest_version }}
+          CURRENT_VER: ${{ steps.get_release.outputs.current_version }}
+        shell: bash
         run: |
+          set -euo pipefail
+
           cd app-ai/hermes-agent
-          LATEST_VER="${{ steps.get_release.outputs.latest_version }}"
-          CURRENT_VER="${{ steps.get_release.outputs.current_version }}"
-          
-          # Remove old ebuild
-          if [ -n "$CURRENT_VER" ]; then
-            rm hermes-agent-${CURRENT_VER}.ebuild
+
+          if [ ! -f hermes-agent-9999.ebuild ]; then
+            echo "::error::hermes-agent-9999.ebuild is missing; cannot create ${LATEST_VER}."
+            exit 1
           fi
-          
+
+          # Remove old ebuild
+          if [ -n "${CURRENT_VER}" ] && [ -f "hermes-agent-${CURRENT_VER}.ebuild" ]; then
+            rm "hermes-agent-${CURRENT_VER}.ebuild"
+          fi
+
           # Create new ebuild from 9999
-          cp hermes-agent-9999.ebuild hermes-agent-${LATEST_VER}.ebuild
-          
-          # Generate the manifest using a Gentoo container
+          cp hermes-agent-9999.ebuild "hermes-agent-${LATEST_VER}.ebuild"
+
+          # Generate the manifest using a Gentoo container, mirroring
+          # scripts/manifest.sh: mount the workspace at /mnt/adaptive-overlay
+          # and symlink it where Portage expects the overlay.
+          #
+          # Files the container writes are chowned back to the runner's
+          # UID/GID before it exits. The previous version chowned the entire
+          # workspace (including .git) to the container's portage user, which
+          # left .git/config unwritable and made the Create Pull Request step
+          # fail with "could not lock config file .git/config: Permission denied".
           docker run --rm \
-            -v ${{ github.workspace }}:/var/db/repos/overlay \
-            -e PORTDIR_OVERLAY=/var/db/repos/overlay \
-            ghcr.io/faraclas/adaptive-overlay/testenv:latest bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su -s /bin/bash portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
+            --user root \
+            -v "${{ github.workspace }}:/mnt/adaptive-overlay:rw" \
+            -e "LATEST_VER=${LATEST_VER}" \
+            -e "HOST_UID=$(id -u)" \
+            -e "HOST_GID=$(id -g)" \
+            ghcr.io/faraclas/adaptive-overlay/testenv:latest \
+            bash -c '
+              set -euo pipefail
+
+              PKG_DIR=/mnt/adaptive-overlay/app-ai/hermes-agent
+
+              trap "chown -R ${HOST_UID}:${HOST_GID} ${PKG_DIR}" EXIT
+
+              rm -rf /var/db/repos/adaptive-overlay
+              ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay
+
+              cd /var/db/repos/adaptive-overlay/app-ai/hermes-agent
+              echo "==> pkgdev manifest (hermes-agent-${LATEST_VER})"
+              pkgdev manifest
+            '
+
+          if [ ! -s Manifest ]; then
+            echo "::error::Manifest generation produced no output for hermes-agent-${LATEST_VER}."
+            exit 1
+          fi
+
+          echo "==> Manifest contents"
+          cat Manifest
 
       - name: Create Pull Request
         if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
