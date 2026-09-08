@@ -8,6 +8,10 @@ on:
 jobs:
   update-ebuild:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,6 +33,13 @@ jobs:
           CURRENT_VERSION=$(ls app-ai/hermes-agent/hermes-agent-*.ebuild | grep -v 9999 | head -n 1 | sed -n 's/.*hermes-agent-\(.*\)\.ebuild/\1/p')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update ebuild if new version exists
         id: update
         if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
@@ -49,7 +60,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/var/db/repos/overlay \
             -e PORTDIR_OVERLAY=/var/db/repos/overlay \
-            gentoo/stage3 bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su -s /bin/bash portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
+            ghcr.io/faraclas/adaptive-overlay/testenv:latest bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su -s /bin/bash portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
 
       - name: Create Pull Request
         if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
