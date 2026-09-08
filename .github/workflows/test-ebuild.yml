@@ -72,6 +72,9 @@ jobs:
     container:
       image: ${{ inputs.container_image }}
       options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
