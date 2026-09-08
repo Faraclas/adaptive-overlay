@@ -49,7 +49,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/var/db/repos/overlay \
             -e PORTDIR_OVERLAY=/var/db/repos/overlay \
-            gentoo/stage3 bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
+            gentoo/stage3 bash -c "mkdir -p /etc/portage/profile && echo 'app-ai' >> /etc/portage/categories && chown -R portage:portage /var/db/repos/overlay && su -s /bin/bash portage -c 'ebuild /var/db/repos/overlay/app-ai/hermes-agent/hermes-agent-${LATEST_VER}.ebuild manifest'"
 
       - name: Create Pull Request
         if: steps.get_release.outputs.latest_version != steps.get_release.outputs.current_version
