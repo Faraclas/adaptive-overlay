@@ -22,6 +22,9 @@ fi
 LICENSE="MIT"
 SLOT="0"
 
+# Need network for npm install
+RESTRICT="network-sandbox"
+
 RDEPEND="
 	acct-group/hermesagent
 	acct-user/hermesagent
@@ -34,14 +37,37 @@ RDEPEND="
 	dev-python/jinja2[${PYTHON_USEDEP}]
 	dev-python/tenacity[${PYTHON_USEDEP}]
 	dev-python/fire[${PYTHON_USEDEP}]
+	net-libs/nodejs
 "
 DEPEND="${RDEPEND}"
+BDEPEND="
+	net-libs/nodejs[npm]
+"
 
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
 	export HERMES_NIX_BUILD=1
 	distutils-r1_src_prepare
+}
+
+src_compile() {
+	distutils-r1_src_compile
+	
+	# Build TUI
+	cd ui-tui || die
+	npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm run build || die
+	cd .. || die
+}
+
+python_install() {
+	distutils-r1_python_install
+	
+	python_domodule skills optional-skills plugins locales optional-mcps
+	
+	insinto "$(python_get_sitedir)/hermes_cli/tui_dist"
+	doins ui-tui/dist/entry.js
 }
 
 src_install() {
