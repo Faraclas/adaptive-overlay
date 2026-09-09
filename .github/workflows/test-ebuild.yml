@@ -61,6 +61,10 @@ on:
         type: string
         default: ""
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   test:
     name: >
