@@ -103,7 +103,14 @@ jobs:
   lint:
     name: Lint
     needs: detect-changes
-    if: needs.detect-changes.outputs.any_changed == 'true'
+    if: >
+      !cancelled()
+      && needs.detect-changes.result == 'success'
+      && needs.detect-changes.outputs.any_changed == 'true'
+
+    permissions:
+      contents: read
+      packages: read
 
     strategy:
       # Run all packages even if one fails, so every issue is surfaced

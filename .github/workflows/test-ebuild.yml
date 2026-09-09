@@ -61,6 +61,10 @@ on:
         type: string
         default: ""
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   test:
     name: >
@@ -68,10 +72,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
 
     container:
       image: ${{ inputs.container_image }}
       options: --user root
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository

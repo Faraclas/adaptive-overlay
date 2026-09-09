@@ -18,6 +18,10 @@
 
 name: Build Test Changed Ebuilds
 
+permissions:
+  contents: read
+  packages: read
+
 on:
   pull_request:
     types:
@@ -412,6 +416,10 @@ jobs:
       && needs.detect-changes.result == 'success'
       && needs.detect-changes.outputs.any_changed == 'true'
 
+    permissions:
+      contents: read
+      packages: read
+
     strategy:
       fail-fast: false
       matrix:
@@ -430,6 +438,10 @@ jobs:
   build-manual:
     name: Build (manual)
     if: github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      packages: read
 
     uses: ./.github/workflows/test-ebuild.yml
     with:
