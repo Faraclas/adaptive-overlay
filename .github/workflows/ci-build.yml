@@ -18,6 +18,10 @@
 
 name: Build Test Changed Ebuilds
 
+permissions:
+  contents: read
+  packages: read
+
 on:
   pull_request:
     types:
