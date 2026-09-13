@@ -15,4 +15,5 @@ FROM ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
 # (Rust is already provided by the base testenv-rust image).
 RUN emerge --oneshot --quiet-build \
     dev-python/pydantic \
-    dev-python/numpy
+    dev-python/numpy \
+    net-libs/nodejs
