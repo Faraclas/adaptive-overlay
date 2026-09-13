@@ -23,7 +23,7 @@ LICENSE="MIT"
 SLOT="0"
 
 # Need network for npm install
-RESTRICT="network-sandbox"
+PROPERTIES="live"
 
 RDEPEND="
 	acct-group/hermesagent
@@ -41,7 +41,7 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
-	net-libs/nodejs
+	net-libs/nodejs[npm]
 "
 
 src_prepare() {
@@ -53,7 +53,7 @@ src_prepare() {
 
 src_compile() {
 	distutils-r1_src_compile
-	
+
 	# Build TUI
 	cd ui-tui || die
 	npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
@@ -63,11 +63,11 @@ src_compile() {
 
 python_install() {
 	distutils-r1_python_install
-	
+
 	python_domodule skills optional-skills plugins locales optional-mcps
-	
-	insinto "$(python_get_sitedir)/hermes_cli/tui_dist"
-	doins ui-tui/dist/entry.js
+
+	python_moduleinto hermes_cli/tui_dist
+	python_domodule ui-tui/dist/entry.js
 }
 
 src_install() {
