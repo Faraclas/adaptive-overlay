@@ -41,7 +41,7 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
-	net-libs/nodejs[npm]
+	net-libs/nodejs
 "
 
 src_prepare() {
