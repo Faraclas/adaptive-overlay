@@ -23,7 +23,7 @@ LICENSE="MIT"
 SLOT="0"
 
 # Need network for npm install
-PROPERTIES="live"
+RESTRICT="network-sandbox"
 
 RDEPEND="
 	acct-group/hermesagent
