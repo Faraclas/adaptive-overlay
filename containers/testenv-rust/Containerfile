@@ -53,7 +53,7 @@ RUN mkdir -p /etc/portage/package.accept_keywords && \
         >> /etc/portage/package.accept_keywords/aivoice && \
     printf 'dev-util/nvidia-cuda-toolkit ~amd64\n' \
         >> /etc/portage/package.accept_keywords/aivoice && \
-    printf 'x11-drivers/nvidia-drivers ~amd64\n' \
+    printf '<x11-drivers/nvidia-drivers-600 ~amd64\n' \
         >> /etc/portage/package.accept_keywords/aivoice && \
     printf 'gui-libs/gtk4-layer-shell ~amd64\n' \
         >> /etc/portage/package.accept_keywords/aivoice && \
