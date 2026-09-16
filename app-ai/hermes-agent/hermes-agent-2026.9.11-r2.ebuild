@@ -8,6 +8,7 @@ PYTHON_COMPAT=( python3_{11..14} )
 
 inherit distutils-r1
 
+IUSE="discord"
 distutils_enable_tests pytest
 
 DESCRIPTION="The agent that grows with you"
@@ -23,7 +24,6 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="discord"
 
 # Need network for npm install
 RESTRICT="network-sandbox"
