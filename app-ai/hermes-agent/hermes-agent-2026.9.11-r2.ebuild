@@ -23,9 +23,10 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
+IUSE="discord"
 
 # Need network for npm install
-RESTRICT="network-sandbox !test? ( test )"
+RESTRICT="network-sandbox"
 
 RDEPEND="
 	acct-group/hermesagent
@@ -61,6 +62,9 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
+	discord? (
+		dev-python/discord-py[${PYTHON_USEDEP}]
+	)
 "
 DEPEND="${RDEPEND}"
 BDEPEND="

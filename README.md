@@ -14,6 +14,7 @@ Currently included packages:
 - **app-ai/hermes-agent** - The agent that grows with you
 - **app-editors/zed** - Fast, collaborative code editor
 - **app-misc/ai-voice-server** - A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
+- **dev-python/discord-py** - Python wrapper for the Discord API
 - **dev-python/fire** - Python library for automatically generating command line interfaces
 - **dev-python/jiter** - Fast iterable JSON parser
 - **dev-python/openai** - The official Python library for the OpenAI API

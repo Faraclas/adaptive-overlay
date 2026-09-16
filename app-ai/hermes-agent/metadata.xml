@@ -8,4 +8,7 @@
   <upstream>
     <remote-id type="github">NousResearch/hermes-agent</remote-id>
   </upstream>
+  <use>
+    <flag name="discord">Enable Discord gateway bot support via <pkg>dev-python/discord-py</pkg></flag>
+  </use>
 </pkgmetadata>
