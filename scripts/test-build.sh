@@ -81,9 +81,12 @@ fi
 #   media-sound/*     → testenv-audio (Wine, JACK, multilib X, etc.)
 # Everything else uses the base testenv image.
 PACKAGE_CAT="${PACKAGE_DIR%%/*}"
-if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
-    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust:local"
-    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
+if echo "${PACKAGE_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
+    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-python-heavy:local"
+    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
+elif [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
+    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust-desktop:local"
+    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-audio:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
@@ -155,13 +158,18 @@ echo ""
     "${IMAGE}" \
     bash -c "
         set -euo pipefail
+        set -x
 
         # Mount overlay where portage expects it
         rm -rf /var/db/repos/adaptive-overlay
         ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay
 
-        # Run the build
+        # Install dependencies (ignoring errors as some packages might be masked or in other overlays)
+        echo '==> emerge --onlydeps ./${EBUILD_FILE}'
         cd '${PKG_DIR}'
+        emerge -v -q --onlydeps --jobs \"./${EBUILD_FILE}\" || echo \"Warning: emerge --onlydeps failed, continuing anyway...\"
+
+        # Run the build
         echo '==> ebuild ${EBUILD_FILE} ${PHASES}'
         ebuild './${EBUILD_FILE}' ${PHASES}
         BUILD_EXIT=\$?

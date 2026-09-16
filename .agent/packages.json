@@ -92,5 +92,16 @@
     "repackage": false,
     "auto_upgrade": true,
     "notes": "Uses CalVer tags (e.g. v2026.9.7)."
+  },
+  {
+    "category": "dev-python",
+    "name": "firecrawl-anydoc",
+    "upstream_repo": "firecrawl/anydoc",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Python/Rust maturin package."
   }
 ]

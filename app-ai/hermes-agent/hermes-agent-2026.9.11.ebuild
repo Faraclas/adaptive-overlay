@@ -8,6 +8,8 @@ PYTHON_COMPAT=( python3_{11..14} )
 
 inherit distutils-r1
 
+distutils_enable_tests pytest
+
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
@@ -37,6 +39,27 @@ RDEPEND="
 	dev-python/jinja2[${PYTHON_USEDEP}]
 	dev-python/tenacity[${PYTHON_USEDEP}]
 	dev-python/fire[${PYTHON_USEDEP}]
+	dev-python/prompt-toolkit[${PYTHON_USEDEP}]
+	dev-python/certifi[${PYTHON_USEDEP}]
+	dev-python/httpx[${PYTHON_USEDEP}]
+	dev-python/pydantic[${PYTHON_USEDEP}]
+	dev-python/croniter[${PYTHON_USEDEP}]
+	dev-python/snowballstemmer[${PYTHON_USEDEP}]
+	dev-python/packaging[${PYTHON_USEDEP}]
+	dev-python/markdown[${PYTHON_USEDEP}]
+	dev-python/pyjwt[${PYTHON_USEDEP}]
+	dev-python/urllib3[${PYTHON_USEDEP}]
+	dev-python/cryptography[${PYTHON_USEDEP}]
+	dev-python/psutil[${PYTHON_USEDEP}]
+	dev-python/websockets[${PYTHON_USEDEP}]
+	dev-python/pathspec[${PYTHON_USEDEP}]
+	dev-python/fastapi[${PYTHON_USEDEP}]
+	dev-python/uvicorn[${PYTHON_USEDEP}]
+	dev-python/python-multipart[${PYTHON_USEDEP}]
+	dev-python/ptyprocess[${PYTHON_USEDEP}]
+	dev-python/pillow[${PYTHON_USEDEP}]
+	dev-python/aiohttp[${PYTHON_USEDEP}]
+	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
 "
 DEPEND="${RDEPEND}"
@@ -56,8 +79,8 @@ src_compile() {
 
 	# Build TUI
 	cd ui-tui || die
-	npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
-	npm run build || die
+	npm install --cache "${T}/.npm" --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm run build --cache "${T}/.npm" || die
 	cd .. || die
 }
 
