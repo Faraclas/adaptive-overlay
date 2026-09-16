@@ -1,0 +1,13 @@
+BDEPEND=app-arch/unzip
+DEFINED_PHASES=install postinst
+DESCRIPTION=Amp Locker guitar amplifier simulator plugin
+EAPI=8
+HOMEPAGE=https://audioassault.mx/amplocker.php
+IUSE=+lv2 +vst3
+KEYWORDS=~amd64
+LICENSE=all-rights-reserved
+RDEPEND=media-libs/alsa-lib media-libs/freetype net-misc/curl
+RESTRICT=bindist mirror strip
+SLOT=0
+SRC_URI=https://audioassaultdownloads.s3.amazonaws.com/AmpLocker/AmpLocker109/AmpLockerLinux.zip -> amp-locker-1.4.4.zip
+_md5_=bc80d6b5e990528107d7a1e1081f121c

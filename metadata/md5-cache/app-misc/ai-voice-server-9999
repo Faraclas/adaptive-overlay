@@ -1,0 +1,16 @@
+BDEPEND=client? ( virtual/pkgconfig ) || ( >=dev-lang/rust-bin-1.85.0:* >=dev-lang/rust-1.85.0:* ) >=dev-vcs/git-1.8.2.1[curl] virtual/pkgconfig virtual/pkgconfig
+DEFINED_PHASES=compile configure install postinst setup test unpack
+DEPEND=server? ( acct-group/aivoice acct-user/aivoice ) client? ( gui-libs/gtk4-layer-shell app-misc/interception-tools x11-misc/ydotool media-video/pipewire ) nvidia? ( dev-util/nvidia-cuda-toolkit x11-drivers/nvidia-drivers )
+DESCRIPTION=A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
+EAPI=8
+HOMEPAGE=https://github.com/Faraclas/ai-voice-server
+INHERIT=cargo git-r3 systemd udev
+IUSE=+client +server +vulkan +nvidia rocm debug
+LICENSE=MIT
+PROPERTIES=live live
+RDEPEND=server? ( acct-group/aivoice acct-user/aivoice ) client? ( gui-libs/gtk4-layer-shell app-misc/interception-tools x11-misc/ydotool media-video/pipewire ) nvidia? ( dev-util/nvidia-cuda-toolkit x11-drivers/nvidia-drivers )
+REQUIRED_USE=|| ( client server )
+SLOT=0
+SRC_URI=server? ( https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin -> ai-voice-server-9999-small.en.bin )
+_eclasses_=toolchain-funcs	58a918e3a42d0156f010dcfd43725be5	flag-o-matic	fd3558f73f6503093adee69adf41020d	multiprocessing	45d0620f25c2f063ad6276ecd9ed9399	rust	71b6825bd86e342e1540c76cc6fe864b	rust-toolchain	76468983281b0a7fc167ca224f84ecfd	cargo	c18ade5e10cfd39155908ca389968d65	git-r3	e6c2f983e006e805160436c75a0c1562	systemd	a964c0cbe818b5729da1dbfcee5be861	udev	1a23882bb73bc31c64a6f00a5e515f34
+_md5_=6e589f8e4835163a1a6444970e64c2b1

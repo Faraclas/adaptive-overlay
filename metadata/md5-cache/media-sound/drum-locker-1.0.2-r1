@@ -1,0 +1,13 @@
+BDEPEND=app-arch/unzip
+DEFINED_PHASES=install postinst
+DESCRIPTION=Drum Locker drum machine plugin
+EAPI=8
+HOMEPAGE=https://audioassault.mx/drumlocker.php
+IUSE=+lv2 +vst3
+KEYWORDS=~amd64
+LICENSE=all-rights-reserved
+RDEPEND=media-sound/amp-locker
+RESTRICT=bindist mirror strip
+SLOT=0
+SRC_URI=https://audioassaultdownloads.s3.amazonaws.com/AmpLocker/AmpLocker109/DrumLockerLinux.zip -> drum-locker-1.0.2.zip
+_md5_=a6e20d4f29b9d6a5747445d1bd8727c8
