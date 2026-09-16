@@ -25,7 +25,7 @@ LICENSE="MIT"
 SLOT="0"
 
 # Need network for npm install
-RESTRICT="network-sandbox"
+RESTRICT="network-sandbox !test? ( test )"
 
 RDEPEND="
 	acct-group/hermesagent
@@ -66,6 +66,10 @@ DEPEND="${RDEPEND}"
 BDEPEND="
 	net-libs/nodejs[npm]
 "
+
+PATCHES=(
+	"${FILESDIR}/hermes-agent-python314-daemonpool.patch"
+)
 
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
