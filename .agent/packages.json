@@ -83,6 +83,17 @@
     "notes": "Downloads from Fortinet's apt repo. No public release API. Updates must be checked manually at https://www.fortinet.com/support/product-downloads"
   },
   {
+    "category": "net-vpn",
+    "name": "openfortivpn",
+    "upstream_repo": "adrienverge/openfortivpn",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "autotools",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Open-source Fortinet compatible VPN client. Upstream releases are git tags."
+  },
+  {
     "category": "app-ai",
     "name": "hermes-agent",
     "upstream_repo": "NousResearch/hermes-agent",
@@ -94,6 +105,17 @@
     "notes": "Uses CalVer tags (e.g. v2026.9.7)."
   },
   {
+    "category": "app-misc",
+    "name": "ai-voice-server",
+    "upstream_repo": "Faraclas/ai-voice-server",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Self-hosted voice dictation pipeline. Maintained as a live 9999 ebuild."
+  },
+  {
     "category": "dev-python",
     "name": "firecrawl-anydoc",
     "upstream_repo": "firecrawl/anydoc",
@@ -103,5 +125,78 @@
     "repackage": false,
     "auto_upgrade": true,
     "notes": "Python/Rust maturin package."
+  },
+  {
+    "category": "dev-python",
+    "name": "openai",
+    "upstream_repo": "openai/openai-python",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Official OpenAI Python client library."
+  },
+  {
+    "category": "dev-python",
+    "name": "jiter",
+    "upstream_repo": "pydantic/jiter",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Fast iterable JSON parser. Maturin/Cargo build requiring CRATES updates."
+  },
+  {
+    "category": "dev-python",
+    "name": "fire",
+    "upstream_repo": "google/python-fire",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Python library for automatically generating command line interfaces."
+  },
+  {
+    "category": "acct-group",
+    "name": "aivoice",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Gentoo system group for ai-voice-server."
+  },
+  {
+    "category": "acct-user",
+    "name": "aivoice",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Gentoo system user for ai-voice-server."
+  },
+  {
+    "category": "acct-group",
+    "name": "hermesagent",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Gentoo system group for hermes-agent daemon."
+  },
+  {
+    "category": "acct-user",
+    "name": "hermesagent",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Gentoo system user for hermes-agent daemon."
   }
 ]
