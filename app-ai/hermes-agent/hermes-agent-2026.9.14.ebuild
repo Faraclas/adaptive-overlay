@@ -76,6 +76,14 @@ PATCHES=(
 	"${FILESDIR}/hermes-agent-python314-daemonpool.patch"
 )
 
+hermes_agent_build_tui() {
+	pushd ui-tui >/dev/null || die
+	rm -rf dist || die
+	npm_config_cache="${T}/.npm" npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm_config_cache="${T}/.npm" npm run build || die
+	popd >/dev/null || die
+}
+
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
@@ -86,11 +94,12 @@ src_prepare() {
 src_compile() {
 	distutils-r1_src_compile
 
-	# Build TUI
-	cd ui-tui || die
-	npm install --cache "${T}/.npm" --engine-strict=false --ignore-scripts --no-audit --no-fund || die
-	npm run build --cache "${T}/.npm" || die
-	cd .. || die
+	hermes_agent_build_tui
+}
+
+python_test() {
+	hermes_agent_build_tui
+	epytest
 }
 
 python_install() {
