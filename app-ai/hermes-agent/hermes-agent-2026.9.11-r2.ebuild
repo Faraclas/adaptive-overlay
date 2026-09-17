@@ -8,9 +8,6 @@ PYTHON_COMPAT=( python3_{11..14} )
 
 inherit distutils-r1
 
-IUSE="discord"
-distutils_enable_tests pytest
-
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
@@ -24,9 +21,10 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
+IUSE="discord"
 
 # Need network for npm install
-RESTRICT="network-sandbox"
+RESTRICT="network-sandbox !test? ( test )"
 
 RDEPEND="
 	acct-group/hermesagent
@@ -42,7 +40,7 @@ RDEPEND="
 	dev-python/fire[${PYTHON_USEDEP}]
 	dev-python/prompt-toolkit[${PYTHON_USEDEP}]
 	dev-python/certifi[${PYTHON_USEDEP}]
-	dev-python/httpx[${PYTHON_USEDEP}]
+	dev-python/httpx2[${PYTHON_USEDEP}]
 	dev-python/pydantic[${PYTHON_USEDEP}]
 	dev-python/croniter[${PYTHON_USEDEP}]
 	dev-python/snowballstemmer[${PYTHON_USEDEP}]
@@ -70,6 +68,9 @@ DEPEND="${RDEPEND}"
 BDEPEND="
 	net-libs/nodejs[npm]
 "
+
+EPYTEST_PLUGINS=()
+distutils_enable_tests pytest
 
 PATCHES=(
 	"${FILESDIR}/hermes-agent-python314-daemonpool.patch"
