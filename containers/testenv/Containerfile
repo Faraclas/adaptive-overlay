@@ -32,7 +32,7 @@ RUN mkdir -p /var/db/repos/adaptive-overlay /etc/portage/repos.conf && \
         > /etc/portage/repos.conf/adaptive-overlay.conf
 
 # Install overlay tooling
-RUN emerge --oneshot --quiet-build dev-util/pkgcheck dev-util/pkgdev
+RUN emerge --oneshot --quiet-build --update --deep dev-util/pkgcheck dev-util/pkgdev
 
 # Add GURU overlay for third-party dependencies (like interception-tools)
 RUN emerge --oneshot --quiet-build app-eselect/eselect-repository && \
