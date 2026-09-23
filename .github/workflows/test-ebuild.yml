@@ -120,6 +120,21 @@ jobs:
           echo "Ebuild stem : ${EBUILD_STEM}"
           echo "Build image : ${BUILD_IMAGE}"
 
+      # Accept ~amd64 for overlay packages and listed ::gentoo deps
+      # (containers/package.accept_keywords), then install the ebuild's
+      # dependencies. A resolver failure fails the job, because an ebuild
+      # whose deps cannot be resolved is unbuildable.
+      - name: Install dependencies
+        run: |
+          mkdir -p /etc/portage/package.accept_keywords
+          cp "${GITHUB_WORKSPACE}/overlay/containers/package.accept_keywords" \
+            /etc/portage/package.accept_keywords/zz-adaptive-overlay
+          mkdir -p /etc/portage/package.license
+          cp "${GITHUB_WORKSPACE}/overlay/containers/package.license" \
+            /etc/portage/package.license/zz-adaptive-overlay
+          cd "${{ steps.vars.outputs.pkg_dir }}"
+          emerge -v -q --onlydeps --jobs "./${{ inputs.ebuild_file }}"
+
       # Run the full build inside the container. Output is tee'd to a log
       # file so it can be uploaded as an artifact even on failure.
       # The `ebuild` command is run from the package directory so relative

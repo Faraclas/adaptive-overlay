@@ -1,0 +1,7 @@
+# Licenses accepted when build-testing overlay ebuilds (scripts/test-build.sh
+# and .github/workflows/test-ebuild.yml copy this into the container).
+# Keep in sync with what users must accept for the tested USE flags.
+
+# app-ai/hermes-agent[browser] pulls a binary Chrome.
+www-client/google-chrome google-chrome
+www-client/google-chrome-beta google-chrome

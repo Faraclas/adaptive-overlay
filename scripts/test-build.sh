@@ -154,6 +154,7 @@ echo ""
 
 "${RUNTIME}" run --rm \
     --user root \
+    -e USE="${USE:-}" \
     -v "${OVERLAY_DIR}:/mnt/adaptive-overlay:ro" \
     "${IMAGE}" \
     bash -c "
@@ -164,10 +165,20 @@ echo ""
         rm -rf /var/db/repos/adaptive-overlay
         ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay
 
-        # Install dependencies (ignoring errors as some packages might be masked or in other overlays)
+        # Accept ~amd64 for overlay packages plus the few ::gentoo deps that
+        # are testing-only (containers/package.accept_keywords).
+        mkdir -p /etc/portage/package.accept_keywords
+        cp /mnt/adaptive-overlay/containers/package.accept_keywords \\
+            /etc/portage/package.accept_keywords/zz-adaptive-overlay
+        mkdir -p /etc/portage/package.license
+        cp /mnt/adaptive-overlay/containers/package.license \\
+            /etc/portage/package.license/zz-adaptive-overlay
+
+        # Install dependencies. A failure here is a real failure: an ebuild
+        # whose dependencies cannot be resolved is not buildable.
         echo '==> emerge --onlydeps ./${EBUILD_FILE}'
         cd '${PKG_DIR}'
-        emerge -v -q --onlydeps --jobs \"./${EBUILD_FILE}\" || echo \"Warning: emerge --onlydeps failed, continuing anyway...\"
+        emerge -v -q --onlydeps --jobs \"./${EBUILD_FILE}\"
 
         # Run the build
         echo '==> ebuild ${EBUILD_FILE} ${PHASES}'

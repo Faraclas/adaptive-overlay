@@ -1,0 +1,9 @@
+# Keywords accepted when build-testing overlay ebuilds (scripts/test-build.sh
+# and .github/workflows/test-ebuild.yml copy this into the container).
+#
+# Every overlay package is ~amd64.
+*/*::adaptive-overlay ~amd64
+
+# ::gentoo dependencies that only exist as ~amd64. Keep this list minimal
+# and in sync with what users need in their own package.accept_keywords.
+dev-python/fastapi ~amd64
