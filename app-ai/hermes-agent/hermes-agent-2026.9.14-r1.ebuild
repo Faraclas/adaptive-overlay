@@ -21,12 +21,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="abi_x86_64 browser discord mcp websearch"
-# The TUI requires 64-bit Node.js; Chromium browser providers require glibc.
-REQUIRED_USE="
-	abi_x86_64
-	browser? ( elibc_glibc )
-"
+IUSE="browser discord mcp websearch"
 
 # Need network for npm install
 RESTRICT="network-sandbox !test? ( test )"
@@ -66,13 +61,11 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
-	elibc_glibc? (
-		browser? (
-			|| (
-				www-client/google-chrome
-				www-client/google-chrome-beta
-				www-client/chromium
-			)
+	browser? (
+		|| (
+			www-client/google-chrome
+			www-client/google-chrome-beta
+			www-client/chromium
 		)
 	)
 	mcp? (
