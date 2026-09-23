@@ -128,6 +128,17 @@
   },
   {
     "category": "dev-python",
+    "name": "ddgs",
+    "upstream_repo": "deedy5/ddgs",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "DuckDuckGo and multi-backend metasearch library; depends on primp and lxml."
+  },
+  {
+    "category": "dev-python",
     "name": "discord-py",
     "upstream_repo": "Rapptz/discord.py",
     "upstream_type": "github-tag",
@@ -136,6 +147,50 @@
     "repackage": false,
     "auto_upgrade": true,
     "notes": "Python wrapper for the Discord API."
+  },
+  {
+    "category": "dev-python",
+    "name": "mcp",
+    "upstream_repo": "modelcontextprotocol/python-sdk",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Model Context Protocol SDK; version-matched mcp-types is a required dependency."
+  },
+  {
+    "category": "dev-python",
+    "name": "mcp-types",
+    "upstream_repo": "modelcontextprotocol/python-sdk",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Wire-types subpackage released with the MCP SDK; keep version in lockstep."
+  },
+  {
+    "category": "dev-python",
+    "name": "primp",
+    "upstream_repo": "deedy5/primp",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Maturin/Rust extension; update the CRATES list and Rust minimum on bumps."
+  },
+  {
+    "category": "dev-python",
+    "name": "sse-starlette",
+    "upstream_repo": "sysid/sse-starlette",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Server-Sent Events implementation used by the MCP SDK HTTP server transports."
   },
   {
     "category": "dev-python",

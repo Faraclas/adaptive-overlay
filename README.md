@@ -14,10 +14,15 @@ Currently included packages:
 - **app-ai/hermes-agent** - The agent that grows with you
 - **app-editors/zed** - Fast, collaborative code editor
 - **app-misc/ai-voice-server** - A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
+- **dev-python/ddgs** - Metasearch library with DuckDuckGo and other search backends
 - **dev-python/discord-py** - Python wrapper for the Discord API
 - **dev-python/fire** - Python library for automatically generating command line interfaces
 - **dev-python/jiter** - Fast iterable JSON parser
+- **dev-python/mcp** - Python SDK for the Model Context Protocol
+- **dev-python/mcp-types** - Model Context Protocol wire types
 - **dev-python/openai** - The official Python library for the OpenAI API
+- **dev-python/primp** - HTTP client that can impersonate web browsers
+- **dev-python/sse-starlette** - Server-Sent Events for Starlette and FastAPI
 - **media-sound/amp-locker** - Audio plugin locker
 - **media-sound/bitwig-studio** - Digital audio workstation
 - **media-sound/carla** - Audio plugin host

@@ -9,6 +9,9 @@
     <remote-id type="github">NousResearch/hermes-agent</remote-id>
   </upstream>
   <use>
+    <flag name="browser">Enable browser automation with a Chromium-based browser</flag>
     <flag name="discord">Enable Discord gateway bot support via <pkg>dev-python/discord-py</pkg></flag>
+    <flag name="mcp">Enable native Model Context Protocol integrations</flag>
+    <flag name="websearch">Enable the DDGS web-search provider</flag>
   </use>
 </pkgmetadata>

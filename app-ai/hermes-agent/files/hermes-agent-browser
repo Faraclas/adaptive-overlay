@@ -1,0 +1,16 @@
+#!/bin/sh
+# Resolve the Chromium executable provided by the browser USE dependency.
+for browser in \
+	/usr/bin/google-chrome \
+	/usr/bin/google-chrome-stable \
+	/usr/bin/google-chrome-beta \
+	/usr/bin/google-chrome-beta-stable \
+	/usr/bin/chromium \
+	/usr/bin/chromium-browser
+do
+	if [ -x "${browser}" ]; then
+		exec "${browser}" "$@"
+	fi
+done
+printf '%s\n' 'Hermes browser support is enabled but no supported Chromium binary was found.' >&2
+exit 127
