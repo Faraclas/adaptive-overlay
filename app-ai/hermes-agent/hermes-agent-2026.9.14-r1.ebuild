@@ -21,7 +21,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="browser discord mcp websearch"
+IUSE="browser +dashboard discord +mcp +websearch"
 
 # Need network for npm install
 RESTRICT="network-sandbox !test? ( test )"
@@ -117,12 +117,16 @@ src_compile() {
 	distutils-r1_src_compile
 
 	hermes_agent_build_tui
-	hermes_agent_build_web
+	if use dashboard; then
+		hermes_agent_build_web
+	fi
 }
 
 python_test() {
 	hermes_agent_build_tui
-	hermes_agent_build_web
+	if use dashboard; then
+		hermes_agent_build_web
+	fi
 	epytest
 }
 
@@ -133,8 +137,10 @@ python_install() {
 
 	python_moduleinto hermes_cli/tui_dist
 	python_domodule ui-tui/dist/entry.js
-	python_moduleinto hermes_cli/web_dist
-	python_domodule hermes_cli/web_dist/*
+	if use dashboard; then
+		python_moduleinto hermes_cli/web_dist
+		python_domodule hermes_cli/web_dist/*
+	fi
 }
 
 src_install() {
