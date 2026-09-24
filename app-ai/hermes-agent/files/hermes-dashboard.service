@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Agent Dashboard
+Documentation=https://hermes-agent.nousresearch.com/docs/user-guide/features/web-dashboard
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hermes dashboard --no-open --skip-build --port 9119
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
