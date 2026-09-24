@@ -93,7 +93,7 @@ PATCHES=(
 hermes_agent_build_tui() {
 	pushd ui-tui >/dev/null || die
 	rm -rf dist || die
-	npm_config_cache="${T}/.npm" npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm_config_cache="${T}/.npm" npm ci --engine-strict=false --ignore-scripts --no-audit --no-fund || die
 	npm_config_cache="${T}/.npm" npm run build || die
 	popd >/dev/null || die
 }
@@ -101,7 +101,7 @@ hermes_agent_build_tui() {
 hermes_agent_build_web() {
 	pushd web >/dev/null || die
 	rm -rf ../hermes_cli/web_dist || die
-	npm_config_cache="${T}/.npm" npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm_config_cache="${T}/.npm" npm ci --engine-strict=false --ignore-scripts --no-audit --no-fund || die
 	npm_config_cache="${T}/.npm" npm run build || die
 	popd >/dev/null || die
 }
