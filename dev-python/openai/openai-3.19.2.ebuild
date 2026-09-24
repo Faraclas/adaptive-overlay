@@ -20,7 +20,7 @@ KEYWORDS="~amd64"
 
 RDEPEND="
 	>=dev-python/anyio-4.10.0[${PYTHON_USEDEP}]
-	>=dev-python/httpx2-2.7.0[${PYTHON_USEDEP}]
+	>=dev-python/httpx2-2.12.0[${PYTHON_USEDEP}]
 	>=dev-python/jiter-0.16.0[${PYTHON_USEDEP}]
 	>=dev-python/pydantic-1.10.13[${PYTHON_USEDEP}]
 	dev-python/sniffio[${PYTHON_USEDEP}]

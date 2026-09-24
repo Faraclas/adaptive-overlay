@@ -7,3 +7,5 @@
 # ::gentoo dependencies that only exist as ~amd64. Keep this list minimal
 # and in sync with what users need in their own package.accept_keywords.
 dev-python/fastapi ~amd64
+# openai >=3.19 needs httpx2 >=2.12; bounded to the last tested version.
+<=dev-python/httpx2-2.13.1 ~amd64
