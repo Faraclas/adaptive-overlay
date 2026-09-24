@@ -4,7 +4,7 @@
 EAPI=8
 
 DISTUTILS_USE_PEP517=standalone
-PYTHON_COMPAT=( python3_{11..14} )
+PYTHON_COMPAT=( python3_{12..14} )
 
 inherit distutils-r1
 
@@ -14,7 +14,7 @@ HOMEPAGE="
 	https://github.com/modelcontextprotocol/python-sdk
 	https://pypi.org/project/mcp-types/
 "
-SRC_URI="https://files.pythonhosted.org/packages/f5/4c/c78d78c3d52b0ac594ad7cc8ef5972adfe070e3597a8a4c6ce0cd39196ea/mcp_types-${PV}-py3-none-any.whl"
+SRC_URI="https://files.pythonhosted.org/packages/8f/d7/6ffba5d8cd5dd9b8a19478875c50e04945314ba5074e84d749283f27f62d/mcp_types-${PV}-py3-none-any.whl"
 S="${WORKDIR}"
 
 LICENSE="MIT"
