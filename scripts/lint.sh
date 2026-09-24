@@ -59,10 +59,13 @@ echo "    Image   : ${IMAGE}"
 echo ""
 
 # --- Run pkgcheck inside the container ---------------------------------------
+# x32 is disabled: the overlay targets 64-bit amd64 only, and packages that
+# need Node.js (e.g. app-ai/hermes-agent) cannot resolve deps on x32.
 "${RUNTIME}" run --rm \
     -v "${OVERLAY_DIR}:/var/db/repos/adaptive-overlay:ro" \
     "${IMAGE}" \
     pkgcheck scan \
         --exit error \
+        --profiles -default/linux/amd64/23.0/x32,-default/linux/amd64/23.0/x32/systemd,-default/linux/amd64/23.0/split-usr/x32 \
         -r adaptive-overlay \
         "${PACKAGE_DIR}"

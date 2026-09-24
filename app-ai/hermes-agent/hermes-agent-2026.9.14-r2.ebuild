@@ -22,6 +22,10 @@ fi
 LICENSE="MIT"
 SLOT="0"
 IUSE="browser +dashboard discord +mcp +websearch"
+# Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
+# RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
+# when solving deps on musl profiles.
+REQUIRED_USE="browser? ( elibc_glibc )"
 
 # Need network for npm install
 RESTRICT="network-sandbox !test? ( test )"
@@ -61,11 +65,13 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
-	browser? (
-		|| (
-			www-client/google-chrome
-			www-client/google-chrome-beta
-			www-client/chromium
+	elibc_glibc? (
+		browser? (
+			|| (
+				www-client/google-chrome
+				www-client/google-chrome-beta
+				www-client/chromium
+			)
 		)
 	)
 	mcp? (
