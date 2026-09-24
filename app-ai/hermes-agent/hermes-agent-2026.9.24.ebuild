@@ -21,7 +21,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="discord"
+IUSE="browser +dashboard discord +mcp +websearch"
 
 # Need network for npm install
 RESTRICT="network-sandbox !test? ( test )"
@@ -29,6 +29,7 @@ RESTRICT="network-sandbox !test? ( test )"
 RDEPEND="
 	acct-group/hermesagent
 	acct-user/hermesagent
+	sys-apps/ripgrep
 	dev-python/openai[${PYTHON_USEDEP}]
 	dev-python/python-dotenv[${PYTHON_USEDEP}]
 	dev-python/rich[${PYTHON_USEDEP}]
@@ -60,6 +61,19 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
+	browser? (
+		|| (
+			www-client/google-chrome
+			www-client/google-chrome-beta
+			www-client/chromium
+		)
+	)
+	mcp? (
+		dev-python/mcp[${PYTHON_USEDEP}]
+	)
+	websearch? (
+		dev-python/ddgs[${PYTHON_USEDEP}]
+	)
 	discord? (
 		dev-python/discord-py[${PYTHON_USEDEP}]
 	)
@@ -84,6 +98,14 @@ hermes_agent_build_tui() {
 	popd >/dev/null || die
 }
 
+hermes_agent_build_web() {
+	pushd web >/dev/null || die
+	rm -rf ../hermes_cli/web_dist || die
+	npm_config_cache="${T}/.npm" npm install --engine-strict=false --ignore-scripts --no-audit --no-fund || die
+	npm_config_cache="${T}/.npm" npm run build || die
+	popd >/dev/null || die
+}
+
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
@@ -95,10 +117,16 @@ src_compile() {
 	distutils-r1_src_compile
 
 	hermes_agent_build_tui
+	if use dashboard; then
+		hermes_agent_build_web
+	fi
 }
 
 python_test() {
 	hermes_agent_build_tui
+	if use dashboard; then
+		hermes_agent_build_web
+	fi
 	epytest
 }
 
@@ -109,10 +137,19 @@ python_install() {
 
 	python_moduleinto hermes_cli/tui_dist
 	python_domodule ui-tui/dist/entry.js
+	if use dashboard; then
+		python_moduleinto hermes_cli/web_dist
+		python_domodule hermes_cli/web_dist/*
+	fi
 }
 
 src_install() {
 	distutils-r1_src_install
 	newconfd "${FILESDIR}/hermesagent.confd" "hermesagent"
 	newinitd "${FILESDIR}/hermesagent.initd" "hermesagent"
+	if use browser; then
+		newenvd "${FILESDIR}/hermes-agent.env" "99hermes-agent-browser"
+		exeinto /usr/libexec/hermes-agent
+		doexe "${FILESDIR}/hermes-agent-browser"
+	fi
 }
