@@ -713,8 +713,33 @@ src_install() {
 	dodoc README.md CHANGELOG.md
 }
 
+# Warn when the installed GNOME Shell is not in the WinRects extension's
+# declared shell-version list (GNOME refuses to load it then). No hard
+# dependency: an optional extension must never block GNOME upgrades.
+winrects_check_shell_version() {
+	local meta="${EROOT}/usr/share/gnome-shell/extensions/winrects@cua/metadata.json"
+	[[ -f ${meta} ]] || return 0
+	local shell_ver
+	shell_ver=$(best_version gnome-base/gnome-shell) || return 0
+	[[ -n ${shell_ver} ]] || return 0
+	shell_ver=${shell_ver#gnome-base/gnome-shell-}
+	local major=${shell_ver%%.*}
+	local supported
+	supported=$(sed -n 's/.*"shell-version"[[:space:]]*:[[:space:]]*\[\(.*\)\].*/\1/p' "${meta}" | tr -d '" ')
+	[[ -n ${supported} ]] || return 0
+	if [[ ,${supported}, != *,${major},* ]]; then
+		ewarn "WinRects supports GNOME Shell ${supported//,/, } but"
+		ewarn "gnome-shell-${shell_ver} is installed. GNOME will not load the"
+		ewarn "extension; computer use on GNOME Wayland will not work until a"
+		ewarn "cua-driver release adds GNOME ${major}."
+	else
+		elog "WinRects supports GNOME Shell ${supported//,/, } (installed: ${shell_ver})."
+	fi
+}
+
 pkg_postinst() {
 	if use gnome; then
+		winrects_check_shell_version
 		elog "Enable the WinRects GNOME Shell helper (per user), then log out"
 		elog "and back in:"
 		elog "    gnome-extensions enable winrects@cua"

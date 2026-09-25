@@ -94,6 +94,15 @@ if [ -d "${EXT}" ]; then
             fail "winrects@cua/${f} missing"
         fi
     done
+    # Record the GNOME Shell versions this WinRects build declares, so each
+    # version bump shows in the log whether the host's GNOME is covered.
+    SHELL_VERS="$(sed -n 's/.*"shell-version"[[:space:]]*:[[:space:]]*\[\(.*\)\].*/\1/p' \
+        "${EXT}/metadata.json" | tr -d '" ')"
+    if [ -n "${SHELL_VERS}" ]; then
+        pass "winrects@cua shell-version: ${SHELL_VERS}"
+    else
+        fail "winrects@cua metadata.json has no parsable shell-version list"
+    fi
 else
     echo "  - winrects@cua not installed (USE=-gnome); skipped"
 fi
