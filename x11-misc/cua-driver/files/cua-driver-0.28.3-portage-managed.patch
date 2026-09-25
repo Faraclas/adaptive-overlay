@@ -1,0 +1,29 @@
+--- a/crates/cua-driver/src/updater.rs
++++ b/crates/cua-driver/src/updater.rs
+@@ -22,8 +22,9 @@
+ 
+ use std::process::{Command, ExitStatus};
+ 
++// Gentoo: the system package manager owns /usr/bin/cua-driver.
+ pub(crate) const PACMAN_UPDATE_GUIDANCE: &str =
+-    "This executable is managed by pacman. Update with `sudo pacman -Syu`; \
++    "This executable is managed by Portage. Update with `emerge -u x11-misc/cua-driver`; \
+      release selection and availability are controlled by your package repository. \
+      The upstream installer and stable/nightly channel switching are disabled.";
+ 
+@@ -32,6 +33,15 @@
+ pub(crate) fn is_pacman_managed() -> bool {
+     #[cfg(target_os = "linux")]
+     {
++        // Gentoo: treat the system-installed binary as package-managed so the
++        // upstream self-updater never replaces files Portage owns.
++        if std::env::current_exe()
++            .ok()
++            .and_then(|path| path.canonicalize().ok())
++            .is_some_and(|path| path.starts_with("/usr/bin"))
++        {
++            return true;
++        }
+         std::env::current_exe()
+             .map(|path| pacman_owns_executable(&path, std::path::Path::new("/usr/bin/pacman")))
+             .unwrap_or(false)

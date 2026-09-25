@@ -158,3 +158,14 @@ RUN emerge --oneshot --quiet-build \
     dev-db/sqlite \
     dev-libs/openssl \
     net-misc/curl
+
+# -----------------------------------------------------------------------
+# x11-misc/cua-driver build dependencies (shares this image with zed).
+# Determined from x11-misc/cua-driver-0.28.3::adaptive-overlay with
+# USE="gnome portal".
+# -----------------------------------------------------------------------
+RUN emerge --oneshot --quiet-build --noreplace \
+    dev-libs/libei \
+    x11-libs/libXi \
+    x11-libs/libXtst \
+    app-accessibility/at-spi2-core

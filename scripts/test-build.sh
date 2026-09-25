@@ -77,14 +77,14 @@ fi
 
 # --- Select image based on package -------------------------------------------
 # Some packages need specialised images with extra build dependencies:
-#   app-editors/zed   → testenv-rust  (Rust, LLVM)
+#   app-editors/zed, x11-misc/cua-driver → testenv-rust-desktop (Rust, LLVM, X/Wayland libs)
 #   media-sound/*     → testenv-audio (Wine, JACK, multilib X, etc.)
 # Everything else uses the base testenv image.
 PACKAGE_CAT="${PACKAGE_DIR%%/*}"
 if echo "${PACKAGE_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-python-heavy:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
-elif [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
+elif [ "${PACKAGE_DIR}" = "app-editors/zed" ] || [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust-desktop:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
@@ -112,6 +112,8 @@ BUILD_IMAGE="/var/tmp/portage/${PACKAGE_DIR%/*}/${EBUILD_STEM}/image"
 PACKAGE_NAME="${PACKAGE_DIR##*/}"
 if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
+elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
+    VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-audio/verify-${PACKAGE_NAME}.sh"
 else

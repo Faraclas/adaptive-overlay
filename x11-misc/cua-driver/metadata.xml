@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    cua-driver is the computer-use automation driver from the trycua/cua
+    project. It speaks MCP and takes screenshots, reads app UIs through
+    AT-SPI and sends mouse and keyboard input. Hermes Agent's computer_use
+    tool drives it. Built from source; the upstream self-updater is
+    disabled because Portage owns the installed files.
+  </longdescription>
+  <use>
+    <flag name="gnome">Install the WinRects GNOME Shell helper extension (window geometry, capture, agent cursor and verified focus on GNOME Wayland)</flag>
+    <flag name="portal">Enable GNOME/KDE input through the RemoteDesktop portal and <pkg>dev-libs/libei</pkg> (portal-input); required for mouse and keyboard on Wayland</flag>
+  </use>
+  <upstream>
+    <remote-id type="github">trycua/cua</remote-id>
+  </upstream>
+</pkgmetadata>

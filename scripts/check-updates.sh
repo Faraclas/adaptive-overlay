@@ -134,6 +134,44 @@ github_latest_version() {
     return 1
 }
 
+# github_latest_prerelease_version OWNER/REPO VERSION_PATTERN
+#   Like github_latest_version, but also accepts releases GitHub marks
+#   as prerelease. For monorepos whose component streams only publish
+#   prereleases (e.g. trycua/cua's cua-driver-rs-v*), where the
+#   repository-wide tags list is dominated by other components.
+#   Scans 100 recent releases and returns the highest pattern match.
+#   Keep VERSION_PATTERN strict so nightly tags never match.
+github_latest_prerelease_version() {
+    local repo="$1"
+    local pattern="$2"
+    local api_url="https://api.github.com/repos/${repo}/releases"
+
+    local response
+    response=$(
+        curl -sf --max-time 15 \
+            -H "Accept: application/vnd.github+json" \
+            "${CURL_AUTH[@]+"${CURL_AUTH[@]}"}" \
+            "${api_url}?per_page=100" 2>/dev/null
+    ) || return 1
+
+    local version
+    version=$(
+        echo "${response}" \
+            | jq -r '[ .[] | select(.draft == false) ] | .[].tag_name // empty' \
+            | grep -E "^${pattern}$" \
+            | sed -E "s/^${pattern}$/\\1/" \
+            | sort -V \
+            | tail -n 1
+    )
+
+    if [ -n "${version}" ]; then
+        echo "${version}"
+        return 0
+    fi
+
+    return 1
+}
+
 # github_latest_tag_version OWNER/REPO VERSION_PATTERN
 #   Queries the GitHub Tags API and returns the highest version
 #   whose tag matches the given pattern.  This is the right
@@ -275,6 +313,21 @@ for i in $(seq 0 $((PKG_COUNT - 1))); do
             else
                 UPSTREAM_VER=$(
                     github_latest_tag_version \
+                        "${UPSTREAM_REPO}" \
+                        "${VERSION_PATTERN}"
+                ) || true
+                if [ -z "${UPSTREAM_VER}" ]; then
+                    STATUS="error:api-failed"
+                fi
+            fi
+            ;;
+        github-prerelease)
+            if [ -z "${UPSTREAM_REPO}" ] \
+                || [ -z "${VERSION_PATTERN}" ]; then
+                STATUS="error:missing-metadata"
+            else
+                UPSTREAM_VER=$(
+                    github_latest_prerelease_version \
                         "${UPSTREAM_REPO}" \
                         "${VERSION_PATTERN}"
                 ) || true

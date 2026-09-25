@@ -376,6 +376,9 @@ jobs:
             if [ "${PKG_DIR}" = "app-editors/zed" ]; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
               VERIFY="containers/testenv-rust-desktop/verify-zed.sh"
+            elif [ "${PKG_DIR}" = "x11-misc/cua-driver" ]; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
+              VERIFY="containers/testenv-rust-desktop/verify-cua-driver.sh"
             elif echo "${PKG_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
               VERIFY=""

@@ -264,5 +264,16 @@
     "repackage": false,
     "auto_upgrade": false,
     "notes": "Gentoo system user for hermes-agent daemon."
+  },
+  {
+    "category": "x11-misc",
+    "name": "cua-driver",
+    "upstream_repo": "trycua/cua",
+    "upstream_type": "github-prerelease",
+    "version_pattern": "cua-driver-rs-v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "trycua/cua monorepo; every cua-driver release is marked prerelease, so upstream_type github-prerelease. Pattern excludes nightly-* tags. On bump: regenerate CRATES with pycargoebuild on crates/cua-driver + crates/cursor-theme-cli, re-apply files/cua-driver-*-portage-managed.patch, check the wayland-helper extension version."
   }
 ]
