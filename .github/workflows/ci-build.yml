@@ -379,6 +379,9 @@ jobs:
             elif [ "${PKG_DIR}" = "x11-misc/cua-driver" ]; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
               VERIFY="containers/testenv-rust-desktop/verify-cua-driver.sh"
+            elif [ "${PKG_DIR}" = "app-ai/hermes-agent" ]; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
+              VERIFY="containers/testenv-python-heavy/verify-hermes-agent.sh"
             elif echo "${PKG_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest"
               VERIFY=""

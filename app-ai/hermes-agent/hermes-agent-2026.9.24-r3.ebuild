@@ -121,6 +121,10 @@ PATCHES=(
 	# Accept newer system-installed deps for lazy_deps pins when runtime installs are
 	# disabled (security.allow_lazy_installs: false); unblocks computer_use on Portage.
 	"${FILESDIR}/${PN}-lazydeps-pins-as-floors.patch"
+	# computer_use: reconnect after mcp 2.x MCPError(CONNECTION_CLOSED) (a dead
+	# cua-driver otherwise breaks every later call until restart), and add
+	# action="release" to end this session's desktop connection cleanly.
+	"${FILESDIR}/${PN}-computer-use-release-reconnect.patch"
 )
 
 src_prepare() {

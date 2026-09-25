@@ -1,0 +1,65 @@
+diff -ru a/tools/computer_use/cua_backend_session.py b/tools/computer_use/cua_backend_session.py
+--- a/tools/computer_use/cua_backend_session.py	2026-09-25 14:01:09.039327474 -0400
++++ b/tools/computer_use/cua_backend_session.py	2026-09-25 14:01:32.394516477 -0400
+@@ -388,6 +388,14 @@
+     def _is_closed_session_error(exc: Exception) -> bool:
+         """True for MCP/stdio failures that are recoverable by reconnecting."""
+         name, module = exc.__class__.__name__, getattr(exc.__class__, "__module__", "")
++        if name == "MCPError" and module.startswith("mcp"):
++            # mcp 2.x surfaces a dead stdio peer (driver exited, crashed or was killed) as
++            # MCPError(code=CONNECTION_CLOSED) instead of the anyio stream errors below.
++            try:
++                from mcp.types import CONNECTION_CLOSED
++            except ImportError:  # pragma: no cover - mcp<2 has no MCPError code constant
++                CONNECTION_CLOSED = -32000
++            return getattr(exc, "code", None) == CONNECTION_CLOSED
+         return (name in {"ClosedResourceError", "BrokenResourceError", "EndOfStream"}
+                 or (module.startswith("anyio") and "Resource" in name)
+                 or isinstance(exc, (BrokenPipeError, EOFError)))
+diff -ru a/tools/computer_use/schema.py b/tools/computer_use/schema.py
+--- a/tools/computer_use/schema.py	2026-09-25 14:01:09.039482493 -0400
++++ b/tools/computer_use/schema.py	2026-09-25 14:01:47.009956570 -0400
+@@ -32,12 +32,14 @@
+             "list_apps",
+             "list_windows",
+             "focus_app",
++            "release",
+         ],
+         "description": (
+             "Which action to perform. `capture` is free (no side effects). All other actions "
+             "require approval unless auto-approved. Use `set_value` for select/popup elements and "
+             "sliders — it selects the matching option directly without opening the native menu (no "
+-            "focus steal)."
++            "focus steal). `release` ends this session's desktop connection (closes screen sharing); "
++            "use it once when the whole job is done, not between steps — the next call reconnects."
+         ),
+     },
+     "mode": {
+diff -ru a/tools/computer_use/tool.py b/tools/computer_use/tool.py
+--- a/tools/computer_use/tool.py	2026-09-25 14:01:09.039416087 -0400
++++ b/tools/computer_use/tool.py	2026-09-25 14:01:47.009797535 -0400
+@@ -330,6 +330,16 @@
+     if not action:
+         return json.dumps({"error": "missing `action`"})
+     session_id = str(kwargs.get("session_id") or "")  # approval-state / daemon-mode isolation key
++    if action == "release":
++        # Handled before backend acquisition: releasing must never start a driver just to stop it, and it
++        # needs no approval or lease (it only ends this session's own screen access). Clean counterpart to the
++        # session teardown: the cached backend is detached first, so the next action starts a fresh cua-driver
++        # instead of reusing a dead MCP connection.
++        released = release_computer_use_session(session_id)
++        return json.dumps({"ok": True, "action": "release", "released": released,
++                           "message": ("Released this session's cua-driver; desktop sharing for it is closed. "
++                                       "The next computer_use call reconnects automatically — start with a fresh capture."
++                                       if released else "No active cua-driver for this session; nothing to release.")})
+     # Bot Desktop lease: while a human drives the screen every action, capture included, is refused.
+     from tools.bot_desktop import lease as _bd_lease
+     from tools.bot_desktop.runtime import ensure_started_for_tool as _bd_ensure_started
+@@ -495,6 +505,7 @@
+ _ACTION_SUGGESTIONS = {
+     "hotkey": "key", "press_key": "key", "keypress": "key", "key_combo": "key", "shortcut": "key", "type_text": "type",
+     "input_text": "type", "screenshot": "capture", "get_window_state": "capture", "left_click": "click", "mouse_click": "click",
++    "close": "release", "disconnect": "release", "end_session": "release", "stop_sharing": "release",
+ }
+ 
+ def _dispatch(backend: ComputerUseBackend, action: str, args: Dict[str, Any], fence: Callable[[], None] = lambda: None,

@@ -114,6 +114,8 @@ if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
+elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ]; then
+    VERIFY_SCRIPT_REL="containers/testenv-python-heavy/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-audio/verify-${PACKAGE_NAME}.sh"
 else
