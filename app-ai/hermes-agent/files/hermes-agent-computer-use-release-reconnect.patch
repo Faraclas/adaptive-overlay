@@ -1,6 +1,27 @@
+diff -ru a/tools/computer_use/cua_backend_daemon.py b/tools/computer_use/cua_backend_daemon.py
+--- a/tools/computer_use/cua_backend_daemon.py	2026-09-25 15:30:13.814372141 -0400
++++ b/tools/computer_use/cua_backend_daemon.py	2026-09-25 15:30:13.814743828 -0400
+@@ -192,6 +192,17 @@
+         probe = _cb()._run_quiet([self._command, "status", "--socket", self.socket_path], timeout=2.0, env=env, swallow=_QUIET_ERRORS)
+         return probe is not None and probe.returncode == 0
+ 
++    def ensure_alive(self) -> bool:
++        """Restart the private daemon if its process died (crash, kill, OOM) since start(); True when it was restarted.
++        The MCP proxy reconnect only rebuilds the proxy, and a dead daemon leaves its socket path unanswered, so every
++        reconnect would fail with "no Cua Driver daemon listening". Never called for the machine-wide daemon."""
++        if not self._running or self._process is None or self._process.poll() is None:
++            return False
++        logger.warning("embedded cua-driver daemon exited (code %s); restarting it", self._process.returncode)
++        self.stop()
++        self.start()
++        return True
++
+     def proxy_invocation(self) -> Tuple[str, List[str]]:
+         if not self._running:
+             raise RuntimeError("embedded cua-driver daemon is not running")
 diff -ru a/tools/computer_use/cua_backend_session.py b/tools/computer_use/cua_backend_session.py
 --- a/tools/computer_use/cua_backend_session.py	2026-09-25 14:01:09.039327474 -0400
-+++ b/tools/computer_use/cua_backend_session.py	2026-09-25 14:01:32.394516477 -0400
++++ b/tools/computer_use/cua_backend_session.py	2026-09-25 15:30:13.814952988 -0400
 @@ -388,6 +388,14 @@
      def _is_closed_session_error(exc: Exception) -> bool:
          """True for MCP/stdio failures that are recoverable by reconnecting."""
@@ -16,6 +37,15 @@ diff -ru a/tools/computer_use/cua_backend_session.py b/tools/computer_use/cua_ba
          return (name in {"ClosedResourceError", "BrokenResourceError", "EndOfStream"}
                  or (module.startswith("anyio") and "Resource" in name)
                  or isinstance(exc, (BrokenPipeError, EOFError)))
+@@ -427,6 +435,8 @@
+                     logger.debug("cua-driver session cleanup before reconnect failed: %s", e)
+                 self._started = False
+                 self._capabilities, self._tool_schemas, self._capability_version = {}, {}, ""
++                if (daemon := getattr(self, "_embedded_daemon", None)) is not None:
++                    daemon.ensure_alive()  # a dead private daemon would strand the rebuilt proxy on a dead socket
+                 self._start_lifecycle_locked()
+                 self._started = True
+             if clear_timeout_suspect:
 diff -ru a/tools/computer_use/schema.py b/tools/computer_use/schema.py
 --- a/tools/computer_use/schema.py	2026-09-25 14:01:09.039482493 -0400
 +++ b/tools/computer_use/schema.py	2026-09-25 14:01:47.009956570 -0400

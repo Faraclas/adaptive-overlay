@@ -123,7 +123,8 @@ PATCHES=(
 	"${FILESDIR}/${PN}-lazydeps-pins-as-floors.patch"
 	# computer_use: reconnect after mcp 2.x MCPError(CONNECTION_CLOSED) (a dead
 	# cua-driver otherwise breaks every later call until restart), and add
-	# action="release" to end this session's desktop connection cleanly.
+	# action="release" to end this session's desktop connection cleanly, and
+	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
 	"${FILESDIR}/${PN}-computer-use-release-reconnect.patch"
 )
 

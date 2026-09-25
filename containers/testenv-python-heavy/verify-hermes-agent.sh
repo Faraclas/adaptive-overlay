@@ -26,6 +26,8 @@ check "$CU/tool.py" 'if action == "release":' \
     "computer_use: release action handler"
 check "$CU/schema.py" '"release",' \
     "computer_use: release in the tool schema"
+check "$CU/cua_backend_daemon.py" 'def ensure_alive' \
+    "computer_use: private daemon revive on reconnect"
 
 echo "--- Imports (image on sys.path) ---"
 if PYTHONPATH="$SITE" python3 -c '
