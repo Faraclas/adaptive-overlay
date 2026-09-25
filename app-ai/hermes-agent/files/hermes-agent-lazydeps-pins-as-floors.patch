@@ -1,0 +1,24 @@
+--- a/tools/lazy_deps.py
++++ b/tools/lazy_deps.py
+@@ -378,7 +378,11 @@
+ def _is_satisfied(spec: str) -> bool:
+     """Present AND inside the spec's version range, so ``hermes update`` propagates pin bumps to
+     installed backends. Unparseable specs/versions or a missing ``packaging`` count as satisfied — err
+-    toward "don't churn"."""
++    toward "don't churn".
++
++    Gentoo: when lazy installs are disabled, the system package manager owns every dependency and
++    Hermes cannot change it, so an exact ``==X`` pin is treated as a floor (``>=X``). Newer installed
++    releases are accepted instead of reported missing; older ones still fail."""
+     installed = _installed_version(spec)
+     if installed is None:
+         return False
+@@ -388,6 +392,8 @@
+         from packaging.specifiers import SpecifierSet
+         from packaging.version import Version
+ 
++        if spec_tail.startswith("==") and "," not in spec_tail and not _allow_lazy_installs():
++            spec_tail = ">=" + spec_tail[2:]
+         return Version(installed) in SpecifierSet(spec_tail)
+     except Exception:
+         return True

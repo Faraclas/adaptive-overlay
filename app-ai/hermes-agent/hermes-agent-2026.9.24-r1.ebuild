@@ -110,6 +110,12 @@ hermes_agent_build_web() {
 	popd >/dev/null || die
 }
 
+PATCHES=(
+	# Accept newer system-installed deps for lazy_deps pins when runtime installs are
+	# disabled (security.allow_lazy_installs: false); unblocks computer_use on Portage.
+	"${FILESDIR}/${PN}-lazydeps-pins-as-floors.patch"
+)
+
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
@@ -187,4 +193,10 @@ pkg_postinst() {
 		elog "Browser tools: AGENT_BROWSER_EXECUTABLE_PATH is set via env.d."
 		elog "Run '. /etc/profile' or start a new login shell to pick it up."
 	fi
+
+	elog ""
+	elog "Hermes cannot pip-install optional feature deps into a Portage install."
+	elog "Disable its runtime installs so missing features fail fast:"
+	elog "    hermes config set security.allow_lazy_installs false"
+	elog "With that set, newer system versions satisfy Hermes' exact dep pins."
 }
