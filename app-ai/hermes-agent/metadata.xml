@@ -10,6 +10,7 @@
   </upstream>
   <use>
     <flag name="browser">Enable browser automation with a Chromium-based browser</flag>
+    <flag name="computer-use">Enable the computer_use desktop automation tool via <pkg>x11-misc/cua-driver</pkg></flag>
     <flag name="dashboard">Build and install the web dashboard frontend used by hermes dashboard</flag>
     <flag name="discord">Enable Discord gateway bot support via <pkg>dev-python/discord-py</pkg></flag>
     <flag name="mcp">Enable native Model Context Protocol integrations</flag>

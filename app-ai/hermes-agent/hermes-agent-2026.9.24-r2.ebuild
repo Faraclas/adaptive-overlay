@@ -21,11 +21,14 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="browser +dashboard discord +mcp +websearch"
+IUSE="browser computer-use +dashboard discord +mcp +websearch"
 # Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
 # RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
 # when solving deps on musl profiles.
-REQUIRED_USE="browser? ( elibc_glibc )"
+REQUIRED_USE="
+	browser? ( elibc_glibc )
+	computer-use? ( mcp )
+"
 
 # Need network for npm install
 RESTRICT="network-sandbox !test? ( test )"
@@ -81,6 +84,10 @@ RDEPEND="
 	)
 	websearch? (
 		dev-python/ddgs[${PYTHON_USEDEP}]
+	)
+	computer-use? (
+		x11-misc/cua-driver
+		dev-python/starlette[${PYTHON_USEDEP}]
 	)
 	discord? (
 		dev-python/discord-py[${PYTHON_USEDEP}]
@@ -186,6 +193,14 @@ pkg_postinst() {
 		elog "  After upgrading Hermes: systemctl --user restart hermes-dashboard"
 		elog "  Remote access: ssh -L 9119:127.0.0.1:9119 <user>@<host>, then open"
 		elog "  http://localhost:9119. It is not exposed on the network by default."
+	fi
+
+	if use computer-use; then
+		elog ""
+		elog "Computer use: on Wayland run"
+		elog "    hermes config set computer_use.native_wayland true"
+		elog "GNOME needs the WinRects extension (x11-misc/cua-driver[gnome])"
+		elog "and accessibility; see the cua-driver postinst messages."
 	fi
 
 	if use browser; then
