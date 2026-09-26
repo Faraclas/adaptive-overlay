@@ -174,6 +174,7 @@ src_install() {
 		newenvd "${FILESDIR}/hermes-agent.env" "99hermes-agent-browser"
 		exeinto /usr/libexec/hermes-agent
 		doexe "${FILESDIR}/hermes-agent-browser"
+		systemd_douserunit "${FILESDIR}/hermes-chrome.service"
 	fi
 	if use dashboard; then
 		systemd_douserunit "${FILESDIR}/hermes-dashboard.service"
@@ -181,47 +182,60 @@ src_install() {
 }
 
 pkg_postinst() {
-	elog "Gateway (messaging platforms, cron, kanban dispatcher):"
-	elog "  systemd: Hermes manages its own gateway user unit. As your user, run"
-	elog "    hermes gateway install"
-	elog "  which writes ~/.config/systemd/user/hermes-gateway.service, then"
-	elog "    systemctl --user enable --now hermes-gateway"
-	elog "  OpenRC: a system service running as the hermesagent user is provided:"
-	elog "    rc-update add hermesagent default && rc-service hermesagent start"
-	elog "  After upgrading Hermes, restart it: hermes gateway restart"
+	elog " "
+	elog "===== Hermes: config for Portage installs (do once, as your user) ====="
+	elog "  Hermes cannot pip-install optional deps into a Portage install;"
+	elog "  make missing features fail fast instead:"
+	elog "    1. hermes config set security.allow_lazy_installs false"
+
+	elog " "
+	elog "===== Hermes gateway (messaging, cron, kanban dispatcher) ====="
+	elog "  systemd (as your user):"
+	elog "    1. hermes gateway install"
+	elog "    2. systemctl --user enable --now hermes-gateway"
+	elog "  OpenRC (system service, runs as user hermesagent):"
+	elog "    1. rc-update add hermesagent default"
+	elog "    2. rc-service hermesagent start"
+	elog "  After every Hermes upgrade: hermes gateway restart"
 
 	if use dashboard; then
-		elog ""
-		elog "Web dashboard (systemd user unit, binds to 127.0.0.1:9119):"
-		elog "    systemctl --user enable --now hermes-dashboard"
-		elog "  To keep it running without an active login:"
+		elog " "
+		elog "===== Hermes web dashboard (127.0.0.1:9119, not on the network) ====="
+		elog "  Enable (as your user):"
+		elog "    1. systemctl --user enable --now hermes-dashboard"
+		elog "  Optional, keep running while logged out:"
 		elog "    loginctl enable-linger <user>"
-		elog "  After upgrading Hermes: systemctl --user restart hermes-dashboard"
-		elog "  Remote access: ssh -L 9119:127.0.0.1:9119 <user>@<host>, then open"
-		elog "  http://localhost:9119. It is not exposed on the network by default."
-	fi
-
-	if use computer-use; then
-		elog ""
-		elog "Computer use: on Wayland run"
-		elog "    hermes config set computer_use.native_wayland true"
-		elog "GNOME needs the WinRects extension (x11-misc/cua-driver[gnome])"
-		elog "and accessibility; see the cua-driver postinst messages."
+		elog "  Remote access: ssh -L 9119:127.0.0.1:9119 <user>@<host>"
+		elog "    then open http://localhost:9119"
+		elog "  After every Hermes upgrade: systemctl --user restart hermes-dashboard"
 	fi
 
 	if use browser; then
-		elog ""
-		elog "Browser tools use dev-util/agent-browser with your system Chrome/"
-		elog "Chromium (AGENT_BROWSER_EXECUTABLE_PATH is set via env.d). Run"
-		elog "'. /etc/profile' or start a new login shell to pick it up."
-		elog "The default Browser Use CLI backend is not packaged (it would be"
-		elog "downloaded into ~/.hermes at runtime). Use the built-in browser tools:"
-		elog "    hermes config set browser.backend off"
+		elog " "
+		elog "===== Hermes browser tools ====="
+		elog "  Uses dev-util/agent-browser with your system Chrome (prefers"
+		elog "  google-chrome-beta, then -stable, then google-chrome, then chromium)."
+		elog "  Setup (as your user):"
+		elog "    1. . /etc/profile   (or log in again; picks up env.d)"
+		elog "    2. hermes config set browser.backend off"
+		elog "       (the Browser Use CLI backend is not packaged)"
+		elog "  Optional, persistent headless Chrome shared by all sessions"
+		elog "  (CDP on 127.0.0.1:9222, profile ~/.hermes/chrome-debug):"
+		elog "    3. systemctl --user enable --now hermes-chrome"
+		elog "    4. hermes config set browser.cdp_url http://127.0.0.1:9222"
+		elog "    5. hermes gateway restart"
+		elog "  Undo: systemctl --user disable --now hermes-chrome"
+		elog "        hermes config set browser.cdp_url ''"
+		elog "  Warning: any local program can drive that browser through the"
+		elog "  port. Never put real passwords into its profile."
 	fi
 
-	elog ""
-	elog "Hermes cannot pip-install optional feature deps into a Portage install."
-	elog "Disable its runtime installs so missing features fail fast:"
-	elog "    hermes config set security.allow_lazy_installs false"
-	elog "With that set, newer system versions satisfy Hermes' exact dep pins."
+	if use computer-use; then
+		elog " "
+		elog "===== Hermes computer use ====="
+		elog "  Setup (as your user, on Wayland):"
+		elog "    1. hermes config set computer_use.native_wayland true"
+		elog "  GNOME also needs the WinRects extension (x11-misc/cua-driver[gnome])"
+		elog "  and accessibility enabled; see the cua-driver postinst messages."
+	fi
 }

@@ -1,9 +1,10 @@
 #!/bin/sh
-# Resolve the Chromium executable provided by the browser USE dependency.
+# Resolve the Chromium-family executable for Hermes browser tools.
+# Preference: Chrome beta, Chrome stable, Chrome, Chromium.
 for browser in \
-	/usr/bin/google-chrome \
-	/usr/bin/google-chrome-stable \
 	/usr/bin/google-chrome-beta \
+	/usr/bin/google-chrome-stable \
+	/usr/bin/google-chrome \
 	/usr/bin/chromium \
 	/usr/bin/chromium-browser
 do

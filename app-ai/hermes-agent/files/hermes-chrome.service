@@ -1,0 +1,12 @@
+[Unit]
+Description=Headless Chrome for Hermes Agent browser tools (CDP on 127.0.0.1:9222)
+Documentation=https://hermes-agent.nousresearch.com/docs/user-guide/features/browser
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/hermes-agent/hermes-agent-browser --headless=new --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=%h/.hermes/chrome-debug --no-first-run --no-default-browser-check about:blank
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
