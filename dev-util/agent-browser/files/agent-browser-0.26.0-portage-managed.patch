@@ -1,0 +1,27 @@
+Make `agent-browser upgrade` refuse when the binary lives in /usr/bin
+(installed by a system package manager such as Portage).
+
+--- a/src/upgrade.rs
++++ b/src/upgrade.rs
+@@ -187,6 +187,21 @@
+ pub fn run_upgrade() {
+     let current = CURRENT_VERSION;
+ 
++    // Installed by a system package manager (e.g. Gentoo Portage): never
++    // npm/cargo-install over package-owned files.
++    if let Ok(exe) = std::env::current_exe() {
++        let exe = exe.canonicalize().unwrap_or(exe);
++        if exe.starts_with("/usr/bin") {
++            eprintln!(
++                "{} agent-browser v{} is managed by your system package manager.",
++                color::error_indicator(),
++                current
++            );
++            eprintln!("  Update it with the package manager, e.g.: emerge --ask --update dev-util/agent-browser");
++            exit(1);
++        }
++    }
++
+     let rt = tokio::runtime::Builder::new_current_thread()
+         .enable_all()
+         .build()

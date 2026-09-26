@@ -391,6 +391,9 @@ jobs:
             elif echo "${PKG_DIR}" | grep -qE '^app-misc/ai-voice-server'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
               VERIFY=""
+            elif [ "${PKG_DIR}" = "dev-util/agent-browser" ]; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
+              VERIFY="containers/testenv/verify-agent-browser.sh"
             else
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv:latest"
               VERIFY=""

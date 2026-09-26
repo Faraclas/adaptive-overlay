@@ -275,5 +275,16 @@
     "repackage": false,
     "auto_upgrade": true,
     "notes": "trycua/cua monorepo; every cua-driver release is marked prerelease, so upstream_type github-prerelease. Pattern excludes nightly-* tags. On bump: regenerate CRATES with pycargoebuild on crates/cua-driver + crates/cursor-theme-cli, re-apply files/cua-driver-*-portage-managed.patch, check the wayland-helper extension version."
+  },
+  {
+    "category": "dev-util",
+    "name": "agent-browser",
+    "upstream_repo": "vercel-labs/agent-browser",
+    "upstream_type": "github-release",
+    "version_pattern": "v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Hermes pins agent-browser@^0.26 (tools/browser_tool.py AGENT_BROWSER_NPX_SPEC); do not bump past the minor Hermes pins without testing Hermes' browser tools. On bump: regenerate CRATES with pycargoebuild on cli/ (with licenses), re-apply files/agent-browser-*-portage-managed.patch."
   }
 ]

@@ -14,6 +14,7 @@ Currently included packages:
 - **app-ai/hermes-agent** - The agent that grows with you
 - **app-editors/zed** - Fast, collaborative code editor
 - **app-misc/ai-voice-server** - A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
+- **dev-util/agent-browser** - Browser automation CLI for AI agents (Chrome over CDP)
 - **dev-python/ddgs** - Metasearch library with DuckDuckGo and other search backends
 - **dev-python/discord-py** - Python wrapper for the Discord API
 - **dev-python/fire** - Python library for automatically generating command line interfaces
@@ -31,6 +32,7 @@ Currently included packages:
 - **media-sound/yabridge** - VST bridge for Linux
 - **net-vpn/forticlient** - Fortinet VPN client
 - **net-vpn/openfortivpn** - Open-source Fortinet VPN client
+- **x11-misc/cua-driver** - Computer-use automation driver (MCP) for Hermes computer_use
 
 ## Installation
 

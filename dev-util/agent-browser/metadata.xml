@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    agent-browser (vercel-labs) is a native Rust CLI that launches and drives a
+    Chromium-family browser over the Chrome DevTools Protocol for AI agents:
+    navigation, accessibility-tree snapshots with element refs, clicks, typing
+    and screenshots. Hermes Agent's built-in browser tools use it. Built from
+    source; the npm/cargo self-upgrade is disabled because Portage owns the
+    installed files.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">vercel-labs/agent-browser</remote-id>
+  </upstream>
+</pkgmetadata>

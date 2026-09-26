@@ -70,6 +70,7 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
+	browser? ( dev-util/agent-browser )
 	elibc_glibc? (
 		browser? (
 			|| (
@@ -210,8 +211,12 @@ pkg_postinst() {
 
 	if use browser; then
 		elog ""
-		elog "Browser tools: AGENT_BROWSER_EXECUTABLE_PATH is set via env.d."
-		elog "Run '. /etc/profile' or start a new login shell to pick it up."
+		elog "Browser tools use dev-util/agent-browser with your system Chrome/"
+		elog "Chromium (AGENT_BROWSER_EXECUTABLE_PATH is set via env.d). Run"
+		elog "'. /etc/profile' or start a new login shell to pick it up."
+		elog "The default Browser Use CLI backend is not packaged (it would be"
+		elog "downloaded into ~/.hermes at runtime). Use the built-in browser tools:"
+		elog "    hermes config set browser.backend off"
 	fi
 
 	elog ""
