@@ -80,6 +80,7 @@ src_install() {
 
 	insinto /opt/forticlient
 	doins opt/forticlient/.config.db.init
+	doins -r opt/forticlient/tpm2
 
 	insinto /opt/forticlient/images
 	doins -r opt/forticlient/images/.
@@ -98,7 +99,8 @@ src_install() {
 		/opt/forticlient/gui/FortiClient-linux-x64/libEGL.so \
 		/opt/forticlient/gui/FortiClient-linux-x64/libGLESv2.so \
 		/opt/forticlient/gui/FortiClient-linux-x64/libffmpeg.so \
-		/opt/forticlient/gui/FortiClient-linux-x64/libvk_swiftshader.so
+		/opt/forticlient/gui/FortiClient-linux-x64/libvk_swiftshader.so \
+		/opt/forticlient/tpm2/tpm2_ptool/exe.linux-x86_64-3.7/tpm2_ptool
 
 	dodir /opt/bin
 	dosym ../forticlient/gui/FortiClient-linux-x64/FortiClient opt/bin/FortiClient
