@@ -1,0 +1,13 @@
+#!/bin/bash
+INTERFACE=$1
+ACTION=$2
+
+if [[ "$INTERFACE" == fctvpn* || "$INTERFACE" == vpn* ]]; then
+    if [[ "$ACTION" == "up" || "$ACTION" == "vpn-up" ]]; then
+        # Run in background to avoid blocking NetworkManager
+        (
+            sleep 4
+            /usr/bin/fcvpntool.sh -s
+        ) &
+    fi
+fi
