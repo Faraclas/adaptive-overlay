@@ -109,5 +109,20 @@ src_install() {
 
 	systemd_dounit lib/systemd/system/forticlient.service
 
+	# Workaround: Neutralize tpm2_ptool PyInstaller binary which segfaults on modern Gentoo glibc
+	echo -e "#!/bin/sh\nexit 0" > "${ED}/opt/forticlient/tpm2/tpm2_ptool/exe.linux-x86_64-3.7/tpm2_ptool" || die
+
 	pax-mark -m "${ED}"/opt/forticlient/gui/FortiClient-linux-x64/FortiClient
+}
+
+pkg_postinst() {
+	xdg_pkg_postinst
+
+	elog "FortiClient 7.2 requires an explicit EMS profile to show the VPN tab."
+	elog "Ensure your endpoint is in a designated EMS group with VPN enabled."
+	elog ""
+	elog "Additionally, FortiClient hardcodes the CA bundle path."
+	elog "If SAML authentication fails with 'socket error = Resource temporarily unavailable (11)',"
+	elog "you may need to create a compatibility symlink:"
+	elog "  sudo ln -s /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca-bundle.pem"
 }
