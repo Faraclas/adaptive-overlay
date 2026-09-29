@@ -12,7 +12,7 @@ SRC_URI="https://repo.fortinet.com/repo/forticlient/$(ver_cut 1-2)/ubuntu/pool/n
 LICENSE="Fortinet"
 SLOT="0"
 KEYWORDS="-* ~amd64 ~x86"
-IUSE="appindicator"
+IUSE="appindicator +networkmanager"
 RESTRICT="bindist mirror"
 
 RDEPEND="app-accessibility/at-spi2-atk:2[${MULTILIB_USEDEP}]
@@ -46,7 +46,8 @@ RDEPEND="app-accessibility/at-spi2-atk:2[${MULTILIB_USEDEP}]
 	x11-libs/libXScrnSaver:0[${MULTILIB_USEDEP}]
 	x11-libs/libXtst:0[${MULTILIB_USEDEP}]
 	x11-libs/pango:0[${MULTILIB_USEDEP}]
-	appindicator? ( dev-libs/libayatana-appindicator )"
+	appindicator? ( dev-libs/libayatana-appindicator )
+	networkmanager? ( net-misc/networkmanager )"
 
 QA_PREBUILT="opt/forticlient/*"
 QA_FLAGS_IGNORED="opt/forticlient/*"
@@ -112,10 +113,12 @@ src_install() {
 	# Workaround: Neutralize tpm2_ptool PyInstaller binary which segfaults on modern Gentoo glibc
 	echo -e "#!/bin/sh\nexit 0" > "${ED}/opt/forticlient/tpm2/tpm2_ptool/exe.linux-x86_64-3.7/tpm2_ptool" || die
 
-	# Install VPN helper tool and NetworkManager dispatcher script
+	# Install VPN helper tool and optionally the NetworkManager dispatcher script
 	dobin "${FILESDIR}/fcvpntool.sh"
-	exeinto /etc/NetworkManager/dispatcher.d
-	doexe "${FILESDIR}/99-forticlient-dns"
+	if use networkmanager; then
+		exeinto /etc/NetworkManager/dispatcher.d
+		doexe "${FILESDIR}/99-forticlient-dns"
+	fi
 
 	pax-mark -m "${ED}"/opt/forticlient/gui/FortiClient-linux-x64/FortiClient
 }
@@ -130,8 +133,11 @@ pkg_postinst() {
 	elog "If SAML authentication fails with 'socket error = Resource temporarily unavailable (11)',"
 	elog "you may need to create a compatibility symlink:"
 	elog "  sudo ln -s /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca-bundle.pem"
-	elog ""
-	elog "To automatically inject corporate DNS search domains when connecting,"
-	elog "a NetworkManager dispatcher script is installed. To activate it, run:"
-	elog "  sudo systemctl enable --now NetworkManager-dispatcher.service"
+	
+	if use networkmanager; then
+		elog ""
+		elog "To automatically inject corporate DNS search domains when connecting,"
+		elog "a NetworkManager dispatcher script is installed. To activate it, run:"
+		elog "  sudo systemctl enable --now NetworkManager-dispatcher.service"
+	fi
 }
