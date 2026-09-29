@@ -150,10 +150,20 @@ pkg_postinst() {
 		elog "    To enable automatic DNS injection when the VPN connects, run:"
 		elog ""
 		elog "        sudo systemctl enable --now NetworkManager-dispatcher.service"
-		elog "====================================================================="
-		elog ""
-	else
-		elog "====================================================================="
 		elog ""
 	fi
+	
+	if use appindicator; then
+		elog "[4] SYSTEM TRAY (APPINDICATOR):"
+		elog "    The Fortitray daemon is installed but NOT configured to autostart"
+		elog "    because running it forcibly locks the EMS VPN connection state,"
+		elog "    preventing disconnection via the main GUI."
+		elog "    If you still wish to enable the tray icon on login, symlink it:"
+		elog ""
+		elog "        sudo ln -s /usr/share/applications/Fortitray.desktop /etc/xdg/autostart/"
+		elog ""
+	fi
+	
+	elog "====================================================================="
+	elog ""
 }
