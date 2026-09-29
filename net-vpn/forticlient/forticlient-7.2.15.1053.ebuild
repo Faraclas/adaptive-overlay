@@ -126,18 +126,34 @@ src_install() {
 pkg_postinst() {
 	xdg_pkg_postinst
 
-	elog "FortiClient 7.2 requires an explicit EMS profile to show the VPN tab."
-	elog "Ensure your endpoint is in a designated EMS group with VPN enabled."
+	elog "====================================================================="
+	elog "                       FORTICLIENT 7.2 NOTES                         "
+	elog "====================================================================="
 	elog ""
-	elog "Additionally, FortiClient hardcodes the CA bundle path."
-	elog "If SAML authentication fails with 'socket error = Resource temporarily unavailable (11)',"
-	elog "you may need to create a compatibility symlink:"
-	elog "  sudo ln -s /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca-bundle.pem"
+	elog "[1] MISSING VPN TAB:"
+	elog "    Unlike 7.0, version 7.2 requires an explicit EMS profile to render"
+	elog "    the VPN tab. Ensure your IT administrator has placed your endpoint"
+	elog "    in a designated EMS group with VPN explicitly enabled."
+	elog ""
+	elog "[2] SAML AUTHENTICATION ERRORS:"
+	elog "    FortiClient hardcodes the RHEL/CentOS certificate path. If SAML"
+	elog "    login succeeds in the GUI but fails to connect with socket error 11"
+	elog "    (Resource temporarily unavailable), run this command once:"
+	elog ""
+	elog "        sudo ln -s /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca-bundle.pem"
+	elog ""
 	
 	if use networkmanager; then
+		elog "[3] AUTOMATED DNS INJECTION (NetworkManager):"
+		elog "    FortiClient 7.2 does not natively inject corporate DNS search"
+		elog "    domains. A helper tool and dispatcher script have been installed."
+		elog "    To enable automatic DNS injection when the VPN connects, run:"
 		elog ""
-		elog "To automatically inject corporate DNS search domains when connecting,"
-		elog "a NetworkManager dispatcher script is installed. To activate it, run:"
-		elog "  sudo systemctl enable --now NetworkManager-dispatcher.service"
+		elog "        sudo systemctl enable --now NetworkManager-dispatcher.service"
+		elog "====================================================================="
+		elog ""
+	else
+		elog "====================================================================="
+		elog ""
 	fi
 }
