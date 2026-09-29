@@ -74,9 +74,6 @@ src_install() {
 	domenu usr/share/applications/forticlient{,-register}.desktop \
 		opt/forticlient/Fortitray.desktop
 
-	insinto /etc/xdg/autostart
-	doins opt/forticlient/Fortitray.desktop
-
 	exeinto /opt/forticlient
 	for f in confighandler epctrl fazlogupload fchelper fctdns fctsched firewall fmon forticlient-cli FortiGuardAgent fortitray fortitraylauncher fortivpn iked legacy.so libav.so libvcm.so scanunit update vpn vulscan webfilter ztproxy ; do
 		[[ -f opt/forticlient/${f} ]] && doexe opt/forticlient/${f}
