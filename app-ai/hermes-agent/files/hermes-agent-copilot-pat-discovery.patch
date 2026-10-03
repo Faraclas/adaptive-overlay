@@ -1,0 +1,159 @@
+diff --git a/hermes_cli/copilot_auth.py b/hermes_cli/copilot_auth.py
+index 53c9bc6..ddf3bad 100644
+--- a/hermes_cli/copilot_auth.py
++++ b/hermes_cli/copilot_auth.py
+@@ -59,9 +59,11 @@ def resolve_copilot_token() -> tuple[str, str]:
+
+     Raises ValueError if only a classic PAT is available.
+     """
++    from agent.secret_scope import get_secret, serves_routed_profile
++
+     any_env_var_set = False
+     for env_var in COPILOT_ENV_VARS:
+-        val = os.getenv(env_var, "").strip()
++        val = (get_secret(env_var, "") or "").strip()
+         if not val:
+             continue
+         any_env_var_set = True
+@@ -72,10 +74,9 @@ def resolve_copilot_token() -> tuple[str, str]:
+     # `gh auth token` fallback ONLY when no Copilot env var was set: an exported GITHUB_TOKEN
+     # (even a classic PAT) means the user intends *that* token; skipping also avoids a slow
+     # subprocess (up to 5s on Windows) on every cold start.
+-    if any_env_var_set:
+-        logger.debug("Copilot env var(s) set but none held a supported token; skipping `gh auth "
+-                     "token` fallback to honor explicit env-var intent (and avoid the subprocess "
+-                     "cost on cold start, #60800).")
++    if any_env_var_set or serves_routed_profile():
++        logger.debug("Copilot env var(s) set but none held a supported token, or profile "
++                     "is routed; skipping host `gh auth token` fallback.")
+         return "", ""
+     token = _try_gh_cli_token()
+     if token:
+diff --git a/hermes_cli/models.py b/hermes_cli/models.py
+index 4fa57de..aa65ae2 100644
+--- a/hermes_cli/models.py
++++ b/hermes_cli/models.py
+@@ -2137,7 +2137,12 @@ def fetch_github_model_catalog(
+
+     attempts: list[dict[str, str]] = []
+     if api_key:
+-        attempts.append({**copilot_default_headers(), "Authorization": f"Bearer {api_key}"})
++        headers = {**copilot_default_headers(), "Authorization": f"Bearer {api_key}"}
++        # Fine-grained PATs authenticate directly through the CLI integration;
++        # vscode-chat rejects them even when inference is authorized.
++        if api_key.startswith("github_pat_"):
++            headers["Copilot-Integration-Id"] = "copilot-developer-cli"
++        attempts.append(headers)
+     attempts.append(copilot_default_headers())
+
+     for headers in attempts:
+diff --git a/tests/hermes_cli/test_copilot_pat_catalog.py b/tests/hermes_cli/test_copilot_pat_catalog.py
+new file mode 100644
+index 0000000..7c7692d
+--- /dev/null
++++ b/tests/hermes_cli/test_copilot_pat_catalog.py
+@@ -0,0 +1,53 @@
++"""Copilot catalog authentication must match the credential's transport."""
++
++from email.message import Message
++import urllib.error
++
++import pytest
++
++from hermes_cli import models
++from hermes_cli.models_validate import validate_requested_model
++
++
++@pytest.mark.parametrize(
++    "credential,integration",
++    [("github_pat_example", "copilot-developer-cli"),
++     ("exchanged-oauth-example", "vscode-chat")],
++)
++def test_catalog_uses_credential_compatible_integration(monkeypatch, credential, integration):
++    monkeypatch.setattr(models, "_github_model_catalog_cache", None)
++    calls = []
++    row = {"id": "example-new-model", "capabilities": {"type": "chat"}}
++
++    def endpoint(url, *, timeout, headers):
++        calls.append(headers)
++        if (headers.get("Authorization") != f"Bearer {credential}"
++                or headers.get("Copilot-Integration-Id") != integration):
++            raise urllib.error.HTTPError(url, 400, "Incompatible integration", Message(), None)
++        return {"data": [row]}
++
++    monkeypatch.setattr(models, "_get_json", endpoint)
++    assert models.fetch_github_model_catalog(api_key=credential) == [row]
++    assert len(calls) == 1  # No anonymous fallback can establish account access.
++
++
++def test_model_validation_recognizes_pat_catalog_without_alternate_credentials(monkeypatch):
++    monkeypatch.setattr(models, "_github_model_catalog_cache", None)
++    monkeypatch.setattr(models, "provider_model_ids", lambda *args, **kwargs: [])
++    calls = []
++
++    def endpoint(url, *, timeout, headers):
++        calls.append(headers)
++        if (headers.get("Authorization") != "Bearer github_pat_example"
++                or headers.get("Copilot-Integration-Id") != "copilot-developer-cli"):
++            raise urllib.error.HTTPError(url, 400, "PAT requires CLI integration", Message(), None)
++        return {"data": [{"id": "example-new-model"}]}
++
++    monkeypatch.setattr(models, "_get_json", endpoint)
++    result = validate_requested_model(
++        "example-new-model", "copilot", api_key="github_pat_example",
++        base_url=models.COPILOT_BASE_URL,
++    )
++    assert result["recognized"] is True
++    assert result["message"] is None
++    assert len(calls) == 1
+diff --git a/tests/hermes_cli/test_copilot_scoped_token.py b/tests/hermes_cli/test_copilot_scoped_token.py
+new file mode 100644
+index 0000000..13f2ce0
+--- /dev/null
++++ b/tests/hermes_cli/test_copilot_scoped_token.py
+@@ -0,0 +1,45 @@
++"""Copilot credential resolution must honor bound profile secrets."""
++
++from hermes_cli.copilot_auth import resolve_copilot_token
++from agent.secret_scope import set_secret_scope, reset_secret_scope
++
++
++def test_bound_dedicated_token_precedes_generic_process_github_token(monkeypatch, tmp_path):
++    monkeypatch.setenv("GITHUB_TOKEN", "ghp_operations_only")
++    monkeypatch.setenv("COPILOT_GITHUB_TOKEN", "github_pat_process_other")
++    for name in ("a", "b", "a"):
++        expected = f"github_pat_profile_{name}"
++        scope = set_secret_scope({"COPILOT_GITHUB_TOKEN": expected},
++                                 profile_home=str(tmp_path / name))
++        try:
++            assert resolve_copilot_token() == (expected, "COPILOT_GITHUB_TOKEN")
++        finally:
++            reset_secret_scope(scope)
++
++
++def test_unbound_dedicated_environment_token_still_wins(monkeypatch):
++    monkeypatch.setenv("GITHUB_TOKEN", "ghp_operations_only")
++    monkeypatch.setenv("COPILOT_GITHUB_TOKEN", "github_pat_dedicated")
++    assert resolve_copilot_token() == ("github_pat_dedicated", "COPILOT_GITHUB_TOKEN")
++
++
++def test_empty_routed_scope_cannot_use_host_github_login(monkeypatch, tmp_path):
++    from hermes_cli import copilot_auth
++
++    monkeypatch.setenv("GITHUB_TOKEN", "ghp_operations_only")
++    monkeypatch.delenv("COPILOT_GITHUB_TOKEN", raising=False)
++    monkeypatch.delenv("GH_TOKEN", raising=False)
++    calls = []
++
++    def host_login():
++        calls.append(True)
++        return "gho_host_account"
++
++    monkeypatch.setattr(copilot_auth, "_try_gh_cli_token", host_login)
++    scope = set_secret_scope({}, profile_home=str(tmp_path / "foreign"))
++    try:
++        assert resolve_copilot_token() == ("", "")
++        assert not calls
++    finally:
++        reset_secret_scope(scope)
++

@@ -44,6 +44,50 @@ else
     fail "import-level checks"
 fi
 
+echo "--- Copilot PAT discovery (synthetic credentials, no network) ---"
+if PYTHONPATH="$SITE" python3 -c '
+from unittest.mock import patch
+from hermes_cli import models, copilot_auth
+from hermes_cli.models_validate import validate_requested_model
+from agent.secret_scope import set_secret_scope, reset_secret_scope
+
+for key, integration in [("github_pat_fixture", "copilot-developer-cli"),
+                         ("exchanged_oauth_fixture", "vscode-chat")]:
+    seen = []
+    def endpoint(url, *, timeout, headers):
+        assert headers["Authorization"] == "Bearer " + key
+        assert headers["Copilot-Integration-Id"] == integration
+        seen.append(True)
+        return {"data": [{"id": "fixture-new-model"}]}
+    with patch.object(models, "_github_model_catalog_cache", None), \
+         patch.object(models, "_get_json", endpoint), \
+         patch.object(models, "provider_model_ids", return_value=[]):
+        result = validate_requested_model("fixture-new-model", "copilot",
+            api_key=key, base_url=models.COPILOT_BASE_URL)
+        assert result["recognized"] and not result["message"]
+        assert len(seen) == 1
+
+for name in ("a", "b", "a"):
+    token = "github_pat_profile_" + name
+    bound = set_secret_scope({"COPILOT_GITHUB_TOKEN": token},
+                             profile_home="/nonexistent-fixture/" + name)
+    try:
+        assert copilot_auth.resolve_copilot_token() == (token, "COPILOT_GITHUB_TOKEN")
+    finally:
+        reset_secret_scope(bound)
+bound = set_secret_scope({}, profile_home="/nonexistent-fixture/missing")
+try:
+    with patch.object(copilot_auth, "_try_gh_cli_token") as host_login:
+        assert copilot_auth.resolve_copilot_token() == ("", "")
+        host_login.assert_not_called()
+finally:
+    reset_secret_scope(bound)
+' 2>&1; then
+    pass "PAT/OAuth catalogs validate; profile tokens isolated; host fallback blocked"
+else
+    fail "Copilot PAT discovery behavioral checks"
+fi
+
 echo ""
 echo "==> $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

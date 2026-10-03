@@ -127,6 +127,8 @@ PATCHES=(
 	# action="release" to end this session's desktop connection cleanly, and
 	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
 	"${FILESDIR}/${PN}-computer-use-release-reconnect.patch"
+	# Copilot PAT catalog transport and profile-scoped token resolution.
+	"${FILESDIR}/${PN}-copilot-pat-discovery.patch"
 )
 
 src_prepare() {
