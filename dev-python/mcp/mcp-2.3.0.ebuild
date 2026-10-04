@@ -27,9 +27,9 @@ BDEPEND="
 
 RDEPEND="
 	>=dev-python/anyio-4.10.0[${PYTHON_USEDEP}]
-	>=dev-python/httpx2-2.5.0[${PYTHON_USEDEP}]
+	>=dev-python/httpx2-2.10.0[${PYTHON_USEDEP}]
 	>=dev-python/jsonschema-4.20.0[${PYTHON_USEDEP}]
-	~dev-python/mcp-types-2.2.0[${PYTHON_USEDEP}]
+	~dev-python/mcp-types-2.3.0[${PYTHON_USEDEP}]
 	>=dev-python/opentelemetry-api-1.28.0[${PYTHON_USEDEP}]
 	>=dev-python/pydantic-2.12.0[${PYTHON_USEDEP}]
 	dev-python/cryptography[${PYTHON_USEDEP}]
