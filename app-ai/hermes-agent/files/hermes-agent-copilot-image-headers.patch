@@ -1,0 +1,22 @@
+--- a/agent/client_lifecycle.py
++++ b/agent/client_lifecycle.py
+@@ -447,7 +447,18 @@
+         is_copilot = base_url_host_matches(str(request_kwargs.get("base_url", "")), "githubcopilot.com")
+         if is_copilot and self._api_kwargs_have_image_parts(api_kwargs or {}):
+             from hermes_cli.copilot_auth import copilot_request_headers
+-            request_kwargs["default_headers"] = copilot_request_headers(is_agent_turn=True, is_vision=True)
++            # Keep effective route/config headers (including PAT integration) without
++            # case-variant duplicates. Only the per-request vision flag is mandatory.
++            headers = {
++                name.lower(): (name, value)
++                for name, value in copilot_request_headers(is_agent_turn=True, is_vision=True).items()
++            }
++            headers.update({
++                name.lower(): (name, value)
++                for name, value in (request_kwargs.get("default_headers") or {}).items()
++            })
++            headers["copilot-vision-request"] = ("Copilot-Vision-Request", "true")
++            request_kwargs["default_headers"] = dict(headers.values())
+         cached, stale = self._checkout_request_slot(_OPENAI_SLOT, request_kwargs)
+         if cached is not None:
+             return cached

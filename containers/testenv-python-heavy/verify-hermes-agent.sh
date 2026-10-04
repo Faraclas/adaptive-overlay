@@ -88,6 +88,25 @@ else
     fail "Copilot PAT discovery behavioral checks"
 fi
 
+echo "--- Copilot image request headers (synthetic credentials, no network) ---"
+REGRESSION="$(dirname "${BASH_SOURCE[0]}")/../../app-ai/hermes-agent/files/test_copilot_image_headers.py"
+if env -i PATH="$PATH" PYTHONPATH="$SITE" HOME=/nonexistent-fixture/images \
+    HERMES_HOME=/nonexistent-fixture/images python3 -c '
+import runpy
+import sys
+from pathlib import Path
+import agent.client_lifecycle as lifecycle
+# Reject accidentally testing host/source modules instead of the built image.
+assert Path(lifecycle.__file__).resolve().is_relative_to(Path(sys.argv[1]).resolve())
+test = sys.argv[2]
+sys.argv = [test, "-v"]
+runpy.run_path(test, run_name="__main__")
+' "$SITE" "$REGRESSION" 2>&1; then
+    pass "image headers: Chat/Responses, casing, mandatory vision, OAuth, isolation, cache reuse"
+else
+    fail "Copilot image header behavioral checks"
+fi
+
 echo ""
 echo "==> $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

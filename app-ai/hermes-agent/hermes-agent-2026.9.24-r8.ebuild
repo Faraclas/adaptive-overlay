@@ -129,12 +129,15 @@ PATCHES=(
 	"${FILESDIR}/${PN}-computer-use-release-reconnect.patch"
 	# Copilot PAT catalog transport and profile-scoped token resolution.
 	"${FILESDIR}/${PN}-copilot-pat-discovery.patch"
+	# Preserve effective integration/custom headers on native image requests.
+	"${FILESDIR}/${PN}-copilot-image-headers.patch"
 )
 
 src_prepare() {
 	# Remove the <3.14 restriction since Gentoo builds transitive Rust deps from source
 	sed -i -e 's/requires-python = ">=3.11,<3.14"/requires-python = ">=3.11"/' pyproject.toml || die
 	export HERMES_NIX_BUILD=1
+	cp "${FILESDIR}/test_copilot_image_headers.py" tests/agent/ || die
 	distutils-r1_src_prepare
 }
 
