@@ -107,6 +107,26 @@ else
     fail "Copilot image header behavioral checks"
 fi
 
+echo "--- Headless Chrome service ---"
+CHROME_UNIT="$IMAGE/usr/lib/systemd/user/hermes-chrome.service"
+if [[ " ${USE:-} " == *" browser "* ]]; then
+    if [ -f "$CHROME_UNIT" ]; then
+        if grep -qxF 'Environment=DBUS_SESSION_BUS_ADDRESS=disabled:' "$CHROME_UNIT"; then
+            pass "headless Chrome cannot activate the desktop session portals"
+        else
+            fail "headless Chrome session-bus isolation missing"
+        fi
+        check "$CHROME_UNIT" 'WantedBy=default.target' \
+            "headless Chrome remains available before graphical login"
+    else
+        fail "browser enabled but headless Chrome service is missing"
+    fi
+elif [ ! -e "$CHROME_UNIT" ]; then
+    pass "browser disabled: headless Chrome service not installed"
+else
+    fail "browser disabled but headless Chrome service was installed"
+fi
+
 echo ""
 echo "==> $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
