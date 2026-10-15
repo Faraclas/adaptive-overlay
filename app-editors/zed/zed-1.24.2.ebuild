@@ -183,7 +183,7 @@ src_prepare() {
 
 	# Cargo offline fetch workaround
 	local CALLOOP_COMMIT="3759371fee14c40066d64777e2a36b6ffcc22590"
-	local CALLOOP_GIT="calloop = { git = \"https://github.com/zed-industries/calloop\""
+	local CALLOOP_GIT="calloop = { git = \"https://github.com/zed-industries/calloop\", rev = \"${CALLOOP_COMMIT}\""
 	local CALLOOP_PATH="calloop = \\{ path = \"${WORKDIR}/calloop-${CALLOOP_COMMIT}\""
 
 	local NOTIFY_COMMIT="d842f16b2716bd60f09caf3ae3a894237ab38f54"
