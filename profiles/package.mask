@@ -1,0 +1,5 @@
+# Elias <elias@example.com> (2026-10-25)
+# Upstream moved from date versions (last: v2026.9.24) to semver
+# (v0.22.x). Mask the date-scheme ebuilds so Portage moves installed
+# systems to the semver releases.
+>=app-ai/hermes-agent-2000

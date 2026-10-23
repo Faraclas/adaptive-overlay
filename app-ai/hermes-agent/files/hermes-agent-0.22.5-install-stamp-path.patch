@@ -1,0 +1,15 @@
+--- a/pm/paths.py
++++ b/pm/paths.py
+@@ -31,7 +31,11 @@
+     root = Path(project_root)
+     if root.resolve() == repo_root():
+         root = install_root()
+-    return root / "install-stamp.json"
++    stamp = root / "install-stamp.json"
++    # Gentoo: python_install ships the stamp inside the hermes_cli package.
++    if not stamp.is_file() and (root / "hermes_cli" / "install-stamp.json").is_file():
++        return root / "hermes_cli" / "install-stamp.json"
++    return stamp
+ 
+ 
+ def lockfile_path() -> Path:

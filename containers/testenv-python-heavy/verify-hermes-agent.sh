@@ -18,8 +18,15 @@ echo "--- Patched sources ---"
 check() { # file, fixed-string, label
     if grep -qF -- "$2" "$1" 2>/dev/null; then pass "$3"; else fail "$3"; fi
 }
-check "$SITE/tools/lazy_deps.py" "allow_lazy_installs" \
-    "lazy_deps: pins-as-floors patch"
+if [ -f "$SITE/pm/extras.py" ]; then
+    check "$SITE/hermes_cli/install-stamp.json" '"updateMechanism": "external"' \
+        "install-stamp.json: external update mechanism (Portage steward)"
+    check "$SITE/pm/extras.py" 'def available(extra: str) -> bool:' \
+        "pm.extras: unpinned import-spec availability check"
+else
+    check "$SITE/tools/lazy_deps.py" "allow_lazy_installs" \
+        "lazy_deps: pins-as-floors patch"
+fi
 check "$CU/cua_backend_session.py" 'name == "MCPError"' \
     "computer_use: MCPError(CONNECTION_CLOSED) reconnect"
 check "$CU/tool.py" 'if action == "release":' \
@@ -28,6 +35,20 @@ check "$CU/schema.py" '"release",' \
     "computer_use: release in the tool schema"
 check "$CU/cua_backend_daemon.py" 'def ensure_alive' \
     "computer_use: private daemon revive on reconnect"
+
+echo "--- TUI bundle ---"
+TUI="$SITE/hermes_cli/tui_dist"
+if [ -f "$TUI/entry.js" ]; then pass "tui_dist: entry.js"; else fail "tui_dist: entry.js"; fi
+if grep -qF 'gateway_bootstrap.py' "$TUI/entry.js" 2>/dev/null; then
+    # 0.22.5+: helpers resolved next to entry.js before ui-tui/scripts.
+    for helper in gateway_bootstrap.py clipboard_image.py; do
+        if [ -f "$TUI/scripts/$helper" ]; then
+            pass "tui_dist: scripts/$helper"
+        else
+            fail "tui_dist: scripts/$helper"
+        fi
+    done
+fi
 
 echo "--- Imports (image on sys.path) ---"
 if PYTHONPATH="$SITE" python3 -c '
