@@ -4,8 +4,8 @@
 
 Capture the decisions, research, and remaining work from the D2 packaging
 conversation so another session or workstation can resume after a reboot.
-Implementation and local container validation are complete. Publication and
-hosted execution remain pending, as detailed below.
+Implementation, local container validation, and initial publication are
+complete. Hosted package-build validation remains pending, as detailed below.
 
 - Planning date: 2026-10-23.
 - Working branch: `add/d2-and-d2-mcp`, created from local `main` at
@@ -19,12 +19,13 @@ hosted execution remain pending, as detailed below.
   package skills, Go archive generation, and hosted preparation are wired.
 - Source builds, source tests, full Portage installation, and real CLI/MCP
   rendering passed locally. See the validation record below.
-- The initial plan was committed and pushed as `012e091`. Implementation
-  changes remain local until explicitly committed/pushed.
-- **External-use blocker:** the initial dependency asset and Go-enabled GHCR
-  image have not been published. Normal fresh remote builds need that asset;
-  successful local builds used preseeded distfiles. Hosted execution and
-  real-workstation installation have not been tested.
+- The initial plan was committed and pushed as `012e091`; implementation was
+  committed and pushed as `737a1d7` after authorization.
+- Published the Rust/Go image through run `39987286908`, then the immutable
+  `d2-deps-0.9.0` archive/provenance release. Unauthenticated public downloads
+  match the tested bytes, and fresh generation in the published image matches.
+- Hosted package builds and real-workstation installation remain to be tested.
+  Use a PR with the `build-test` label before merging into `main`.
 
 ## User requirements and agreed direction
 
@@ -396,8 +397,8 @@ cleanup:
 
 1. [x] Read instructions, preserve the Hermes branch and unrelated Notes work.
 2. [x] Verify tagged sources, compiler requirements, binary names, and licenses.
-3. [x] Build the appended Go layer on the existing headless Rust image.
-       Full CUDA-heavy rebuild and GHCR publication remain pending.
+3. [x] Build the appended Go layer locally and publish the full Containerfile
+       through the existing Rust image workflow.
 4. [x] Implement shared containerized Go generation and immutable publication
        workflow. Real generation passed; publication contract tested with mocks.
 5. [x] Add D2 ebuild/metadata/Manifest and register `media-gfx` category.
@@ -410,18 +411,19 @@ cleanup:
 12. [x] Register automatic upgrades, package skills/handoff, and README entries.
         Local lifecycle tests passed; live hosted handoff is still untested.
 13. [x] Record results and maintenance caveats here and in the Notes document.
-14. [ ] Commit/push implementation after authorization.
-15. [ ] Publish Go-enabled GHCR image and initial dependency assets.
-16. [ ] Verify public distfile bytes, fresh remote fetch, and hosted workflows.
+14. [x] Commit/push implementation after authorization.
+15. [x] Publish Go-enabled GHCR image and initial dependency assets.
+16. [ ] Complete hosted package builds; public asset downloads and hashes passed.
 17. [ ] Install on an actual Gentoo workstation when the maintainer is ready.
 
 ## Local validation and release handoff
 
 Validation date: 2026-10-23. Toolchains: Go 1.27.1 and Rust/Cargo 1.98.1.
 
-- Built the exact appended Go layer with Portage on the existing Rust image.
-  `localhost/adaptive-overlay-testenv-rust:local` now points to that tested
-  toolchain-only image, also tagged `:d2`. It contains no D2/MCP applications.
+- Built the exact appended Go layer with Portage on the existing Rust image,
+  retained as `localhost/adaptive-overlay-testenv-rust:d2`. The normal `:local`
+  tag now points to the subsequently published image with Go 1.27.2 and Rust
+  1.99.0, pulled by digest. Neither toolchain image contains D2/MCP applications.
 - Refreshed `localhost/adaptive-overlay-testenv:local` from the already-pulled
   GHCR base snapshot. The previous local tree was stale and could not resolve
   the Go minimum during lint. Both normal package lint wrappers now pass.
@@ -453,8 +455,10 @@ Validation date: 2026-10-23. Toolchains: Go 1.27.1 and Rust/Cargo 1.98.1.
   its standard `test` flag declares Git for the fixture diff helper.
 - 27 offline lifecycle regressions passed, including mocked release publication,
   source/provenance mismatches, handoff ordering, and local finalizer guards.
-  Live read-only checks report both packages up to date. Hosted execution,
-  token permissions, publication, and real-workstation behavior remain untested.
+  Live read-only checks report both packages up to date. Image publication
+  passed through GitHub Actions; the release pair was uploaded as a draft,
+  downloaded/compared, published, and downloaded anonymously for comparison.
+  Hosted package builds and real-workstation behavior remain to be tested.
 
 The legacy local ebuild-only finalizer intentionally rejects D2/MCP before
 mutation and points to the package procedures. It cannot safely review the
@@ -472,11 +476,28 @@ Useful retained local integration artifacts:
   integration image with installed applications, **not** the normal toolchain
   image and not an image to publish as the maintained test environment.
 
-After authorized commit/push, publish the normal Rust/Go image through the
-existing workflow, then run `prepare-go-deps.yml` for `0.9.0`. Its gate checks
-published image source provenance. Verify resulting archive bytes against
-this Manifest before fresh-fetch/hosted tests. Never replace differing bytes
-silently or claim the currently unpublished package is remotely fetchable.
+Publication record, 2026-10-23:
+
+- Workflow run: `39987286908`, successful `publish-testenv-rust.yml` dispatch.
+- Image: `ghcr.io/faraclas/adaptive-overlay/testenv-rust:2026-10-23`, also
+  `:latest`, with source revision `737a1d7eab082b04b2aaccdb82431640f25de7f0`.
+- Image digest:
+
+  ```text
+  sha256:d8d4b4b3dc144014cc1b113b4334876f8af56e071bdd833450026234753523fa
+  ```
+
+- Dependency release: `d2-deps-0.9.0`, published without changing the latest
+  application-release designation. Archive and JSON match local bytes and
+  unauthenticated public downloads. Fresh generation on Go 1.27.2 in the
+  published image produced the same pair byte-for-byte.
+- GitHub did not register the new `prepare-go-deps.yml` dispatch while it was
+  absent from `main`. Bootstrap publication used the already-validated local
+  generator output and the same draft/verify/publish release contract through
+  `gh`. After merge, exercise the hosted preparation workflow against this
+  release; its immutable-asset checks must accept identical bytes, not replace
+  them. Do not claim that new hosted preparation workflow has already run.
+- Next: open a labeled PR and verify hosted lint/build before merging.
 
 ## Safety and scope reminders
 
@@ -488,5 +509,5 @@ silently or claim the currently unpublished package is remotely fetchable.
   metadata.xml, and necessary `files/` contents. Plans belong in `planning/`.
 - Preserve unrelated user work. Do not commit, push, publish assets/images,
   dispatch workflows, or open a PR without the applicable user authorization.
-- The user subsequently authorized implementation, but not an automatic
-  commit, push, publication, workflow dispatch, PR, or merge.
+- The user subsequently authorized implementation, publication, commit/push,
+  and a PR. Keep merge separate until the hosted checks have been reviewed.
