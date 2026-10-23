@@ -1,0 +1,133 @@
+D2 0.9.0 supplemental runtime notices
+====================================
+
+Companion to d2-0.9.0-bundled-notices.txt. The original section
+numbers are retained. These source-header extracts supplement, and
+do not replace, the licenses and notices installed from Go modules.
+
+6. D2 font subsetting and Go-pdf: inline ISC notices
+==================================================
+
+D2 file: lib/font/subsetFont.go
+Source:
+https://github.com/d2lang/d2/blob/d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda/lib/font/subsetFont.go
+Original header identifies https://github.com/jung-kurt/gofpdf.
+
+Go module: codeberg.org/go-pdf/fpdf v0.12.0
+Source revision: bfbf38220da0646ed3ea53a0871979f72d66f423
+Source:
+https://codeberg.org/go-pdf/fpdf/src/commit/bfbf38220da0646ed3ea53a0871979f72d66f423
+
+The copyright notices below are preserved from the inline ISC headers.
+The identical permission and disclaimer text printed after the list applies
+to every listed original attribution. Go-pdf's current root MIT LICENSE
+is retained separately; it does not replace these legacy notices.
+
+D2 lib/font/subsetFont.go; Go-pdf utf8fontfile.go:
+Copyright (c) 2019 Arteom Korotkiy (Gmail: arteomkorotkiy)
+
+Go-pdf def.go, fpdf.go, protect.go:
+Copyright (c) 2013-2014 Kurt Jung (Gmail: kurt.w.jung)
+
+Go-pdf font.go, ttfparser.go, util.go:
+Copyright (c) 2013 Kurt Jung (Gmail: kurt.w.jung)
+
+Go-pdf embedded.go, htmlbasic.go, layer.go, svgbasic.go, svgwrite.go:
+Copyright (c) 2014 Kurt Jung (Gmail: kurt.w.jung)
+
+Go-pdf png.go:
+Copyright (c) 2013-2016 Kurt Jung (Gmail: kurt.w.jung)
+
+Go-pdf compare.go:
+Copyright (c) 2015 Kurt Jung (Gmail: kurt.w.jung)
+
+Go-pdf template.go, template_impl.go:
+Copyright (c) 2015 Kurt Jung (Gmail: kurt.w.jung),
+  Marcus Downing, Jan Slabon (Setasign)
+
+Go-pdf spotcolor.go:
+Copyright (c) Kurt Jung (Gmail: kurt.w.jung)
+
+Permission to use, copy, modify, and distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Additional current Go-pdf MIT-style source-header attributions:
+Copyright ©2021 The go-pdf Authors. All rights reserved.
+Copyright ©2023 The go-pdf Authors. All rights reserved.
+Copyright ©2025 The go-pdf Authors. All rights reserved.
+
+These appear respectively in rbuf.go/wbuf.go/xcompr.go, the main source
+files, and font_afm.go; their stated license is the module's MIT LICENSE.
+
+
+7. elk-go: fdlibm and V8 runtime notices
+======================================
+
+Go module: github.com/d2lang/elk-go v0.2.0
+Source revision: 61fb7872bddd7d3fd82185d17594aa6366332526
+Header source: internal/javacompat/jsmath.go
+https://github.com/d2lang/elk-go/blob/61fb7872bddd7d3fd82185d17594aa6366332526/internal/javacompat/jsmath.go
+
+This header retains the Sun permission notice (Gentoo identifier SunSoft),
+the V8 attribution, and the port's own attribution. The following header
+and LICENSE.v8-bsd retain their different original V8 copyright years.
+
+The following is adapted from fdlibm (http://www.netlib.org/fdlibm).
+
+====================================================
+Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+
+Developed at SunSoft, a Sun Microsystems, Inc. business.
+Permission to use, copy, modify, and distribute this
+software is freely granted, provided that this notice
+is preserved.
+====================================================
+
+The original source code covered by the above license has been modified
+significantly by Google Inc.
+Copyright 2016 the V8 project authors. All rights reserved.
+Copyright (c) 2026 The elk-go Authors.
+
+The V8-derived portions are licensed under the BSD 3-Clause License; see
+LICENSE.v8-bsd. The fdlibm-derived portions retain the SunPro notice above.
+
+SPDX-License-Identifier: SunPro AND BSD-3-Clause
+
+The complete module LICENSE.v8-bsd follows:
+https://github.com/d2lang/elk-go/blob/61fb7872bddd7d3fd82185d17594aa6366332526/LICENSE.v8-bsd
+
+Copyright 2014, the V8 project authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of Google Inc. nor the names of its contributors may be
+      used to endorse or promote products derived from this software without
+      specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+

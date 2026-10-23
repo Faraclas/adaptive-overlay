@@ -1,0 +1,102 @@
+Additional dependency notices for d2-mcp 0.1.0
+============================================
+
+These supplement the license/copyright files installed from all 94 registry
+archives in Cargo.lock. MIT is selected wherever a crate offers that option.
+The binary additionally contains Apache-2.0, BSD-2, CC0-1.0 and Unicode-3.0
+code/data. LLVM-exception, LGPL and Unlicense alternatives are not selected.
+
+The rmcp and rmcp-macros 1.8.0 archives omit their repository LICENSE.
+rmcp-1.8.0-LICENSE is copied verbatim from modelcontextprotocol/rust-sdk at
+25220361d5540715294c501c289d79de4bec2bfc (their .cargo_vcs_info.json commit):
+https://github.com/modelcontextprotocol/rust-sdk/blob/25220361d5540715294c501c289d79de4bec2bfc/LICENSE
+Its MIT/Apache licensing transition notice is preserved. SDK documentation
+under CC-BY-4.0 is not installed as documentation of this package.
+
+rmcp/src/model/extension.rs identifies copied MIT code from hyperium/http.
+rmcp-1.8.0-http-LICENSE-MIT is its notice, copied verbatim from:
+https://github.com/hyperium/http/blob/v1.3.1/LICENSE-MIT
+
+futures-channel 0.3.32: src/mpsc/queue.rs (BSD-2)
+------------------------------------------------
+/* Copyright (c) 2010-2011 Dmitry Vyukov. All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY DMITRY VYUKOV "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+ * SHALL DMITRY VYUKOV OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of Dmitry Vyukov.
+ */
+
+schemars 1.2.1: src/_private/regex_syntax.rs (MIT)
+------------------------------------------------
+// Copied from regex_syntax crate to avoid pulling in the whole crate just for a utility function
+// https://github.com/rust-lang/regex/blob/431c4e4867e1eb33eb39b23ed47c9934b2672f8f/regex-syntax/src/lib.rs
+//
+// Copyright (c) 2014 The Rust Project Developers
+//
+// Permission is hereby granted, free of charge, to any
+// person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the
+// Software without restriction, including without
+// limitation the rights to use, copy, modify, merge,
+// publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software
+// is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+// ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+// PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+// SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+// IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+
+
+rustix 1.1.4: src/backend/linux_raw/vdso.rs (CC0-1.0)
+---------------------------------------------------
+//! Parse the Linux vDSO.
+//!
+//! The following code is transliterated from
+//! tools/testing/selftests/vDSO/parse_vdso.c in Linux 6.13, which is licensed
+//! with Creative Commons Zero License, version 1.0,
+//! available at <https://creativecommons.org/publicdomain/zero/1.0/legalcode>
+//!
+//! It also incorporates the patch at:
+//! <https://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git/commit/tools/testing/selftests/vDSO?h=next&id=01587d80b04f29747b6fd6d766c3bfa632f14eb0>,
+//! with changes to fix the pointer arithmetic on s390x.
+//!
+//! # Safety
+//!
+//! Parsing the vDSO involves a lot of raw pointer manipulation. This
+//! implementation follows Linux's reference implementation, and adds several
+//! additional safety checks.
+#![allow(unsafe_code)]
+
+unicode-ident 1.0.24 additionally requires Unicode-3.0, whose full notice
+is installed as licenses/unicode-ident-1.0.24/LICENSE-UNICODE.

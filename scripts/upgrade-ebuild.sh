@@ -5,8 +5,9 @@
 # Compares the current overlay version against the latest upstream
 # release, copies the ebuild, and — for Cargo/Rust packages — diffs
 # upstream Cargo.toml to detect dependency changes (GIT_CRATES,
-# RUST_MIN_VER, WEBRTC_COMMIT).  Non-Cargo packages (C/C++, meson,
-# etc.) get a straightforward version bump without dependency diffing.
+# RUST_MIN_VER, WEBRTC_COMMIT). D2 Go upgrades require a published,
+# source-matched dependency archive and report go.mod/go.sum changes.
+# Other build systems get a straightforward version bump.
 #
 # The build system is read from the "build_system" field in
 # .agent/packages.json.  If absent, it defaults to "cargo" for
@@ -29,6 +30,9 @@
 #                    automatically (best-effort).
 #   --manifest       Run `pkgdev manifest` after applying changes.
 #                    Implies --apply.
+#   --check          Only resolve/compare versions, without checking sources
+#                    or copying ebuilds. Used before hosted archive preparation.
+#                    Cannot be combined with --apply or --manifest.
 #   --json           Output results as JSON instead of human-readable
 #                    text.
 #   -h, --help       Show this help text.
@@ -43,7 +47,8 @@
 #                  Defaults to the current working directory.
 #   GITHUB_TOKEN   Optional GitHub API token for higher rate limits.
 #
-# Requirements: bash (4+), curl, jq, diff, sort (with -V), grep, sed
+# Requirements: bash (4+), curl, jq, diff, sort (with -V), grep, sed,
+#               sha256sum (Go archive provenance)
 #
 # Phase 4 of the implementation plan.
 
@@ -58,6 +63,7 @@ TARGET_VERSION=""
 DO_APPLY=0
 DO_MANIFEST=0
 OUTPUT_JSON=0
+CHECK_ONLY=0
 
 show_help() {
     sed -n '2,/^$/{ s/^# //; s/^#$//; p }' "$0"
@@ -80,6 +86,7 @@ while [[ $# -gt 0 ]]; do
             DO_APPLY=1
             ;;
         --json)     OUTPUT_JSON=1 ;;
+        --check)    CHECK_ONLY=1 ;;
         -h|--help)  show_help ;;
         -*)
             echo "error: unknown option: $1" >&2
@@ -102,6 +109,11 @@ if [[ -z "${PACKAGE_DIR}" ]]; then
     echo "Usage: $(basename "$0") <category/package> [--version <ver>] [--apply] [--manifest] [--json]" >&2
     echo "  e.g. $(basename "$0") app-editors/zed" >&2
     echo "  e.g. $(basename "$0") app-editors/zed --version 0.229.0 --apply" >&2
+    exit 1
+fi
+
+if [[ "${CHECK_ONLY}" -eq 1 && "${DO_APPLY}" -eq 1 ]]; then
+    echo "error: --check cannot be combined with --apply or --manifest." >&2
     exit 1
 fi
 
@@ -133,7 +145,7 @@ fi
 # Dependency check
 # =============================================================================
 
-for cmd in curl jq diff sort grep sed; do
+for cmd in curl jq diff sort grep sed sha256sum; do
     if ! command -v "${cmd}" &>/dev/null; then
         echo "error: required command '${cmd}' not found." >&2
         exit 1
@@ -322,6 +334,26 @@ if [[ "${HIGHER}" != "${UPSTREAM_VERSION}" ]]; then
     exit 1
 fi
 
+if [[ "${BUILD_SYSTEM}" == "go" ]]; then
+    if [[ "${PACKAGE_DIR}" != "media-gfx/d2" || "${UPSTREAM_REPO}" != "d2lang/d2" ||
+          ! "${UPSTREAM_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "error: Go archive handling supports only stable media-gfx/d2 releases from d2lang/d2." >&2
+        exit 1
+    fi
+fi
+
+if [[ "${CHECK_ONLY}" -eq 1 ]]; then
+    if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
+        jq -n --arg pkg "${PACKAGE_DIR}" --arg current "${CURRENT_VERSION}" \
+            --arg upstream "${UPSTREAM_VERSION}" --arg build_system "${BUILD_SYSTEM}" \
+            '{package: $pkg, current: $current, upstream: $upstream,
+              build_system: $build_system, status: "upgrade-available", sources_checked: false}'
+    else
+        echo "==> ${PACKAGE_DIR}: ${CURRENT_VERSION} → ${UPSTREAM_VERSION} (sources not checked)"
+    fi
+    exit 0
+fi
+
 # =============================================================================
 # Source availability check
 # =============================================================================
@@ -377,6 +409,63 @@ if [[ "${SOURCES_OK}" -eq 0 ]]; then
     exit 1
 fi
 
+GO_DEPS_JSON=null
+NEW_GO_MIN_VER=""
+GO_MODULES_CHANGED=false
+if [[ "${BUILD_SYSTEM}" == "go" ]]; then
+    # Preparation/publication is a separate explicit lifecycle, never a hidden
+    # host Go invocation or an implicit replacement of published distfiles.
+    GO_DEPS_BASE="https://github.com/${GITHUB_REPOSITORY:-Faraclas/adaptive-overlay}/releases/download/d2-deps-${UPSTREAM_VERSION}"
+    GO_DEPS_NAME="d2-${UPSTREAM_VERSION}-go-deps.tar.xz"
+    GO_DEPS_URL="${GO_DEPS_BASE}/${GO_DEPS_NAME}"
+    GO_META_URL="${GO_DEPS_BASE}/d2-${UPSTREAM_VERSION}-go-deps.json"
+    if ! curl -sfIL --max-time 60 "${GO_DEPS_URL}" >/dev/null 2>&1; then
+        echo "error: required Go dependency archive is not published: ${GO_DEPS_URL}" >&2
+        echo "  Prepare with scripts/prepare-go-deps.sh media-gfx/d2 --version ${UPSTREAM_VERSION} --output DIR" >&2
+        echo "  Then publish through prepare-go-deps.yml before upgrading or generating Manifest." >&2
+        exit 1
+    fi
+    GO_META=$(curl -sfL --max-time 60 "${GO_META_URL}") || {
+        echo "error: Go archive provenance is unavailable: ${GO_META_URL}" >&2
+        exit 1
+    }
+    # JSON encoding preserves exact trailing newlines across shell capture.
+    NEW_GO_MOD=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" go.mod | jq -Rs .) || {
+        echo "error: cannot fetch new go.mod" >&2; exit 1;
+    }
+    NEW_GO_SUM=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" go.sum | jq -Rs .) || {
+        echo "error: cannot fetch new go.sum" >&2; exit 1;
+    }
+    OLD_GO_MOD=$(gh_raw "${UPSTREAM_REPO}" "v${CURRENT_CLEAN}" go.mod | jq -Rs .) || {
+        echo "error: cannot fetch previous go.mod" >&2; exit 1;
+    }
+    OLD_GO_SUM=$(gh_raw "${UPSTREAM_REPO}" "v${CURRENT_CLEAN}" go.sum | jq -Rs .) || {
+        echo "error: cannot fetch previous go.sum" >&2; exit 1;
+    }
+    GO_SOURCE_COMMIT=$(gh_api "https://api.github.com/repos/${UPSTREAM_REPO}/commits/v${UPSTREAM_VERSION}" | jq -er '.sha') || {
+        echo "error: cannot resolve D2 source tag commit" >&2; exit 1;
+    }
+    GO_MOD_SHA=$(jq -jr . <<< "${NEW_GO_MOD}" | sha256sum); GO_MOD_SHA="${GO_MOD_SHA%% *}"
+    GO_SUM_SHA=$(jq -jr . <<< "${NEW_GO_SUM}" | sha256sum); GO_SUM_SHA="${GO_SUM_SHA%% *}"
+    NEW_GO_MIN_VER=$(jq -r . <<< "${NEW_GO_MOD}" | sed -n 's/^go //p')
+    if ! jq -e --arg tag "v${UPSTREAM_VERSION}" --arg name "${GO_DEPS_NAME}" \
+        --arg commit "${GO_SOURCE_COMMIT}" --arg mod "${GO_MOD_SHA}" \
+        --arg sum "${GO_SUM_SHA}" --arg minimum "${NEW_GO_MIN_VER}" \
+        '.schema == 1 and .upstream == "d2lang/d2" and .tag == $tag and
+         .archive == $name and .source_commit == $commit and
+         .go_mod_sha256 == $mod and .go_sum_sha256 == $sum and
+         .go_min_version == $minimum and (.sha256 | test("^[a-f0-9]{64}$"))' \
+        <<< "${GO_META}" >/dev/null; then
+        echo "error: published Go dependency archive does not match the exact source release; never substitute it silently." >&2
+        exit 1
+    fi
+    if [[ "${OLD_GO_MOD}" != "${NEW_GO_MOD}" || "${OLD_GO_SUM}" != "${NEW_GO_SUM}" ]]; then
+        GO_MODULES_CHANGED=true
+    fi
+    GO_DEPS_JSON=$(jq --arg url "${GO_DEPS_URL}" --arg provenance_url "${GO_META_URL}" \
+        '. + {url: $url, provenance_url: $provenance_url, ready: true}' <<< "${GO_META}")
+fi
+
 [[ "${OUTPUT_JSON}" -eq 0 ]] && echo ""
 
 # =============================================================================
@@ -420,6 +509,11 @@ declare -A ADDED_GIT_CRATES=()       # crate -> "url;rev"
 declare -a REMOVED_GIT_CRATES=()     # crate names
 NEW_RUST_MIN_VER=""
 NEW_WEBRTC_COMMIT=""
+if [[ "${BUILD_SYSTEM}" == "go" ]]; then
+    CHANGE_DESCRIPTIONS+=("Go dependency archive ready: ${GO_DEPS_URL}")
+    CHANGE_DESCRIPTIONS+=("Go minimum: ${NEW_GO_MIN_VER}; review BDEPEND and headless Rust image toolchain")
+    CHANGE_DESCRIPTIONS+=("go.mod/go.sum changed: ${GO_MODULES_CHANGED}; review statically linked dependency licenses")
+fi
 declare -a NEW_WORKSPACE_MEMBERS=()
 
 if [[ "${BUILD_SYSTEM}" == "cargo" ]]; then
@@ -786,6 +880,9 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
         --arg rust_min_ver "${NEW_RUST_MIN_VER}" \
         --arg webrtc_commit "${NEW_WEBRTC_COMMIT}" \
         --arg manifest "${MANIFEST_RESULT}" \
+        --arg go_min_ver "${NEW_GO_MIN_VER}" \
+        --argjson go_modules_changed "${GO_MODULES_CHANGED}" \
+        --argjson go_deps "${GO_DEPS_JSON}" \
         --arg status "upgrade-prepared" \
         '{
             package: $pkg,
@@ -806,6 +903,9 @@ if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
             new_workspace_members: $new_workspace_members,
             rust_min_ver: (if $rust_min_ver == "" then null else $rust_min_ver end),
             webrtc_commit: (if $webrtc_commit == "" then null else $webrtc_commit end),
+            go_min_ver: (if $go_min_ver == "" then null else $go_min_ver end),
+            go_modules_changed: $go_modules_changed,
+            go_deps: $go_deps,
             manifest: $manifest
         }'
 else
@@ -813,7 +913,7 @@ else
     echo "==> Dependency change summary for ${PACKAGE_DIR} ${CURRENT_VERSION} → ${UPSTREAM_VERSION}"
     echo ""
 
-    if [[ "${BUILD_SYSTEM}" != "cargo" ]]; then
+    if [[ "${BUILD_SYSTEM}" != "cargo" && "${BUILD_SYSTEM}" != "go" ]]; then
         echo "    Non-Cargo package (build_system=${BUILD_SYSTEM}) — no dependency diffing performed."
         echo "    Straightforward version bump."
     elif [[ ${#CHANGE_DESCRIPTIONS[@]} -eq 0 ]]; then

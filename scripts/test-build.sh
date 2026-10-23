@@ -27,8 +27,7 @@
 #   2. ghcr.io/faraclas/adaptive-overlay/testenv:latest
 #      ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
 #
-# The testenv-rust image is selected automatically when the package
-# directory is app-editors/zed.
+# The shared headless Rust/Go image is used for D2 and its MCP adapter.
 
 set -euo pipefail
 
@@ -87,6 +86,9 @@ if echo "${PACKAGE_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
 elif [ "${PACKAGE_DIR}" = "app-editors/zed" ] || [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust-desktop:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
+elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ]; then
+    LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust:local"
+    REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-audio:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
@@ -116,6 +118,8 @@ elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-python-heavy/verify-${PACKAGE_NAME}.sh"
+elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ]; then
+    VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-audio/verify-${PACKAGE_NAME}.sh"
 else

@@ -4,8 +4,10 @@
 # for intelligent finalization, generate Manifest, lint, and optionally
 # build-test.
 #
-# This is the single entry point for the local upgrade path. It calls
-# upgrade-ebuild.sh internally, so you do not need to run it separately.
+# This is the local ebuild-only upgrade path. It calls upgrade-ebuild.sh
+# internally, so you do not need to run it separately for supported packages.
+# D2/MCP require multi-file review and are rejected before any preparation
+# or agent invocation; follow their package skills and container helpers.
 #
 # Usage:
 #   scripts/agent-finalize-ebuild.sh <category/package>
@@ -155,6 +157,41 @@ if [[ ! -f "${OVERLAY_DIR}/metadata/layout.conf" ]]; then
     exit 1
 fi
 
+# D2/MCP cannot be safely finalized by this ebuild-only Cargo prompt. Guard
+# both entry points before upgrade preparation or checking/invoking Copilot.
+reject_multifile_package() {
+    # Use the same category/basename interpretation as upgrade-ebuild.sh.
+    local package="${1%%/*}/${1##*/}"
+    case "${package}" in
+        media-gfx/d2|media-gfx/d2-mcp)
+            echo "error: $1 requires multi-file finalization;" \
+                 "this ebuild-only CLI is not supported, including --dry-run." >&2
+            echo "  Read .agent/skills/finalize-upgrade.md and" \
+                 ".agent/skills/update-${1##*/}.md." >&2
+            if [[ "${package}" == media-gfx/d2 ]]; then
+                echo "  Prepare dependencies in the existing headless Rust image:" >&2
+                echo "    scripts/prepare-go-deps.sh media-gfx/d2 --version X.Y.Z" \
+                     "--output /home/elias/tmp/d2-deps-X.Y.Z" >&2
+                echo "  Local generation does not publish the required release asset." >&2
+            fi
+            echo "  Follow the package skill for agent-driven review, then use" \
+                 "scripts/manifest.sh, scripts/lint.sh, and scripts/test-build.sh." >&2
+            exit 1
+            ;;
+    esac
+}
+
+if [[ -n "${JSON_FILE}" ]]; then
+    JSON=$(cat "${JSON_FILE}")
+    REPORT_PACKAGE=$(jq -er '.package' <<< "${JSON}") || {
+        echo "error: upgrade report must contain a package." >&2
+        exit 1
+    }
+    reject_multifile_package "${REPORT_PACKAGE}"
+else
+    reject_multifile_package "${PACKAGE_DIR}"
+fi
+
 # =========================================================================
 # Verify copilot CLI is available (skip for dry-run)
 # =========================================================================
@@ -174,7 +211,6 @@ fi
 
 if [[ -n "${JSON_FILE}" ]]; then
     echo "==> Reading existing upgrade report: ${JSON_FILE}"
-    JSON=$(cat "${JSON_FILE}")
 else
     UPGRADE_ARGS=("${PACKAGE_DIR}" "--apply" "--json")
     if [[ -n "${TARGET_VERSION}" ]]; then

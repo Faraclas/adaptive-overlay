@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    D2 is a declarative diagramming language with bundled native layout,
+    text shaping, and rendering engines. Its command-line tool exports
+    diagrams to SVG, PNG, PDF, and other formats without a browser runtime.
+  </longdescription>
+  <use>
+    <flag name="mcp">Install the D2 Model Context Protocol server</flag>
+  </use>
+  <upstream>
+    <remote-id type="github">d2lang/d2</remote-id>
+  </upstream>
+</pkgmetadata>

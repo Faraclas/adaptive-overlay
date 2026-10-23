@@ -4,8 +4,8 @@
 
 Capture the decisions, research, and remaining work from the D2 packaging
 conversation so another session or workstation can resume after a reboot.
-This is an implementation and handoff plan, not a claim that the packages or
-workflows have been implemented or validated.
+Implementation and local container validation are complete. Publication and
+hosted execution remain pending, as detailed below.
 
 - Planning date: 2026-10-23.
 - Working branch: `add/d2-and-d2-mcp`, created from local `main` at
@@ -13,13 +13,18 @@ workflows have been implemented or validated.
 - The unrelated Hermes work is safely committed and pushed on
   `update/hermes-agent-0.22.2`, commit `d7f1015`. Do not merge that checkpoint
   into this branch or modify it as part of this project.
-- Created empty package directories: `media-gfx/d2/` and `media-gfx/d2-mcp/`.
-- No ebuilds, patches, manifests, registry entries, container changes, or
-  automation changes have been implemented for D2 yet.
-- No D2/MCP build, install, or runtime validation has been performed here.
-- This plan is saved locally; creating it does not imply it was committed or
-  pushed. Empty package directories are not tracked by Git and may need to
-  be recreated in a fresh checkout. Do not add placeholder files to them.
+- Implemented `media-gfx/d2/d2-0.9.0.ebuild` and
+  `media-gfx/d2-mcp/d2-mcp-0.1.0.ebuild`, metadata, Manifests, and notices.
+- Both packages are registered for automatic upgrades. Local and CI routing,
+  package skills, Go archive generation, and hosted preparation are wired.
+- Source builds, source tests, full Portage installation, and real CLI/MCP
+  rendering passed locally. See the validation record below.
+- The initial plan was committed and pushed as `012e091`. Implementation
+  changes remain local until explicitly committed/pushed.
+- **External-use blocker:** the initial dependency asset and Go-enabled GHCR
+  image have not been published. Normal fresh remote builds need that asset;
+  successful local builds used preseeded distfiles. Hosted execution and
+  real-workstation installation have not been tested.
 
 ## User requirements and agreed direction
 
@@ -39,14 +44,26 @@ the installation layout for these packages. The exact tested version and
 commands were not established. Pasted background mentioned both the upstream
 installer and `go install`; do not infer which produced that binary.
 
+### Maintainer notes
+
+The user's normal home for nontrivial package-maintenance notes is
+`/home/elias/Documents/Notes/gentoo/ebuilds/`. Use one combined D2/D2 MCP note
+for integration details, unusual packaging/upgrade requirements, and roadmap
+items; do not fill it with trivial standard Gentoo instructions.
+
+The user added `Notes/` as a workspace root and requested writing these notes
+there. The combined note is `Notes/gentoo/ebuilds/d2-and-d2-mcp.md`; the former
+in-repository draft has been moved there. Follow the Notes root's `AGENTS.md`
+when editing it. Preserve unrelated Notes changes and do not commit them.
+
 ### Package locations
 
 Both packages belong under `media-gfx/`:
 
-| Gentoo package | Upstream | Installed executable |
-|---|---|---|
-| `media-gfx/d2` | `https://github.com/d2lang/d2` | `/usr/bin/d2` |
-| `media-gfx/d2-mcp` | `https://github.com/Stranmor/d2-mcp-rs` | `/usr/bin/d2-mcp` |
+- `media-gfx/d2`, upstream `https://github.com/d2lang/d2`, installs
+  `/usr/bin/d2`.
+- `media-gfx/d2-mcp`, upstream `https://github.com/Stranmor/d2-mcp-rs`,
+  installs `/usr/bin/d2-mcp`.
 
 `d2-mcp-rs` is the upstream repository name; its Cargo package/executable is
 `d2-mcp`. Confirm this when implementing the selected tagged release.
@@ -160,9 +177,9 @@ Source inspection of that tag found:
   `D2_MCP_D2_BIN`. Document `/usr/bin/d2` for deterministic local configuration.
 - MCP stdio transport, with rendering, validation, formatting, status, and
   layout/theme discovery. Layout selection is forwarded to D2.
-- No obvious D2 0.9.0 CLI incompatibility found by source inspection, but
-  compatibility has not been established by execution. Upstream CI reportedly
-  tests an older D2 version, so test our actual pair.
+- The packaged pair passed actual stdio integration using installed D2 0.9.0:
+  initialize, tool discovery, renderer status, and SVG/PNG renders. Keep testing
+  our exact pair on upgrades rather than relying on upstream's older D2 CI.
 
 Desired architecture:
 
@@ -175,8 +192,8 @@ The user explicitly rejected the older embedded-library mismatch.
 
 ### Package relationship and USE flag
 
-- Add an `mcp` flag to `media-gfx/d2`; default-off is the proposed starting
-  point, since no default-on requirement was requested.
+- Add a default-enabled `mcp` flag (`IUSE="+mcp"`) to `media-gfx/d2`, as
+  explicitly requested by the user. Also validate the `-mcp` configuration.
 - `media-gfx/d2-mcp` has an appropriate runtime dependency on `media-gfx/d2`.
 - Use D2's conditional `PDEPEND` for the optional MCP package to avoid a
   normal dependency cycle. Validate actual Portage resolution/install order.
@@ -184,15 +201,24 @@ The user explicitly rejected the older embedded-library mismatch.
   MCP package's files itself.
 - Use stdio for the local editor/agent integration. Do not automatically start
   a network daemon or alter users' editor configuration.
+- The inspected upstream `v0.1.0` entry point serves stdio. No daemon, OpenRC
+  script, or systemd unit is required. Do not track additional transports as
+  a roadmap item; the user does not need them.
 
-### PDF gap: investigate and implement deliberately
+### PDF gap: deferred roadmap item, not a first-version requirement
 
-Unmodified MCP `v0.1.0` exposes SVG and PNG, not PDF. D2 itself supports PDF.
-PDF export is wanted; a focused MCP extension was proposed, not implemented
-or tested. Confirm its scope and choose a patch/upstream contribution during
-implementation; do not silently create a broad fork.
+The user explicitly chose to get the initial packages working without a PDF
+patch. Package the upstream MCP server unchanged: it exposes SVG and PNG.
+D2 itself retains its native PDF exporter, usable through the CLI. Do not
+remove existing SVG or PNG support and do not make MCP PDF support a blocker.
 
-The source-reviewed minimal PDF-file extension would:
+A future focused MCP PDF-file extension may be considered if needed. No patch
+has been written or tested. A recheck found that current upstream main still
+accepts only Svg/Png, the latest observed release remains v0.1.0, and scoped
+GitHub searches found no PDF-related PR, issue, or commit. Do not claim this
+proves no fork contains such a change. Recheck upstream before writing one.
+
+For the future roadmap, the source-reviewed minimal extension would:
 
 - Add `Pdf` to `D2OutputFormat` and its extension mapping in `src/lib.rs`.
 - Include it in status-advertised formats; Serde/Schemars derives update the
@@ -311,10 +337,12 @@ currently recognizes only selected existing packages. Include Go minimum,
 module/archive regeneration, licenses, and MCP patch maintenance. Reuse the
 same generation script from local and hosted entry points.
 
-Register both GitHub-release packages. Prove initial builds and a repeatable
-upgrade path before enabling `auto_upgrade`; `auto_upgrade: false` still
-allows release detection and manual handoff. No user decision authorizes
-auto-merging. Keep any changes to shared automation narrowly scoped.
+Register both GitHub-release packages and enable `auto_upgrade: true` once
+both have been built/tested and their upgrade paths validated, as explicitly
+requested by the user. Temporary `auto_upgrade: false` during bring-up still
+allows release detection/manual handoff; it is not the intended final state.
+No user decision authorizes auto-merging. Keep shared automation changes
+narrowly scoped.
 
 ### CI verification
 
@@ -366,35 +394,89 @@ cleanup:
 
 ## Implementation checklist
 
-1. [ ] Read `.agent/instructions/general.md` and applicable project guidance.
-       Confirm branch/status; recreate empty package directories if needed.
-2. [ ] Recheck tagged upstream versions, sources, compiler requirements,
-       actual MCP binary name, and license inputs.
-3. [ ] Add Go to the existing headless Rust image and validate the updated
-       container build. Do not introduce another image/publishing workflow.
-4. [ ] Implement one reusable containerized D2 module-archive generator and
-       its hosted publication entry point. Establish immutable asset naming
-       and correct source-version/archive pairing.
-5. [ ] Add the source-built D2 ebuild, metadata, and Manifest. Check whether
-       category registration is needed by this overlay.
-6. [ ] Add the source-built MCP ebuild, crates/license metadata, runtime D2
-       dependency, and Manifest. Resolve the focused PDF-file extension and
-       track its upstream status if carried as a patch.
-7. [ ] Add D2's optional `mcp` post-dependency and metadata description.
-8. [ ] Update local and CI image/verify routing for both `media-gfx` packages.
-       Add package verification scripts under the existing Rust container area.
-9. [ ] Build/validate using the disposable Gentoo environment; fix failures
-       caused by the packaging. Verify installed/staged paths and version data.
-10. [ ] Exercise normal Portage dependency resolution/installation, including
-        D2 with and without `mcp`, to catch problems hidden by staging alone.
-11. [ ] Smoke-test a small diagram through the layout engines and SVG/PNG/PDF
-        export, then through an actual MCP stdio request using the same D2.
-        Keep tests proportional; no new performance/security test platform.
-12. [ ] Add registry entries, upgrade procedures/handoff wiring, and README
-        package entries. Prove archive generation and upgrade ordering before
-        enabling automatic upgrades.
-13. [ ] Summarize exact successful validation and any remaining host/runtime
-        limitations. Do not claim real-workstation validation unless performed.
+1. [x] Read instructions, preserve the Hermes branch and unrelated Notes work.
+2. [x] Verify tagged sources, compiler requirements, binary names, and licenses.
+3. [x] Build the appended Go layer on the existing headless Rust image.
+       Full CUDA-heavy rebuild and GHCR publication remain pending.
+4. [x] Implement shared containerized Go generation and immutable publication
+       workflow. Real generation passed; publication contract tested with mocks.
+5. [x] Add D2 ebuild/metadata/Manifest and register `media-gfx` category.
+6. [x] Add source-built MCP, 94 crates, notices, metadata, and Manifest.
+7. [x] Add default `+mcp`, conditional `PDEPEND`, and MCP runtime D2 dependency.
+8. [x] Wire local and CI Rust/Go image routing and both verification scripts.
+9. [x] Build both sources offline, with normal sandboxes enabled.
+10. [x] Validate full `emerge`, default `+mcp`, `-mcp`, and installed ownership.
+11. [x] Pass Dagre/ELK/TALA SVG/PNG/PDF and installed MCP SVG/PNG rendering.
+12. [x] Register automatic upgrades, package skills/handoff, and README entries.
+        Local lifecycle tests passed; live hosted handoff is still untested.
+13. [x] Record results and maintenance caveats here and in the Notes document.
+14. [ ] Commit/push implementation after authorization.
+15. [ ] Publish Go-enabled GHCR image and initial dependency assets.
+16. [ ] Verify public distfile bytes, fresh remote fetch, and hosted workflows.
+17. [ ] Install on an actual Gentoo workstation when the maintainer is ready.
+
+## Local validation and release handoff
+
+Validation date: 2026-10-23. Toolchains: Go 1.27.1 and Rust/Cargo 1.98.1.
+
+- Built the exact appended Go layer with Portage on the existing Rust image.
+  `localhost/adaptive-overlay-testenv-rust:local` now points to that tested
+  toolchain-only image, also tagged `:d2`. It contains no D2/MCP applications.
+- Refreshed `localhost/adaptive-overlay-testenv:local` from the already-pulled
+  GHCR base snapshot. The previous local tree was stale and could not resolve
+  the Go minimum during lint. Both normal package lint wrappers now pass.
+- Two real fresh-cache Go archive generations produced identical bytes:
+  `fa6262731f1f94f1ae3e992262beba0ae22edc26a7eaf347d24a694f7325190d`.
+  Archive/provenance are under `/home/elias/tmp/d2-work/distfiles/`.
+- Local Manifest generation used the verified source/archive cache, not an
+  already-published URL. The committed `SRC_URI` remains the intended public URL.
+- D2 source `ebuild clean compile test install` passed, including 16 selected
+  offline Go packages, 133 top-level tests, and 5,014 passing test/subtest
+  invocations. One upstream sequence-diagram case skips intentionally.
+  Module files and all 3,276 shipped testdata files remained unchanged.
+- MCP source compilation and all six library unit tests passed. Its separate
+  integration verifier requires actual installed D2 rather than silently
+  skipping like upstream's test can.
+- Full source `emerge` installed `/usr/bin/d2` then `/usr/bin/d2-mcp`, with VDB
+  ownership verified. Clean `-mcp` resolution selected D2 alone.
+- All nine CLI layout/format combinations passed, staged and installed;
+  MCP initialize/status/discovery and actual SVG/PNG artifacts passed too.
+- The unstripped D2 binary retained Go-pdf symbols but no checked Graphics
+  Gems/Grid routines. Supplemental font, Unicode, layout, and module notices
+  were installed. No new global license definitions were necessary.
+- All five Portage sandboxes were enabled, with `userpriv` and `strict`, while
+  container networking was disabled. Namespace setup needed `SYS_ADMIN` and
+  `seccomp=unconfined`; loopback-configuration warnings did not fail builds.
+  These local permissions are not encoded as ebuild sandbox restrictions.
+- Initial global D2 testing exposed upstream Makefile helper requirements.
+  The final ebuild's explicit offline `src_test` avoids that target and passes;
+  its standard `test` flag declares Git for the fixture diff helper.
+- 27 offline lifecycle regressions passed, including mocked release publication,
+  source/provenance mismatches, handoff ordering, and local finalizer guards.
+  Live read-only checks report both packages up to date. Hosted execution,
+  token permissions, publication, and real-workstation behavior remain untested.
+
+The legacy local ebuild-only finalizer intentionally rejects D2/MCP before
+mutation and points to the package procedures. It cannot safely review the
+multiple source/license files needed here. Hosted handoff loads the shared
+and package-specific procedures instead; failed Go readiness blocks handoff.
+
+Useful retained local integration artifacts:
+
+- `/home/elias/tmp/d2-work/ebuild-test-validation/`: D2 test/build/render logs
+  and retained Portage work/staging tree.
+- `/home/elias/tmp/d2-mcp-work/integration/`: exact invocation in `HANDOFF.md`,
+  `results/report.json`, resolver/build/render logs, and preseeded distfiles.
+- `d2-mcp-emerge-integration`: exited-successfully integration container.
+- `localhost/adaptive-overlay-testenv-rust:d2-mcp-integrated`: scratch-only
+  integration image with installed applications, **not** the normal toolchain
+  image and not an image to publish as the maintained test environment.
+
+After authorized commit/push, publish the normal Rust/Go image through the
+existing workflow, then run `prepare-go-deps.yml` for `0.9.0`. Its gate checks
+published image source provenance. Verify resulting archive bytes against
+this Manifest before fresh-fetch/hosted tests. Never replace differing bytes
+silently or claim the currently unpublished package is remotely fetchable.
 
 ## Safety and scope reminders
 
@@ -406,4 +488,5 @@ cleanup:
   metadata.xml, and necessary `files/` contents. Plans belong in `planning/`.
 - Preserve unrelated user work. Do not commit, push, publish assets/images,
   dispatch workflows, or open a PR without the applicable user authorization.
-- This planning task did not itself authorize completing the implementation.
+- The user subsequently authorized implementation, but not an automatic
+  commit, push, publication, workflow dispatch, PR, or merge.
