@@ -24,6 +24,8 @@ Currently included packages:
 - **dev-python/openai** - The official Python library for the OpenAI API
 - **dev-python/primp** - HTTP client that can impersonate web browsers
 - **dev-python/sse-starlette** - Server-Sent Events for Starlette and FastAPI
+- **media-gfx/d2** - Diagram scripting language with SVG, PNG, and PDF export
+- **media-gfx/d2-mcp** - Local stdio MCP server using the installed D2 renderer
 - **media-sound/amp-locker** - Audio plugin locker
 - **media-sound/bitwig-studio** - Digital audio workstation
 - **media-sound/carla** - Audio plugin host
@@ -95,7 +97,8 @@ To ensure build consistency, packages in this overlay are automatically tested u
 - **`testenv-rust-desktop`**: Used for heavy desktop/GUI applications requiring Rust (e.g., `app-editors/zed`)
 - **`testenv-python-heavy`**: Used for AI applications and their dependencies (e.g., `app-ai/*` and `dev-python/*`)
 - **`testenv-audio`**: Used for digital audio workstations, hosts, and plugins (e.g., `media-sound/*`)
-- **`testenv-rust`**: Used for terminal or headless applications needing a Rust toolchain (e.g., `app-misc/ai-voice-server`)
+- **`testenv-rust`**: Shared Rust/Go environment for headless applications
+  (e.g., `app-misc/ai-voice-server`, `media-gfx/d2`, and `media-gfx/d2-mcp`)
 - **`testenv`**: The lightweight base environment, used for everything else (e.g., `net-vpn/*`, `acct-user/*`, `acct-group/*`)
 
 When a pull request is submitted, `.github/workflows/ci-build.yml` automatically maps the ebuild to the correct container and attempts to build it using `emerge`.

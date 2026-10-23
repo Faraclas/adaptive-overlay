@@ -1,0 +1,201 @@
+name: Prepare D2 Go Dependencies
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact stable D2 version, without v (e.g. 0.9.0)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: "Exact stable D2 version, without v"
+        required: true
+        type: string
+    outputs:
+      archive_url:
+        description: "Verified, published dependency archive"
+        value: ${{ jobs.prepare.outputs.archive_url }}
+
+permissions:
+  contents: read
+
+# Serialize local/manual/upgrade callers for the same release. Never clobber.
+concurrency:
+  group: d2-deps-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: read
+    outputs:
+      archive_url: ${{ steps.publish.outputs.archive_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate exact source version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::Expected an exact stable D2 version (X.Y.Z)"
+            exit 1
+          }
+          mkdir -p "${GITHUB_WORKSPACE}/.go-deps-output"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and pin the published headless Rust image
+        id: image
+        run: |
+          set -euo pipefail
+          IMAGE=ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
+          docker pull "${IMAGE}"
+          REVISION=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "${IMAGE}")
+          PINNED=$(docker image inspect --format '{{index .RepoDigests 0}}' "${IMAGE}")
+          [[ "${REVISION}" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "::error::Missing image source revision; publish-testenv-rust.yml must complete before dependency preparation"
+            exit 1
+          }
+          [[ "${PINNED}" =~ ^ghcr\.io/faraclas/adaptive-overlay/testenv-rust@sha256:[a-f0-9]{64}$ ]] || {
+            echo "::error::Cannot pin the published headless Rust image digest"
+            exit 1
+          }
+          echo "revision=${REVISION}" >> "$GITHUB_OUTPUT"
+          echo "image=${PINNED}" >> "$GITHUB_OUTPUT"
+
+      - name: Require publication of the current Go container layer
+        uses: actions/github-script@v8
+        env:
+          IMAGE_REVISION: ${{ steps.image.outputs.revision }}
+        with:
+          script: |
+            const fs = require('fs');
+            const file = 'containers/testenv-rust/Containerfile';
+            // Image publication is a separate workflow. Compare its source
+            // rather than assuming a mutable latest tag includes this checkout.
+            const response = await github.rest.repos.getContent({
+              owner: 'Faraclas', repo: 'adaptive-overlay', path: file,
+              ref: process.env.IMAGE_REVISION
+            });
+            if (response.data.type !== 'file' || response.data.encoding !== 'base64' ||
+                !Buffer.from(response.data.content, 'base64').equals(fs.readFileSync(file))) {
+              throw new Error('Published headless Rust image is stale for this Containerfile. ' +
+                'Wait for publish-testenv.yml -> publish-testenv-rust.yml to finish ' +
+                '(or an authorized Rust-image rebuild), then retry. Never install Go ad hoc.');
+            }
+            core.notice(`Container layer matches published image source ${process.env.IMAGE_REVISION}`);
+
+      - name: Generate and verify dependency sources in the headless Rust image
+        env:
+          VERSION: ${{ inputs.version }}
+          GO_DEPS_RUNTIME: docker
+          GO_DEPS_IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          bash scripts/prepare-go-deps.sh media-gfx/d2 --version "${VERSION}" \
+            --output "${GITHUB_WORKSPACE}/.go-deps-output" \
+            --image "${GO_DEPS_IMAGE}"
+
+      - name: Publish or verify immutable release assets
+        id: publish
+        uses: actions/github-script@v8
+        env:
+          VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const crypto = require('crypto');
+            const { owner, repo } = context.repo;
+            const version = process.env.VERSION;
+            const tag = `d2-deps-${version}`;
+            const name = `d2-${version}-go-deps.tar.xz`;
+            const metaName = `d2-${version}-go-deps.json`;
+            const dir = path.join(process.env.GITHUB_WORKSPACE, '.go-deps-output');
+            const metadata = JSON.parse(fs.readFileSync(path.join(dir, metaName)));
+            const digest = data => crypto.createHash('sha256').update(data).digest('hex');
+            const archive = fs.readFileSync(path.join(dir, name));
+            if (metadata.tag !== `v${version}` || metadata.archive !== name ||
+                metadata.upstream !== 'd2lang/d2' || metadata.sha256 !== digest(archive)) {
+              throw new Error('Generated archive/provenance mismatch');
+            }
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({ owner, repo, tag })).data;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              // The tag endpoint need not expose unpublished drafts. Find an
+              // interrupted attempt explicitly rather than creating a duplicate.
+              const releases = await github.paginate(github.rest.repos.listReleases, {
+                owner, repo, per_page: 100
+              });
+              release = releases.find(candidate => candidate.tag_name === tag);
+            }
+            if (!release) {
+              // Attach both assets before publishing, also supporting immutable
+              // GitHub releases when the repository enables that setting.
+              release = (await github.rest.repos.createRelease({
+                owner, repo, tag_name: tag, target_commitish: context.sha,
+                name: `D2 ${version} Go dependency sources`, draft: true,
+                body: `Prepared from https://github.com/d2lang/d2/releases/tag/v${version}\n\n` +
+                  `Source commit: ${metadata.source_commit}\n\n` +
+                  `SHA256 (${name}): ${metadata.sha256}\n\n` +
+                  'go-module cache rooted at go-mod/. See the JSON asset for provenance.\n\n' +
+                  'Immutable packaging inputs: never substitute another archive for this source release. ' +
+                  'Changed bytes require an explicitly versioned new asset and reviewed SRC_URI/Manifest changes.'
+              })).data;
+            }
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner, repo, release_id: release.id, per_page: 100
+            });
+            const files = [
+              { name, data: archive, contentType: 'application/x-xz' },
+              { name: metaName, data: fs.readFileSync(path.join(dir, metaName)),
+                contentType: 'application/json' }
+            ];
+            // Verify the whole pair before uploading anything. In particular,
+            // do not add a new sidecar to legitimize an old unverified archive.
+            for (const file of files) {
+              file.existing = assets.find(asset => asset.name === file.name);
+              if (!file.existing) {
+                if (!release.draft) {
+                  throw new Error(`Published release lacks ${file.name}; manual review required`);
+                }
+                continue;
+              }
+              const response = await github.rest.repos.getReleaseAsset({
+                owner, repo, asset_id: file.existing.id,
+                headers: { accept: 'application/octet-stream' }
+              });
+              if (digest(Buffer.from(response.data)) !== digest(file.data)) {
+                throw new Error(`${file.name} already exists with different bytes. ` +
+                  'Refusing replacement, even if the upstream source tag changed. ' +
+                  'Review and explicitly version a new packaging asset instead.');
+              }
+            }
+            for (const file of files) {
+              if (file.existing) continue;
+              await github.rest.repos.uploadReleaseAsset({
+                owner, repo, release_id: release.id, name: file.name, data: file.data,
+                headers: { 'content-type': file.contentType, 'content-length': file.data.length }
+              });
+            }
+            if (release.draft) {
+              await github.rest.repos.updateRelease({
+                owner, repo, release_id: release.id, draft: false, make_latest: 'false'
+              });
+            }
+            const url = `https://github.com/${owner}/${repo}/releases/download/${tag}/${name}`;
+            core.setOutput('archive_url', url);
+            core.notice(`Verified dependency archive: ${url}`);

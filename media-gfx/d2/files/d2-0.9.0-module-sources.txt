@@ -1,0 +1,135 @@
+D2 0.9.0 bundled module source availability
+==========================================
+
+D2 v0.9.0 source:
+https://github.com/d2lang/d2/tree/d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda
+D2 source commit: d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda
+D2 is made available as source code under the Mozilla Public License 2.0;
+see LICENSE.txt and THIRD_PARTY_NOTICES.txt in that source tree.
+
+elk-go source availability (Eclipse Public License 2.0)
+----------------------------------------------------
+The source code for github.com/d2lang/elk-go v0.2.0 is available under the
+Eclipse Public License 2.0. The exact module source revision is:
+61fb7872bddd7d3fd82185d17594aa6366332526
+
+Obtain the source from the upstream repository at that revision:
+https://github.com/d2lang/elk-go/tree/61fb7872bddd7d3fd82185d17594aa6366332526
+or obtain its normalized Go module source ZIP:
+https://proxy.golang.org/github.com/d2lang/elk-go/@v/v0.2.0.zip
+
+The same normalized module sources are included in the dependency archive
+identified below, both as an extracted module directory and as a cached
+module ZIP. Retain the module's LICENSE, NOTICE.md, NOTICE.eclipse-elk.md,
+LICENSE.apache-2.0, and LICENSE.v8-bsd. Its PROVENANCE.md describes the source
+mapping and historical translation baseline. The port includes separately
+licensed Apache-2.0 GWT adaptations and BSD/SunPro runtime adaptations;
+these are not relicensed solely by the project-level EPL statement.
+
+Target upstreams recorded in elk-go's NOTICE.md and PROVENANCE.md:
+Eclipse Layout Kernel 0.12.0:
+https://github.com/eclipse-elk/elk/tree/323312916048544e4e594eab3303cdb0d01e2929
+ELK.js 0.12.0:
+https://github.com/kieler/elkjs/tree/ff5771d7165445c42c408bb8a090c8035272218c
+GWT 2.11.0:
+https://github.com/gwtproject/gwt/tree/7f76f0f2b5b1b028d2d870782048e44402637fb0
+Node.js 24.19.0, containing V8 13.6.233.17-node.51:
+https://github.com/nodejs/node/tree/cdc1b38d40cb567b7ad0b39c86addf830a0af0ae
+
+Go dependency source archive
+----------------------------
+Archive filename: d2-0.9.0-go-deps.tar.xz
+Archive SHA-256:
+fa6262731f1f94f1ae3e992262beba0ae22edc26a7eaf347d24a694f7325190d
+D2 go.mod SHA-256:
+71307c0924ecbf4c51c825b44871aa6cf568921b7eb90bebc5f46623629bed86
+D2 go.sum SHA-256:
+924301c79e7c60e85066d4ed751905843d3748563762b2158094e810c3f9c3c3
+
+The archive contains a go-mod/ module source/cache tree. For each module
+and version below, extracted source is at:
+  go-mod/<escaped-module-path>@<version>/
+and the corresponding normalized source ZIP and origin metadata are at:
+  go-mod/cache/download/<escaped-module-path>/@v/<version>.zip
+  go-mod/cache/download/<escaped-module-path>/@v/<version>.info
+The .ziphash sidecar and D2's go.sum identify Go module content checksums.
+Go module escaping replaces an uppercase letter with ! followed by its
+lowercase form, for example PuerkitoBio becomes !puerkito!bio.
+
+Normalized module source archives can also be obtained from the public Go
+module proxy using the escaped module path and exact version:
+  https://proxy.golang.org/<escaped-module-path>/@v/<version>.zip
+These are Go module source archives, not necessarily complete VCS checkouts.
+The .info Origin fields, where present, identify the upstream repository
+and commit. This index lists the native CLI's 30 external modules; the
+archive additionally contains modules needed only by the root/test closure.
+
+Exact CLI module versions and upstream source repositories
+---------------------------------------------------------
+codeberg.org/go-pdf/fpdf v0.12.0
+  https://codeberg.org/go-pdf/fpdf
+github.com/PuerkitoBio/goquery v1.12.0
+  https://github.com/PuerkitoBio/goquery
+github.com/alecthomas/chroma/v2 v2.27.0
+  https://github.com/alecthomas/chroma
+github.com/andybalholm/brotli v1.2.2
+  https://github.com/andybalholm/brotli
+github.com/andybalholm/cascadia v1.3.4
+  https://github.com/andybalholm/cascadia
+github.com/coder/websocket v1.8.15
+  https://github.com/coder/websocket
+github.com/d2lang/dagro v0.2.1
+  https://github.com/d2lang/dagro
+github.com/d2lang/elk-go v0.2.0
+  https://github.com/d2lang/elk-go
+github.com/d2lang/mathjax-go v0.1.0
+  https://github.com/d2lang/mathjax-go
+github.com/d2lang/rough-go v0.2.0
+  https://github.com/d2lang/rough-go
+github.com/d2lang/util-go v0.2.0
+  https://github.com/d2lang/util-go
+github.com/dlclark/regexp2/v2 v2.6.0
+  https://github.com/dlclark/regexp2
+github.com/ericpauley/go-quantize v0.0.0-20200331213906-ae555eb2afa4
+  https://github.com/ericpauley/go-quantize
+github.com/fsnotify/fsnotify v1.10.1
+  https://github.com/fsnotify/fsnotify
+github.com/go-text/typesetting v0.3.4
+  https://github.com/go-text/typesetting
+github.com/lucasb-eyer/go-colorful v1.4.1
+  https://github.com/lucasb-eyer/go-colorful
+github.com/mazznoer/csscolorparser v0.1.8
+  https://github.com/mazznoer/csscolorparser
+github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
+  https://github.com/pkg/browser
+github.com/rivo/uniseg v0.4.7
+  https://github.com/rivo/uniseg
+github.com/spf13/pflag v1.0.10
+  https://github.com/spf13/pflag
+github.com/yuin/goldmark v1.8.5
+  https://github.com/yuin/goldmark
+go.uber.org/multierr v1.11.0
+  https://github.com/uber-go/multierr
+golang.org/x/exp v0.0.0-20260727155853-b88d891fe743
+  https://go.googlesource.com/exp
+golang.org/x/image v0.45.0
+  https://go.googlesource.com/image
+golang.org/x/net v0.57.0
+  https://go.googlesource.com/net
+golang.org/x/sync v0.22.0
+  https://go.googlesource.com/sync
+golang.org/x/sys v0.47.0
+  https://go.googlesource.com/sys
+golang.org/x/term v0.45.0
+  https://go.googlesource.com/term
+golang.org/x/text v0.41.0
+  https://go.googlesource.com/text
+golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
+  https://go.googlesource.com/xerrors
+
+The compiled Go standard library is supplied by the build's Go toolchain,
+not by the module archive. The audited preparation toolchain was Go 1.27.1.
+Toolchain source: https://go.googlesource.com/go/+/refs/tags/go1.27.1/
+
+Additional embedded assets and ported-source notices are recorded in
+D2's THIRD_PARTY_NOTICES.txt and d2-0.9.0-bundled-notices.txt.

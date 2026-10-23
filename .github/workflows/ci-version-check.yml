@@ -96,9 +96,12 @@ jobs:
         package: ${{ fromJson(needs.prepare-upgrades.outputs.packages) }}
       fail-fast: false # attempt all packages even if one fails
     uses: ./.github/workflows/upgrade-ebuild.yml
+    # Reusable workflows cannot elevate these permissions: Go upgrades publish
+    # dependency assets and pull the already-published headless Rust image.
     permissions:
-      contents: read
+      contents: write
       issues: write
+      packages: read
     secrets: inherit
     with:
       package: ${{ matrix.package }}

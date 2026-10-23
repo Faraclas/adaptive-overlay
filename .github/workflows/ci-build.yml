@@ -388,6 +388,9 @@ jobs:
             elif echo "${PKG_DIR}" | grep -q '^media-sound/'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-audio:latest"
               VERIFY=""
+            elif [ "${PKG_DIR}" = "media-gfx/d2" ] || [ "${PKG_DIR}" = "media-gfx/d2-mcp" ]; then
+              IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
+              VERIFY="containers/testenv-rust/verify-${PKG_DIR##*/}.sh"
             elif echo "${PKG_DIR}" | grep -qE '^app-misc/ai-voice-server'; then
               IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
               VERIFY=""

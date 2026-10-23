@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    d2-mcp is a Rust Model Context Protocol server that invokes the installed
+    D2 CLI to validate, format, and render diagrams as SVG or PNG. It serves
+    local clients over stdio; no network service or editor configuration is
+    installed. D2_MCP_D2_BIN can select the D2 executable and D2_MCP_WORKDIR
+    selects the server-local output directory.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">Stranmor/d2-mcp-rs</remote-id>
+  </upstream>
+</pkgmetadata>

@@ -1,0 +1,417 @@
+D2 0.9.0 supplemental bundled notices
+====================================
+
+D2 source: https://github.com/d2lang/d2
+Version: v0.9.0
+Source commit: d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda
+Upstream notice retrieval date: 2026-10-23
+
+This file supplements, and does not replace, D2's LICENSE.txt,
+THIRD_PARTY_NOTICES.txt, package-local notices, and the license and notice
+files supplied by its Go modules. The companion d2-0.9.0-module-sources.txt
+identifies module sources and the source-availability statement for elk-go.
+The section introductions describe provenance; the reproduced legal notices
+retain their original attribution and terms. Source comment markers have
+been removed from the inline notices. License text may be line-wrapped.
+
+
+1. Bundled fonts: SIL Open Font License 1.1
+=========================================
+
+D2 paths: d2renderers/d2fonts/ttf/ and d2renderers/d2fonts/encoded/
+Source snapshot:
+https://github.com/d2lang/d2/tree/d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda/d2renderers/d2fonts
+
+The following copyright, designer, and reserved-name attributions were read
+from the bundled TTF name tables and the embedded base64 TTF/WOFF name
+tables. Version numbers below are from the bundled TTF metadata, not assumed
+upstream release tags. The fonts' name-table license declarations identify
+SIL Open Font License 1.1.
+
+Source Sans Pro
+---------------
+Upstream: https://github.com/adobe-fonts/source-sans
+Bundled Regular, Bold, Semibold: version 2.045
+Bundled Italic: version 1.095
+Designer: Paul D. Hunt
+
+© 2010 - 2018 Adobe Systems Incorporated (http://www.adobe.com/), with Reserved Font Name ‘Source’.
+
+Source Code Pro
+---------------
+Upstream: https://github.com/adobe-fonts/source-code-pro
+Bundled Regular, Semibold: version 2.038
+Bundled Bold: version 1.018
+Bundled Italic: version 1.016
+Designers: Paul D. Hunt, Teo Tuominen
+
+© 2010 - 2020 Adobe Systems Incorporated (http://www.adobe.com/), with Reserved Font Name ‘Source’.
+
+Fuzzy Bubbles
+-------------
+Upstream: https://github.com/googlefonts/fuzzy-bubbles
+Bundled Regular and Bold: version 1.010; ttfautohint (v1.8.3)
+Designer: Robert E. Leuschke
+
+Copyright 2005 The Fuzzy Bubbles Project Authors (https://github.com/googlefonts/fuzzy-bubbles)
+
+Noto Color Emoji
+----------------
+Upstream: https://github.com/googlefonts/noto-emoji
+Version: 2.051
+Designer (font metadata): Google, Inc.
+Upstream source commit: 8998f5dd683424a73e2314a8c1f1e359c19e8742
+Original file: fonts/Noto-COLRv1.ttf
+D2 file: d2renderers/d2fonts/encoded/NotoColorEmoji-COLRv1-v2.051.ttf.br
+Decoded font SHA-256:
+0ae57fe58645638523ba35f388d93739d292539a9acb84df5700c81b1e1a28d2
+
+Copyright 2013 Google LLC
+Copyright 2022 Google Inc.
+
+The first attribution is retained from D2's NotoColorEmoji-OFL.txt; the
+second is from the decoded font's name table. The decoded font's SHA-256
+matches the value above. Its version metadata is:
+Version 2.051;GOOG;noto-emoji:20250818:e92753bfa55fd449e427d4d325f9c8c40408c74e
+
+Full OFL text below is reproduced from:
+d2renderers/d2fonts/NotoColorEmoji-OFL.txt
+The corresponding upstream license is available at:
+https://github.com/googlefonts/noto-emoji/blob/8998f5dd683424a73e2314a8c1f1e359c19e8742/fonts/LICENSE
+
+The following SIL Open Font License 1.1 applies to the font software
+identified above. Chroma's separate Liberation Mono attribution and OFL
+notice remain in github.com/alecthomas/chroma/v2@v2.27.0/COPYING.
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+2. Pixel: original MIT notice
+============================
+
+D2 paths: lib/textmeasure/textmeasure.go and lib/textmeasure/NOTICE.txt
+Upstream: https://github.com/faiface/pixel
+D2's source reference is unpinned. This is the latest master notice retrieved
+on 2026-10-23, not a claim that this revision was the original porting input.
+Retrieved revision: 0a251bc08bfcfd68720fc237ee6a6268fa3a12e6
+Notice source:
+https://github.com/faiface/pixel/blob/0a251bc08bfcfd68720fc237ee6a6268fa3a12e6/LICENSE
+
+MIT License
+
+Copyright (c) 2016 Michal Štrba
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+3. github-markdown-css: original MIT notice
+=========================================
+
+D2 paths: d2renderers/d2svg/github-markdown.css,
+d2renderers/d2svg/NOTICE.txt, and lib/textmeasure/markdown.go
+Upstream: https://github.com/sindresorhus/github-markdown-css
+D2's source reference is unpinned. This is the latest main notice retrieved
+on 2026-10-23, not a claim that this revision was the original porting input.
+Retrieved revision: 7f38dcb9054bc5d860fac65291f5c98fef47932c
+Notice source:
+https://github.com/sindresorhus/github-markdown-css/blob/7f38dcb9054bc5d860fac65291f5c98fef47932c/license
+
+MIT License
+
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+4. Unicode 15.0.0 data: Unicode-DFS-2016
+======================================
+
+Module: github.com/rivo/uniseg v0.4.7
+Files: eastasianwidth.go, emojipresentation.go, graphemeproperties.go,
+lineproperties.go, sentenceproperties.go, and wordproperties.go
+These generated files identify Unicode 15.0.0 data as their input and
+September 5, 2023 as their generation date.
+
+Data sources:
+https://www.unicode.org/Public/15.0.0/ucd/EastAsianWidth.txt
+https://www.unicode.org/Public/15.0.0/ucd/LineBreak.txt
+https://www.unicode.org/Public/15.0.0/ucd/auxiliary/GraphemeBreakProperty.txt
+https://www.unicode.org/Public/15.0.0/ucd/auxiliary/SentenceBreakProperty.txt
+https://www.unicode.org/Public/15.0.0/ucd/auxiliary/WordBreakProperty.txt
+https://www.unicode.org/Public/15.0.0/ucd/emoji/emoji-data.txt
+
+Original data attribution, retained from the official Unicode 15.0.0 data:
+© 2022 Unicode®, Inc.
+Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+For terms of use, see https://www.unicode.org/terms_of_use.html
+
+The full historical Unicode data/software notice below is reproduced from
+the Unicode Consortium's ICU release-72-1 LICENSE, first notice only.
+It retains the original 1991-2022 copyright; unrelated ICU notices are not
+included and this does not assert that ICU is bundled with D2.
+Notice source:
+https://github.com/unicode-org/icu/blob/ff3514f257ea10afe7e710e9f946f68d256704b1/icu4c/LICENSE
+
+UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
+
+See Terms of Use <https://www.unicode.org/copyright.html>
+for definitions of Unicode Inc.’s Data Files and Software.
+
+NOTICE TO USER: Carefully read the following legal agreement.
+BY DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING UNICODE INC.'S
+DATA FILES ("DATA FILES"), AND/OR SOFTWARE ("SOFTWARE"),
+YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+TERMS AND CONDITIONS OF THIS AGREEMENT.
+IF YOU DO NOT AGREE, DO NOT DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE
+THE DATA FILES OR SOFTWARE.
+
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright © 1991-2022 Unicode, Inc. All rights reserved.
+Distributed under the Terms of Use in https://www.unicode.org/copyright.html.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Unicode data files and any associated documentation
+(the "Data Files") or Unicode software and any associated documentation
+(the "Software") to deal in the Data Files or Software
+without restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, and/or sell copies of
+the Data Files or Software, and to permit persons to whom the Data Files
+or Software are furnished to do so, provided that either
+(a) this copyright and permission notice appear with all copies
+of the Data Files or Software, or
+(b) this copyright and permission notice appear in associated
+Documentation.
+
+THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT OF THIRD PARTY RIGHTS.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS
+NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL
+DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THE DATA FILES OR SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder
+shall not be used in advertising or otherwise to promote the sale,
+use or other dealings in these Data Files or Software without prior
+written authorization of the copyright holder.
+
+
+5. Unicode 17.0.0 and other Unicode data: Unicode License V3
+=========================================================
+
+Modules include github.com/go-text/typesetting v0.3.4 and
+golang.org/x/text v0.41.0. Go-text's internal/unicodedata generated tables
+identify Unicode 17.0.0; its segmenter/test data retain the Unicode 2025
+attribution. The Unicode 17.0.0 attribution below is also retained from the
+official data release:
+https://www.unicode.org/Public/17.0.0/ucd/ReadMe.txt
+
+© 2025 Unicode®, Inc.
+Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+For terms of use and license, see https://www.unicode.org/terms_of_use.html
+
+The following is the complete current official Unicode License V3 text,
+retrieved on 2026-10-23. Its 1991-2026 copyright is reproduced as published;
+it does not replace the original 2025 data attribution above or the
+historical Unicode data notice in section 4.
+Notice source: https://www.unicode.org/license.txt
+
+UNICODE LICENSE V3
+
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright © 1991-2026 Unicode, Inc.
+
+NOTICE TO USER: Carefully read the following legal agreement. BY
+DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
+SOFTWARE, YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of data files and any associated documentation (the "Data Files") or
+software and any associated documentation (the "Software") to deal in the
+Data Files or Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, and/or sell
+copies of the Data Files or Software, and to permit persons to whom the
+Data Files or Software are furnished to do so, provided that either (a)
+this copyright and permission notice appear with all copies of the Data
+Files or Software, or (b) this copyright and permission notice appear in
+associated Documentation.
+
+THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
+THIRD PARTY RIGHTS.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES,
+OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA
+FILES OR SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall
+not be used in advertising or otherwise to promote the sale, use or other
+dealings in these Data Files or Software without prior written
+authorization of the copyright holder.
+
+
+Sections 6 and 7 (inline ISC and ELK runtime notices) are preserved
+in the companion d2-0.9.0-runtime-notices.txt.
+
+
+8. HSLuv: original MIT notice
+============================
+
+Module source: github.com/lucasb-eyer/go-colorful v1.4.1, hsluv.go
+That file identifies https://github.com/hsluv/hsluv-go as its source under
+MIT, but its original notice is not in the module's root LICENSE. This
+notice is preserved for the derived source; its inclusion does not assert
+that every HSLuv routine survives linking into the D2 executable.
+The source reference is unpinned. This is the latest master notice retrieved
+on 2026-10-23, not an identification of the original porting revision.
+Retrieved revision: cff9eb7ee0694105b0250075bb56243b1651165e
+Notice source:
+https://github.com/hsluv/hsluv-go/blob/cff9eb7ee0694105b0250075bb56243b1651165e/LICENSE.txt
+
+Copyright (c) 2015 Alexei Boronine
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

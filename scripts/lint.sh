@@ -66,6 +66,6 @@ echo ""
     "${IMAGE}" \
     pkgcheck scan \
         --exit error \
-        --profiles -default/linux/amd64/23.0/x32,-default/linux/amd64/23.0/x32/systemd,-default/linux/amd64/23.0/split-usr/x32 \
+        --profiles=-default/linux/amd64/23.0/x32,-default/linux/amd64/23.0/x32/systemd,-default/linux/amd64/23.0/split-usr/x32 \
         -r adaptive-overlay \
         "${PACKAGE_DIR}"

@@ -1,9 +1,7 @@
-# Stage 1: Build environment for Rust-based packages
+# Shared build environment for headless Rust and Go packages.
 #
-# Builds on top of the general-purpose testenv image. Adds Portage
-# configuration to install and set up the Rust compiler.
-#
-# This image serves as the base for both testenv-zed and testenv-ai.
+# Builds on top of the general-purpose testenv image, retaining the existing
+# AI application dependencies and adding Go for D2 and its Rust MCP adapter.
 #
 # Build from repo root:
 #   podman build -t ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest \
@@ -67,3 +65,11 @@ RUN ACCEPT_LICENSE="*" emerge --oneshot --quiet-build \
     media-video/pipewire \
     dev-util/nvidia-cuda-toolkit \
     x11-drivers/nvidia-drivers
+
+# D2's module declares Go 1.27. Keep preparation/builds on the installed
+# compiler rather than allowing Go to download a toolchain implicitly.
+RUN mkdir -p /etc/portage/package.accept_keywords && \
+    printf '>=dev-lang/go-1.27.0 ~amd64\n' \
+        > /etc/portage/package.accept_keywords/go && \
+    emerge --oneshot --quiet-build '>=dev-lang/go-1.27.0' \
+        dev-vcs/git app-misc/jq app-arch/xz-utils

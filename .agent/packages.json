@@ -1,5 +1,27 @@
 [
   {
+    "category": "media-gfx",
+    "name": "d2",
+    "upstream_repo": "d2lang/d2",
+    "upstream_type": "github-release",
+    "version_pattern": "v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "go",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Source-built CLI with +mcp. Prepare immutable Go dependency sources before upgrade handoff; review Go minimum and bundled licenses. See .agent/skills/update-d2.md."
+  },
+  {
+    "category": "media-gfx",
+    "name": "d2-mcp",
+    "upstream_repo": "Stranmor/d2-mcp-rs",
+    "upstream_type": "github-release",
+    "version_pattern": "v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "cargo",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Stdio MCP adapter using installed media-gfx/d2. Regenerate lockfile-derived crates and audit bundled notices on upgrades. See .agent/skills/update-d2-mcp.md."
+  },
+  {
     "category": "app-editors",
     "name": "zed",
     "upstream_repo": "zed-industries/zed",

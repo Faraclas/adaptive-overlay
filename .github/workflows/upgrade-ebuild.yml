@@ -5,9 +5,10 @@
 # workflows (e.g. the scheduled version-check workflow).
 #
 # Flow:
-#   1. Run scripts/upgrade-ebuild.sh --apply --json to detect upstream
-#      changes and apply mechanical updates.
-#   2. If the package is already up to date, stop.
+#   1. Resolve the target with --check. For Go upgrades only, prepare and
+#      publish the source-matched dependency archive before proceeding.
+#   2. Run scripts/upgrade-ebuild.sh --apply --json to check all required
+#      sources and apply mechanical updates. Stop if already up to date.
 #   3. Create a GitHub Issue with the structured JSON change report,
 #      a reference to the skills doc, and the mechanically-updated
 #      ebuild content.
@@ -49,11 +50,59 @@ on:
         default: ""
 
 jobs:
+  # Resolve the exact target without copying an ebuild or assuming its Go
+  # archive exists. Only Go upgrades enter the publication workflow.
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.plan.outputs.status }}
+      version: ${{ steps.plan.outputs.version }}
+      current: ${{ steps.plan.outputs.current }}
+      build_system: ${{ steps.plan.outputs.build_system }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Resolve upgrade target
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          ARGS=("${PACKAGE}" --check --json)
+          if [[ -n "${VERSION}" ]]; then
+            ARGS+=(--version "${VERSION}")
+          fi
+          OUTPUT=$(bash scripts/upgrade-ebuild.sh "${ARGS[@]}")
+          echo "${OUTPUT}" | jq .
+          echo "status=$(jq -r '.status' <<< "${OUTPUT}")" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r '.upstream' <<< "${OUTPUT}")" >> "$GITHUB_OUTPUT"
+          echo "current=$(jq -r '.current' <<< "${OUTPUT}")" >> "$GITHUB_OUTPUT"
+          echo "build_system=$(jq -r '.build_system' <<< "${OUTPUT}")" >> "$GITHUB_OUTPUT"
+
+  prepare-go-deps:
+    needs: plan
+    if: needs.plan.outputs.status == 'upgrade-available' && needs.plan.outputs.build_system == 'go'
+    uses: ./.github/workflows/prepare-go-deps.yml
+    # Callers must allow contents: write and packages: read, including the
+    # scheduled ci-version-check.yml caller.
+    permissions:
+      contents: write
+      packages: read
+    with:
+      version: ${{ needs.plan.outputs.version }}
+
   # ---------------------------------------------------------------------
   # Job 1: Run the upgrade script to gather structured change data.
   # ---------------------------------------------------------------------
   detect:
     name: Detect changes for ${{ inputs.package }}
+    needs: [plan, prepare-go-deps]
+    if: >-
+      always() && !cancelled() && needs.plan.result == 'success' &&
+      (needs.prepare-go-deps.result == 'success' || needs.prepare-go-deps.result == 'skipped')
     runs-on: ubuntu-latest
 
     permissions:
@@ -78,15 +127,15 @@ jobs:
         id: run-upgrade
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ needs.plan.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
 
-          ARGS=("${{ inputs.package }}" "--apply" "--json")
-
-          if [[ -n "${{ inputs.version }}" ]]; then
-            ARGS+=("--version" "${{ inputs.version }}")
-          fi
+          # Pin the planning result, including when a newer upstream release
+          # appears while the Go archive is being prepared.
+          ARGS=("${PACKAGE}" --version "${VERSION}" --apply --json)
 
           echo "==> Running: scripts/upgrade-ebuild.sh ${ARGS[*]}"
 
@@ -193,7 +242,11 @@ jobs:
   delegate:
     name: Delegate to Copilot agent
     needs: detect
-    if: needs.detect.outputs.status == 'upgrade-prepared'
+    # Explicit status check also permits non-Go runs whose preparation job
+    # was intentionally skipped, without bypassing a failed detection job.
+    if: >-
+      always() && !cancelled() && needs.detect.result == 'success' &&
+      needs.detect.outputs.status == 'upgrade-prepared'
     runs-on: ubuntu-latest
 
     permissions:
@@ -218,6 +271,13 @@ jobs:
 
           PACKAGE="${{ needs.detect.outputs.package }}"
 
+          FINALIZER_FILE=".agent/skills/finalize-upgrade.md"
+          [[ -f "${FINALIZER_FILE}" ]] || {
+            echo "::error::Required shared finalization instructions missing: ${FINALIZER_FILE}"
+            exit 1
+          }
+          echo "finalizer_file=${FINALIZER_FILE}" >> "$GITHUB_OUTPUT"
+
           # Map package to its skills doc.
           SKILLS_FILE=""
           case "${PACKAGE}" in
@@ -230,8 +290,20 @@ jobs:
             media-sound/bitwig-studio)
               SKILLS_FILE=".agent/skills/update-bitwig-studio.md"
               ;;
+            media-gfx/d2)
+              SKILLS_FILE=".agent/skills/update-d2.md"
+              ;;
+            media-gfx/d2-mcp)
+              SKILLS_FILE=".agent/skills/update-d2-mcp.md"
+              ;;
           esac
 
+          if [[ "${PACKAGE}" == media-gfx/d2 || "${PACKAGE}" == media-gfx/d2-mcp ]]; then
+            [[ -f "${SKILLS_FILE}" ]] || {
+              echo "::error::Required package upgrade instructions missing: ${SKILLS_FILE}"
+              exit 1
+            }
+          fi
           if [[ -n "${SKILLS_FILE}" && -f "${SKILLS_FILE}" ]]; then
             echo "skills_file=${SKILLS_FILE}" >> "$GITHUB_OUTPUT"
             echo "has_skills=true" >> "$GITHUB_OUTPUT"
@@ -260,6 +332,7 @@ jobs:
           EBUILD_PATH="${{ needs.detect.outputs.ebuild_path }}"
           HAS_SKILLS="${{ steps.skills.outputs.has_skills }}"
           SKILLS_FILE="${{ steps.skills.outputs.skills_file }}"
+          FINALIZER_FILE="${{ steps.skills.outputs.finalizer_file }}"
 
           # -------------------------------------------------------
           # Build the issue body in a temp file to avoid shell
@@ -277,6 +350,7 @@ jobs:
           | **New version** | \`${VERSION}\` |
           | **New ebuild** | \`${TO_EBUILD}\` |
           | **Ebuild path** | \`${EBUILD_PATH}\` |
+          | **Detection revision** | \`${{ github.sha }}\` |
 
           ---
 
@@ -295,7 +369,10 @@ jobs:
 
           ### Instructions
 
-          1. **Read the skills doc:** \`${SKILLS_FILE:-No package-specific skills doc — use general ebuild knowledge}\`
+          1. **Read shared finalization instructions:** \`${FINALIZER_FILE}\`,
+             then **the package procedure:** \`${SKILLS_FILE:-No package-specific skills doc — use general ebuild knowledge}\`.
+             For D2/MCP, use agent-driven multi-file review, not the existing
+             Cargo-oriented \`scripts/agent-finalize-ebuild.sh\` wrapper.
           2. **Run the upgrade script** from the repo root:
              \`\`\`bash
              scripts/upgrade-ebuild.sh ${PACKAGE} --version ${VERSION} --apply --json
@@ -305,6 +382,12 @@ jobs:
              - Remove old \`GIT_CRATES\` entries
              - Handle \`RUST_MIN_VER\` changes if reported
              - Check \`new_workspace_members\` for additional git deps
+             - For Go, inspect \`go_min_ver\`, \`go_modules_changed\`, and \`go_deps\`.
+               The workflow prepared/published the exact source-tag archive before
+               this handoff; verify its provenance and review dependency licenses.
+               Never substitute another archive for a published source release.
+             - Follow the package skill for build-system-specific steps, including
+               D2 source/toolchain validation and MCP crate/license/patch review.
           4. **Clean up stale ebuilds**: Delete all older ebuild versions from the directory, keeping only the 2 most recent releases (plus \`9999\` if it exists).
           5. **Generate the Manifest:**
              \`\`\`bash
@@ -453,7 +536,7 @@ jobs:
   # ---------------------------------------------------------------------
   summary:
     name: Summary
-    needs: [detect, delegate]
+    needs: [plan, prepare-go-deps, detect, delegate]
     if: always()
     runs-on: ubuntu-latest
 
@@ -463,14 +546,17 @@ jobs:
     steps:
       - name: Write summary
         shell: bash
+        env:
+          STATUS: ${{ needs.detect.outputs.status }}
+          PACKAGE: ${{ inputs.package }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          CURRENT: ${{ needs.plan.outputs.current }}
+          PLAN_RESULT: ${{ needs.plan.result }}
+          GO_DEPS_RESULT: ${{ needs.prepare-go-deps.result }}
+          DETECT_RESULT: ${{ needs.detect.result }}
+          DELEGATE_RESULT: ${{ needs.delegate.result }}
+          ISSUE_URL: ${{ needs.delegate.outputs.issue_url }}
         run: |
-          STATUS="${{ needs.detect.outputs.status }}"
-          PACKAGE="${{ needs.detect.outputs.package }}"
-          VERSION="${{ needs.detect.outputs.version }}"
-          CURRENT="${{ needs.detect.outputs.current }}"
-
-          DELEGATE_RESULT="${{ needs.delegate.result }}"
-          ISSUE_URL="${{ needs.delegate.outputs.issue_url }}"
 
           {
             echo "## Upgrade Ebuild Results"
@@ -482,7 +568,16 @@ jobs:
             echo "| **Upstream** | \`${VERSION}\` |"
             echo "| **Status** | \`${STATUS}\` |"
 
-            if [[ "${STATUS}" == "up-to-date" ]]; then
+            if [[ "${PLAN_RESULT}" != "success" ]]; then
+              echo "Target resolution failed or was cancelled; no handoff occurred."
+            elif [[ "${GO_DEPS_RESULT}" != "success" && "${GO_DEPS_RESULT}" != "skipped" ]]; then
+              echo "Required Go archive preparation/publication failed or was cancelled."
+              echo "Check image publication, toolchain, and immutable-asset errors."
+              echo "No agent handoff or Manifest generation occurred."
+            elif [[ "${DETECT_RESULT}" != "success" ]]; then
+              echo "Strict upgrade/source-readiness checks failed or were cancelled."
+              echo "No agent handoff occurred."
+            elif [[ "${STATUS}" == "up-to-date" ]]; then
               echo ""
               echo "Package is already up to date — nothing to do."
             elif [[ "${DELEGATE_RESULT}" == "success" ]]; then
