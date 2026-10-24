@@ -2,10 +2,19 @@
 # check-updates.sh — check for upstream version updates across all
 # tracked packages in the adaptive-overlay.
 #
-# Reads .agent/packages.json, queries the GitHub Releases API for each
-# package with upstream_type "github-release", scans the overlay tree
-# for current ebuild versions, and reports which packages have newer
-# upstream releases available.
+# Reads .agent/packages.json, queries GitHub for each package according
+# to its upstream_type ("github-release", "github-prerelease" or
+# "github-tag"; "manual" is reported but not checked), scans the overlay
+# tree for current ebuild versions, and reports which packages have
+# newer upstream releases available.
+#
+# This script is the single implementation of the check: the
+# check-upstream-versions.yml workflow runs it with --json, so adding
+# an upstream_type here is enough for CI to pick it up.
+#
+# JSON status values (lowercase, consumed by CI):
+#   update-available, new-package, up-to-date, manual,
+#   error:<reason>, unsupported:<upstream_type>
 #
 # Usage:
 #   scripts/check-updates.sh
@@ -14,6 +23,9 @@
 # Options:
 #   --json   Output results as a JSON array instead of a human-readable
 #            table.  Useful for piping into other tools or workflows.
+#
+# Exit status: 0 when nothing needs updating, 1 when at least one
+# package has an update (or is new), 2+ on usage/setup errors.
 #
 # Must be run from the root of the adaptive-overlay repo, or set
 # OVERLAY_DIR to point to it explicitly:
@@ -43,7 +55,7 @@ for arg in "$@"; do
         *)
             echo "Unknown argument: ${arg}" >&2
             echo "Usage: $(basename "$0") [--json]" >&2
-            exit 1
+            exit 2
             ;;
     esac
 done
@@ -56,21 +68,21 @@ if [ ! -f "${OVERLAY_DIR}/metadata/layout.conf" ]; then
         "adaptive-overlay repo root." >&2
     echo "  Run this script from the repo root, or set" \
         "OVERLAY_DIR." >&2
-    exit 1
+    exit 2
 fi
 
 PACKAGES_JSON="${OVERLAY_DIR}/.agent/packages.json"
 
 if [ ! -f "${PACKAGES_JSON}" ]; then
     echo "error: ${PACKAGES_JSON} not found." >&2
-    exit 1
+    exit 2
 fi
 
 # --- Dependency check --------------------------------------------------------
 for cmd in jq curl sort; do
     if ! command -v "${cmd}" &>/dev/null; then
         echo "error: required command '${cmd}' not found." >&2
-        exit 1
+        exit 2
     fi
 done
 
@@ -362,7 +374,7 @@ for i in $(seq 0 $((PKG_COUNT - 1))); do
             )
             if [ "${HIGHER}" = "${UPSTREAM_VER}" ] \
                 && [ "${HIGHER}" != "${CURRENT_CLEAN}" ]; then
-                STATUS="UPDATE-AVAILABLE"
+                STATUS="update-available"
                 UPDATES_FOUND=$((UPDATES_FOUND + 1))
             else
                 STATUS="up-to-date"
@@ -370,13 +382,16 @@ for i in $(seq 0 $((PKG_COUNT - 1))); do
         fi
     fi
 
-    # Human-readable output.
+    # Human-readable output (updates upper-cased so they stand out).
     if [ "${OUTPUT_JSON}" -eq 0 ]; then
+        DISPLAY_STATUS="${STATUS}"
+        [ "${STATUS}" = "update-available" ] \
+            && DISPLAY_STATUS="UPDATE-AVAILABLE"
         printf "%-30s %-15s %-15s %s\n" \
             "${PKG_LABEL}" \
             "${CURRENT_VER}" \
             "${UPSTREAM_VER:-?}" \
-            "${STATUS}"
+            "${DISPLAY_STATUS}"
     fi
 
     # Build JSON result entry.

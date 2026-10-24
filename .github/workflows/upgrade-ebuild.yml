@@ -296,9 +296,13 @@ jobs:
             media-gfx/d2-mcp)
               SKILLS_FILE=".agent/skills/update-d2-mcp.md"
               ;;
+            x11-misc/cua-driver)
+              SKILLS_FILE=".agent/skills/update-cua-driver.md"
+              ;;
           esac
 
-          if [[ "${PACKAGE}" == media-gfx/d2 || "${PACKAGE}" == media-gfx/d2-mcp ]]; then
+          if [[ "${PACKAGE}" == media-gfx/d2 || "${PACKAGE}" == media-gfx/d2-mcp ||
+                "${PACKAGE}" == x11-misc/cua-driver ]]; then
             [[ -f "${SKILLS_FILE}" ]] || {
               echo "::error::Required package upgrade instructions missing: ${SKILLS_FILE}"
               exit 1

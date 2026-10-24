@@ -11,6 +11,7 @@ Read the issue's package-specific skill before changing files:
 | --- | --- |
 | `media-gfx/d2` | `.agent/skills/update-d2.md` |
 | `media-gfx/d2-mcp` | `.agent/skills/update-d2-mcp.md` |
+| `x11-misc/cua-driver` | `.agent/skills/update-cua-driver.md` |
 
 For other packages, use the skill referenced by the issue. Do not interpret
 empty Cargo fields or `rust_min_ver: null` as proof that a Go upgrade needs

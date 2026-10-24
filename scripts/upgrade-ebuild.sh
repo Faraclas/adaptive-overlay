@@ -13,6 +13,12 @@
 # .agent/packages.json.  If absent, it defaults to "cargo" for
 # backward compatibility.
 #
+# Upstream tags are derived from "version_pattern" by substituting the
+# version for its capture group ("v(.*)" -> v1.2.3,
+# "cua-driver-rs-v(...)" -> cua-driver-rs-v1.2.3).  Cargo packages whose
+# workspace is not at the repository root set "cargo_subdir" (e.g.
+# trycua/cua: libs/cua-driver/rust).
+#
 # Usage:
 #   scripts/upgrade-ebuild.sh <category/package> [--version <ver>]
 #                              [--apply] [--json] [--manifest]
@@ -204,6 +210,28 @@ UPSTREAM_REPO=$(echo "${PKG_ENTRY}" | jq -r '.upstream_repo // empty')
 UPSTREAM_TYPE=$(echo "${PKG_ENTRY}" | jq -r '.upstream_type // empty')
 VERSION_PATTERN=$(echo "${PKG_ENTRY}" | jq -r '.version_pattern // empty')
 BUILD_SYSTEM=$(echo "${PKG_ENTRY}" | jq -r '.build_system // "cargo"')
+CARGO_SUBDIR=$(echo "${PKG_ENTRY}" | jq -r '.cargo_subdir // empty')
+CARGO_PREFIX="${CARGO_SUBDIR:+${CARGO_SUBDIR%/}/}"
+
+# upstream_tag VERSION — the upstream git tag for VERSION, built from
+# VERSION_PATTERN's literal prefix/suffix around its capture group.
+# Falls back to v<VERSION> when there is no usable pattern.
+upstream_tag() {
+    local ver="$1" pat="${VERSION_PATTERN}"
+    if [[ -z "${pat}" || "${pat}" != *"("*")"* ]]; then
+        echo "v${ver}"
+        return
+    fi
+    local prefix="${pat%%(*}" suffix="${pat##*)}"
+    prefix="${prefix//\\/}"
+    suffix="${suffix//\\/}"
+    local tag="${prefix}${ver}${suffix}"
+    if [[ ! "${tag}" =~ ^${pat}$ ]]; then
+        echo "error: derived tag '${tag}' does not match version_pattern '${pat}'." >&2
+        exit 1
+    fi
+    echo "${tag}"
+}
 
 if [[ -z "${UPSTREAM_REPO}" && -z "${TARGET_VERSION}" ]]; then
     echo "error: ${PACKAGE_DIR} has no upstream_repo defined and no --version provided — cannot auto-upgrade." >&2
@@ -290,6 +318,26 @@ else
                 exit 1
             fi
             ;;
+        github-prerelease)
+            # Monorepo component streams that only publish prereleases
+            # (trycua/cua cua-driver-rs-v*).  Accept prereleases, skip
+            # drafts, and take the highest pattern match; keep the
+            # pattern strict so nightly tags never match.
+            RELEASES=$(gh_api "https://api.github.com/repos/${UPSTREAM_REPO}/releases?per_page=100") || {
+                echo "error: failed to query GitHub Releases API for ${UPSTREAM_REPO}." >&2
+                exit 1
+            }
+            UPSTREAM_VERSION=$(echo "${RELEASES}" \
+                | jq -r '[.[] | select(.draft == false)] | .[].tag_name // empty' \
+                | grep -E "^${VERSION_PATTERN}$" \
+                | sed -E "s/^${VERSION_PATTERN}$/\\1/" \
+                | sort -V \
+                | tail -n 1) || true
+            if [[ -z "${UPSTREAM_VERSION}" ]]; then
+                echo "error: could not determine latest version from GitHub Releases (incl. prereleases) for ${UPSTREAM_REPO}." >&2
+                exit 1
+            fi
+            ;;
         manual)
             echo "error: ${PACKAGE_DIR} has upstream_type 'manual' — auto-detection not available." >&2
             echo "  Use --version <ver> to specify the target version explicitly." >&2
@@ -312,6 +360,8 @@ UPSTREAM_VERSION="${UPSTREAM_VERSION#v}"
 
 # Strip revision suffix for comparison.
 CURRENT_CLEAN=$(echo "${CURRENT_VERSION}" | sed -E 's/-r[0-9]+$//')
+OLD_TAG=$(upstream_tag "${CURRENT_CLEAN}")
+NEW_TAG=$(upstream_tag "${UPSTREAM_VERSION}")
 
 if [[ "${CURRENT_CLEAN}" == "${UPSTREAM_VERSION}" ]]; then
     if [[ "${OUTPUT_JSON}" -eq 1 ]]; then
@@ -369,7 +419,7 @@ SOURCES_OK=1
 if [[ -n "${UPSTREAM_REPO}" ]]; then
     # GitHub-hosted package — check main source tarball.
     if curl -sfI --max-time 15 \
-        "https://github.com/${UPSTREAM_REPO}/archive/refs/tags/v${UPSTREAM_VERSION}.tar.gz" \
+        "https://github.com/${UPSTREAM_REPO}/archive/refs/tags/${NEW_TAG}.tar.gz" \
         >/dev/null 2>&1; then
         [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "    ✓ Main source tarball"
     else
@@ -520,13 +570,13 @@ if [[ "${BUILD_SYSTEM}" == "cargo" ]]; then
 
 [[ "${OUTPUT_JSON}" -eq 0 ]] && echo "==> Fetching upstream Cargo.toml for diff..."
 
-OLD_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${CURRENT_CLEAN}" "Cargo.toml") || {
-    echo "error: failed to fetch Cargo.toml for v${CURRENT_CLEAN}." >&2
+OLD_CARGO=$(gh_raw "${UPSTREAM_REPO}" "${OLD_TAG}" "${CARGO_PREFIX}Cargo.toml") || {
+    echo "error: failed to fetch ${CARGO_PREFIX}Cargo.toml for ${OLD_TAG}." >&2
     exit 1
 }
 
-NEW_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" "Cargo.toml") || {
-    echo "error: failed to fetch Cargo.toml for v${UPSTREAM_VERSION}." >&2
+NEW_CARGO=$(gh_raw "${UPSTREAM_REPO}" "${NEW_TAG}" "${CARGO_PREFIX}Cargo.toml") || {
+    echo "error: failed to fetch ${CARGO_PREFIX}Cargo.toml for ${NEW_TAG}." >&2
     exit 1
 }
 
@@ -633,7 +683,7 @@ if [[ -n "${ADDED_MEMBERS}" ]]; then
         # fetch them individually for a thorough check.
         if [[ "${MEMBER_COUNT}" -le 5 ]]; then
             for member in "${NEW_WORKSPACE_MEMBERS[@]}"; do
-                MEMBER_CARGO=$(gh_raw "${UPSTREAM_REPO}" "v${UPSTREAM_VERSION}" "${member}/Cargo.toml" 2>/dev/null) || true
+                MEMBER_CARGO=$(gh_raw "${UPSTREAM_REPO}" "${NEW_TAG}" "${CARGO_PREFIX}${member}/Cargo.toml" 2>/dev/null) || true
                 if [[ -n "${MEMBER_CARGO}" ]]; then
                     while IFS=$'\t' read -r crate url rev; do
                         [[ -z "${crate}" ]] && continue

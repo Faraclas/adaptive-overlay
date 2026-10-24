@@ -130,12 +130,12 @@
     "category": "app-misc",
     "name": "ai-voice-server",
     "upstream_repo": "Faraclas/ai-voice-server",
-    "upstream_type": "github-tag",
-    "version_pattern": "v(.*)",
+    "upstream_type": "manual",
+    "version_pattern": null,
     "build_system": "cargo",
     "repackage": false,
     "auto_upgrade": false,
-    "notes": "Self-hosted voice dictation pipeline. Maintained as a live 9999 ebuild."
+    "notes": "Self-hosted voice dictation pipeline (our own repo, private). Maintained as a live 9999 ebuild; not version-checked."
   },
   {
     "category": "dev-python",
@@ -294,9 +294,10 @@
     "upstream_type": "github-prerelease",
     "version_pattern": "cua-driver-rs-v([0-9]+\\.[0-9]+\\.[0-9]+)",
     "build_system": "cargo",
+    "cargo_subdir": "libs/cua-driver/rust",
     "repackage": false,
     "auto_upgrade": true,
-    "notes": "trycua/cua monorepo; every cua-driver release is marked prerelease, so upstream_type github-prerelease. Pattern excludes nightly-* tags. On bump: regenerate CRATES with pycargoebuild on crates/cua-driver + crates/cursor-theme-cli, re-apply files/cua-driver-*-portage-managed.patch, check the wayland-helper extension version."
+    "notes": "trycua/cua monorepo; every cua-driver release is marked prerelease, so upstream_type github-prerelease. Pattern excludes nightly-* tags. Cargo workspace lives in cargo_subdir. On bump: regenerate CRATES from the workspace Cargo.lock, re-apply files/cua-driver-*-portage-managed.patch, check the WinRects GNOME Shell extension. See .agent/skills/update-cua-driver.md."
   },
   {
     "category": "dev-util",
