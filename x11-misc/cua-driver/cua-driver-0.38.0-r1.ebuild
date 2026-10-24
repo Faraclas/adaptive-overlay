@@ -683,6 +683,9 @@ PATCHES=(
 	# Treat /usr/bin/cua-driver as package-managed so `cua-driver update
 	# --apply` and channel switching never replace Portage-owned files.
 	"${FILESDIR}"/${PN}-0.28.3-portage-managed.patch
+	# Send libei absolute pointer motion in desktop-layout coordinates and
+	# stop clamping to the first output, so input reaches every monitor.
+	"${FILESDIR}"/${PN}-0.38.0-libei-multimonitor.patch
 )
 
 QA_FLAGS_IGNORED="usr/bin/.*"

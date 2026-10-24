@@ -1,0 +1,248 @@
+Fix libei pointer input on multi-monitor layouts (GNOME/KDE portal path).
+
+1. wayland/mod.rs clamped every libei click/move/drag point to the size of
+   ONE wl_output, so on a 3840+3840 layout x was pinned to 3839: clicks on
+   the second monitor landed on the first monitor's right edge.
+2. wayland/libei.rs subtracted the EIS region offset before
+   motion_absolute. Per the ei protocol, libei and libeis, absolute
+   coordinates are desktop-layout positions that must lie inside a
+   region; the offset is the region's place in that layout. Mutter's
+   logical-monitor viewport transform is the identity.
+
+Points are now sent unchanged and refused when they lie outside every
+announced region (EIS would drop the motion and the button would land
+where the pointer already was).
+
+Observed on GNOME 49 (Mutter 49.6), two 3840x2160 monitors side by side,
+cua-driver 0.38.0.
+
+--- a/crates/platform-linux/src/wayland/libei.rs
++++ b/crates/platform-linux/src/wayland/libei.rs
+@@ -24,10 +24,12 @@
+ //! `~/.config/cua-driver/libei-persistent.token` and reused across daemon
+ //! restarts.
+ //!
+-//! Coordinates: ei_pointer_absolute uses LOGICAL PIXELS inside an
+-//! announced ei_device.Region — collected between device creation and
+-//! the first device.Done event. Multi-monitor: pick the region
+-//! containing the target (x, y).
++//! Coordinates: ei_pointer_absolute takes desktop-layout LOGICAL PIXELS
++//! that must lie inside an announced ei_device.Region (collected between
++//! device creation and the first device.Done event). A region's offset is
++//! its position in that layout, so points are sent unchanged; the region
++//! only selects the device. Multi-monitor: pick the region containing the
++//! target (x, y).
+ 
+ use std::collections::HashMap;
+ use std::path::PathBuf;
+@@ -1032,12 +1034,11 @@
+                 let ptr_abs =
+                     require_device_interface::<reis::ei::PointerAbsolute>(&self.devices, &device)?;
+                 let btn = require_device_interface::<reis::ei::Button>(&self.devices, &device)?;
+-                // Map the drag end into the SAME device's region (a single EIS
+-                // emulation session can't span devices). Fall back to the start
+-                // region's offset when no region of this device contains the end
+-                // (single-region device, or a point just off-screen) — this is
+-                // correct only within one region, but avoids the cross-monitor
+-                // mis-mapping of blindly reusing the start offset.
++                // The drag end must be addressable through the SAME device (a
++                // single EIS emulation session can't span devices). When no
++                // region of this device contains it, the raw point is still
++                // sent: EIS discards out-of-region motion, so the drag stops at
++                // the last in-region step.
+                 let (to_rx, to_ry) =
+                     self.region_local_on(&device, *to_x, *to_y)
+                         .unwrap_or_else(|| {
+@@ -1195,17 +1196,23 @@
+         Ok(())
+     }
+ 
+-    /// Pick a pointer device whose announced Region contains `(x, y)`,
+-    /// and translate the absolute screen coordinates into the device's
+-    /// region-local pixel coordinates.
++    /// Pick a pointer device whose announced Region contains `(x, y)`.
+     ///
+-    /// Multi-monitor seats announce one Region per output; routing each
+-    /// (x, y) by containment is what lets a click on monitor #2 actually
+-    /// land on monitor #2. When no device's region contains the point —
+-    /// e.g. coords just past the edge of an output, or a session with
+-    /// a single device that hasn't announced any regions yet — we fall
+-    /// back to the first pointer device with the raw coordinates, which
+-    /// matches the pre-multi-monitor behaviour.
++    /// `ei_pointer_absolute.motion_absolute` takes desktop-layout
++    /// coordinates, and a Region's offset is its position in that layout
++    /// (libei's `ei_region_contains`, libeis's in-region check and Mutter's
++    /// identity `transform_coordinate` all compare the raw point against
++    /// the offset rectangle). The point is therefore sent unchanged —
++    /// subtracting the region offset moved every click on a monitor at a
++    /// nonzero offset onto the monitor at the origin.
++    ///
++    /// Multi-monitor seats announce one Region per output (Mutter: one
++    /// device carrying every region); routing by containment picks the
++    /// device that may address the point. When devices announced regions
++    /// but none contains the point, EIS would silently discard the motion
++    /// and the button would then land wherever the pointer already was, so
++    /// refuse instead. Only when no device announced any region do we fall
++    /// back to the first pointer device.
+     fn pointer_device_for(&self, x: f64, y: f64) -> anyhow::Result<(reis::ei::Device, f32, f32)> {
+         // Absolute motion needs the device that actually carries
+         // ei_pointer_absolute — Mutter/KWin split the relative and absolute
+@@ -1215,15 +1222,24 @@
+             if !data.resumed || !data.interfaces.contains_key("ei_pointer_absolute") {
+                 continue;
+             }
+-            for region in &data.regions {
+-                if region.contains(x, y) {
+-                    let rel_x = x as f32 - region.offset_x;
+-                    let rel_y = y as f32 - region.offset_y;
+-                    return Ok((device.clone(), rel_x, rel_y));
+-                }
++            if data.regions.iter().any(|region| region.contains(x, y)) {
++                return Ok((device.clone(), x as f32, y as f32));
+             }
+         }
+-        // Fallback: first absolute-pointer device, raw coords (single-region).
++        let announced: Vec<String> = self
++            .devices
++            .values()
++            .filter(|data| data.resumed && data.interfaces.contains_key("ei_pointer_absolute"))
++            .flat_map(|data| data.regions.iter())
++            .map(|r| format!("{}x{}+{}+{}", r.width, r.height, r.offset_x, r.offset_y))
++            .collect();
++        if !announced.is_empty() {
++            anyhow::bail!(
++                "point ({x}, {y}) is outside every EIS region [{}]; refusing to inject input there",
++                announced.join(", ")
++            );
++        }
++        // Fallback: no regions announced at all — first absolute-pointer device.
+         let device = self
+             .device_with_interface("ei_pointer_absolute")
+             .ok_or_else(|| {
+@@ -1234,16 +1250,17 @@
+         Ok((device, x as f32, y as f32))
+     }
+ 
+-    /// Region-local coordinates for absolute `(x, y)` within one of `device`'s
+-    /// announced regions, or `None` when no region of that device contains the
+-    /// point. Used to map a drag endpoint into the same device the drag start
+-    /// resolved to (a single EIS emulation session can't span devices).
++    /// `(x, y)` when one of `device`'s announced regions contains it, or
++    /// `None` otherwise. Used to check that a drag endpoint is addressable
++    /// through the same device the drag start resolved to (a single EIS
++    /// emulation session can't span devices). Coordinates stay in the
++    /// desktop layout; see [`Self::pointer_device_for`].
+     fn region_local_on(&self, device: &reis::ei::Device, x: f64, y: f64) -> Option<(f32, f32)> {
+         let data = self.devices.get(device)?;
+         data.regions
+             .iter()
+-            .find(|r| r.contains(x, y))
+-            .map(|r| (x as f32 - r.offset_x, y as f32 - r.offset_y))
++            .any(|r| r.contains(x, y))
++            .then_some((x as f32, y as f32))
+     }
+ 
+     /// The negotiated device that exposes `iface` (e.g. `ei_pointer_absolute`,
+--- a/crates/platform-linux/src/wayland/mod.rs
++++ b/crates/platform-linux/src/wayland/mod.rs
+@@ -1717,21 +1717,23 @@
+     Ok((state.output_w.max(1), state.output_h.max(1)))
+ }
+ 
+-/// Reproduce the wlroots vptr path's coordinate handling for the libei
+-/// fallback: `(0, 0)` defaults to the output centre, and any value is clamped
+-/// to `[0, dim-1]`. Keeps `click(.., 0, 0, ..)` landing on centre rather than
++/// Reproduce the wlroots vptr path's `(0, 0)` → output-centre convention for
++/// the libei fallback, so `click(.., 0, 0, ..)` lands on centre rather than
+ /// the top-left corner across both backends.
++///
++/// Other points pass through unclamped: they are desktop-layout coordinates
++/// and may lie on any monitor. `output_dimensions` is the size of ONE
++/// wl_output, so clamping to it pinned every click on a second monitor to
++/// the first monitor's edge. The libei worker validates points against the
++/// EIS regions, which describe the whole layout.
+ #[cfg(feature = "portal-input")]
+-fn normalize_click_xy(x: i32, y: i32, w: u32, h: u32) -> (i32, i32) {
+-    let (px, py) = if x == 0 && y == 0 {
+-        ((w / 2) as i32, (h / 2) as i32)
++fn normalize_click_xy(x: i32, y: i32) -> anyhow::Result<(i32, i32)> {
++    if x == 0 && y == 0 {
++        let (w, h) = output_dimensions()?;
++        Ok(((w / 2) as i32, (h / 2) as i32))
+     } else {
+-        (x, y)
+-    };
+-    (
+-        px.clamp(0, (w as i32).saturating_sub(1)),
+-        py.clamp(0, (h as i32).saturating_sub(1)),
+-    )
++        Ok((x, y))
++    }
+ }
+ 
+ /// Map a cua/X11 pointer button (1=left / 2=middle / 3=right) to its evdev
+@@ -2638,8 +2640,7 @@
+ #[cfg(feature = "portal-input")]
+ fn libei_click(x: i32, y: i32, count: u32, button: u8) -> anyhow::Result<()> {
+     let btn = cua_button_to_libei(button);
+-    let (w, h) = output_dimensions()?;
+-    let (px, py) = normalize_click_xy(x, y, w, h);
++    let (px, py) = normalize_click_xy(x, y)?;
+     libei::move_absolute(px as f64, py as f64)?;
+     for i in 0..count.max(1) {
+         if i > 0 {
+@@ -2672,13 +2673,12 @@
+ 
+ #[cfg(feature = "portal-input")]
+ fn libei_move_absolute(x: i32, y: i32) -> anyhow::Result<()> {
+-    // Match `move_cursor_absolute_vptr`: clamp to output bounds (no
+-    // default-to-centre — an explicit (0,0) move means the top-left corner).
+-    let (w, h) = output_dimensions()?;
+-    let px = x.clamp(0, (w as i32).saturating_sub(1));
+-    let py = y.clamp(0, (h as i32).saturating_sub(1));
+-    libei::move_absolute(px as f64, py as f64)?;
+-    record_synth_cursor(px, py);
++    // No default-to-centre: an explicit (0,0) move means the top-left corner.
++    // No clamp either: the point is in desktop-layout coordinates and the
++    // libei worker checks it against the EIS regions (all monitors), while
++    // `output_dimensions` only knows one output.
++    libei::move_absolute(x as f64, y as f64)?;
++    record_synth_cursor(x, y);
+     Ok(())
+ }
+ 
+@@ -2694,24 +2694,22 @@
+ ) -> anyhow::Result<()> {
+     // ei_button exposes separate Press/Released states, so the libei worker can
+     // hold the button across the interpolated motion — a genuine
+-    // press→move→release drag. Clamp both endpoints to the output — but NOT via
+-    // `normalize_click_xy`, whose (0,0)→centre convention (for coordinate-free
+-    // clicks) is wrong here: a drag endpoint is always explicit and (0,0) is a
+-    // valid top-left corner target.
++    // press→move→release drag. Endpoints are desktop-layout coordinates and
++    // pass through unclamped (see `normalize_click_xy`); the libei worker
++    // validates them against the EIS regions. Not via `normalize_click_xy`
++    // itself: a drag endpoint is always explicit and (0,0) is a valid
++    // top-left corner target.
+     let btn = cua_button_to_libei(button);
+-    let (w, h) = output_dimensions()?;
+-    let cx = |x: i32| x.clamp(0, (w as i32).saturating_sub(1));
+-    let cy = |y: i32| y.clamp(0, (h as i32).saturating_sub(1));
+     libei::drag(
+-        cx(from_x) as f64,
+-        cy(from_y) as f64,
+-        cx(to_x) as f64,
+-        cy(to_y) as f64,
++        from_x as f64,
++        from_y as f64,
++        to_x as f64,
++        to_y as f64,
+         steps,
+         duration_ms,
+         btn,
+     )?;
+-    record_synth_cursor(cx(to_x), cy(to_y));
++    record_synth_cursor(to_x, to_y);
+     Ok(())
+ }
+ 
