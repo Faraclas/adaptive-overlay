@@ -10,7 +10,7 @@ declare -A GIT_CRATES=(
 	[async-pipe]='https://github.com/zed-industries/async-pipe-rs;82d00a04211cf4e1236029aa03e6b6ce2a74c553;async-pipe-rs-%commit%'
 	[async-tar]='https://github.com/zed-industries/async-tar;bd3ad6f89df9a9da7a8535958756d6bf465936a0;async-tar-%commit%'
 	[async-process]='https://github.com/zed-industries/async-process;0b6d6713570af61806e1e5cb40e0f757cb93fd9d;async-process-%commit%'
-	[async-task]='https://github.com/smol-rs/async-task;015845a19fc31752c02367567d3b8900a406f9da;async-task-%commit%'
+	[async-task]='https://github.com/zed-industries/async-task;015845a19fc31752c02367567d3b8900a406f9da;async-task-%commit%'
 	[calloop]='https://github.com/zed-industries/calloop;3759371fee14c40066d64777e2a36b6ffcc22590;calloop-%commit%'
 	[candle-core]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-core'
 	[candle-nn]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-nn'
@@ -34,6 +34,7 @@ declare -A GIT_CRATES=(
 	[pet-env-var-path]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-env-var-path'
 	[pet-fs]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-fs'
 	[pet-global-virtualenvs]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-global-virtualenvs'
+	[pet-hatch]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-hatch'
 	[pet-homebrew]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-homebrew'
 	[pet-jsonrpc]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-jsonrpc'
 	[pet-linux-global-python]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-linux-global-python'
@@ -53,11 +54,12 @@ declare -A GIT_CRATES=(
 	[pet-virtualenvwrapper]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-virtualenvwrapper'
 	[pet-windows-registry]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-windows-registry'
 	[pet-windows-store]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-windows-store'
+	[pet-winpython]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-winpython'
 	[pet]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet'
 	[proptest]='https://github.com/proptest-rs/proptest;3dca198a8fef1b32e3a66f1e1897c955b4dc5b5b;proptest-%commit%/proptest'
 	[merman]='https://github.com/zed-industries/merman;a3ed8d9f3fd1d74c802f25ed9edd501743796504;merman-%commit%/crates/merman'
 	[rodio]='https://github.com/RustAudio/rodio;3ee9745862279ce1d18db593155016e7ce024aeb;rodio-%commit%'
-	[trash]='https://github.com/zed-industries/trash-rs;3bf27effd4eb8699f2e484d3326b852fe3e53af7;trash-rs-%commit%'
+	[trash]='https://github.com/zed-industries/trash-rs;41c6c800d884a89351f3b8856d12894cccee261d;trash-rs-%commit%'
 	[tree-sitter]='https://github.com/tree-sitter/tree-sitter;43623ec9bf0eaaf7113285c46e8a09018f181b18;tree-sitter-%commit%/lib'
 	[tree-sitter-cpp]='https://github.com/tree-sitter/tree-sitter-cpp;5cb9b693cfd7bfacab1d9ff4acac1a4150700609;tree-sitter-cpp-%commit%'
 	[tree-sitter-gitcommit]='https://github.com/zed-industries/tree-sitter-git-commit;88309716a69dd13ab83443721ba6e0b491d37ee9;tree-sitter-git-commit-%commit%'
@@ -203,8 +205,16 @@ src_prepare() {
 	local ASYNC_PROCESS_PATH="async-process = { path = \"${WORKDIR}/async-process-${ASYNC_PROCESS_COMMIT}\" }"
 
 	local ASYNC_TASK_COMMIT="015845a19fc31752c02367567d3b8900a406f9da"
-	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
+	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/zed-industries/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
 	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
+
+	local CPAL_COMMIT="e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7"
+	local CPAL_GIT="cpal = { git = \"https://github.com/RustAudio/cpal\", rev = \"${CPAL_COMMIT}\" }"
+	local CPAL_PATH="cpal = { path = \"${WORKDIR}/cpal-${CPAL_COMMIT}\" }"
+
+	local KHRONOS_EGL_COMMIT="42214b36347b108fd9630ca6254b96dde59e04fe"
+	local KHRONOS_EGL_GIT="khronos-egl = { git = \"https://github.com/zed-industries/khronos-egl\", rev = \"${KHRONOS_EGL_COMMIT}\" }"
+	local KHRONOS_EGL_PATH="khronos-egl = { path = \"${WORKDIR}/khronos-egl-${KHRONOS_EGL_COMMIT}\" }"
 
 	local TREE_SITTER_COMMIT="43623ec9bf0eaaf7113285c46e8a09018f181b18"
 	local TREE_SITTER_GIT="tree-sitter = { git = \"https://github.com/tree-sitter/tree-sitter\", rev = \"${TREE_SITTER_COMMIT}\" }"
@@ -232,6 +242,8 @@ src_prepare() {
 		-e "s#${WIN_CAP_GIT}#${WIN_CAP_PATH}#" \
 		-e "s#${ASYNC_PROCESS_GIT}#${ASYNC_PROCESS_PATH}#" \
 		-e "s#${ASYNC_TASK_GIT}#${ASYNC_TASK_PATH}#" \
+		-e "s#${CPAL_GIT}#${CPAL_PATH}#" \
+		-e "s#${KHRONOS_EGL_GIT}#${KHRONOS_EGL_PATH}#" \
 		-e "s#${TREE_SITTER_GIT}#${TREE_SITTER_PATH}#" \
 		-e "s#${TREE_SITTER_LANGUAGE_GIT}#${TREE_SITTER_LANGUAGE_PATH}#" \
 		-e "s#${LIVEKIT_GIT}#${LIVEKIT_PATH}#" \
