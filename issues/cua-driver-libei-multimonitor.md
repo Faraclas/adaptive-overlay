@@ -65,3 +65,17 @@ still works.
 - Conclusion: functionally equivalent, slightly better on drags. Drop our
   patch for the first release containing #5853, after a live
   right-monitor test without it.
+- Origin: #5853 came from our report. Issue filed 2026-10-24 02:22 UTC;
+  the PR's first commit is 04:37 UTC, PR opened 06:48 UTC, branch
+  `onigiri/issue-5808` (looks like upstream's issue-to-PR automation).
+  Its design matches the issue's "Proposed fix" item by item; the code is
+  their own refactor, not a copy of our patch.
+
+## Backlog
+
+- Build cua-driver from the #5853 branch (head `5ae80d3` or later)
+  without our patch and repeat the live checks on the two-monitor GNOME
+  setup: right-monitor click, scroll and drag; left-monitor Nautilus
+  click; a drag across the monitor edge (should fail cleanly). Then post
+  the results on #5853, since its live multi-monitor test was not run.
+  Deferred (2026-10-26): other work first. Ask before posting upstream.
