@@ -103,6 +103,11 @@ To ensure build consistency, packages in this overlay are automatically tested u
 
 When a pull request is submitted, `.github/workflows/ci-build.yml` automatically maps the ebuild to the correct container and attempts to build it using `emerge`.
 
+## Local patches and upstream issues
+
+Every local patch has a file in [`issues/`](issues/README.md) recording
+the problem, the upstream issue or PR, and when the patch can be dropped.
+
 ## Contributing
 
 Bug reports and pull requests are welcome.

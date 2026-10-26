@@ -1,3 +1,6 @@
+Copilot: PAT-compatible catalog integration ID; profile-scoped token lookup.
+Tracking: issues/hermes-agent-copilot-pat-catalog.md
+
 diff --git a/hermes_cli/copilot_auth.py b/hermes_cli/copilot_auth.py
 index 53c9bc6..ddf3bad 100644
 --- a/hermes_cli/copilot_auth.py

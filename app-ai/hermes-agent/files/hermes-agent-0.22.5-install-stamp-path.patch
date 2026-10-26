@@ -1,3 +1,6 @@
+Find install-stamp.json inside hermes_cli/ for wheel installs.
+Tracking: issues/hermes-agent-install-stamp-path.md
+
 --- a/pm/paths.py
 +++ b/pm/paths.py
 @@ -31,7 +31,11 @@

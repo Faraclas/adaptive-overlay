@@ -32,6 +32,10 @@ lifecycles, and neither automatically audits statically linked licenses.
    patches, metadata, dependency licenses/notices, and verification inputs.
    For D2 inspect `go_min_ver` and `go_modules_changed`; for MCP review the
    selected `Cargo.lock`, crates, minimum Rust version, and patch status.
+   For every `issues/<pkg>-*.md` file, follow "On every upgrade" in
+   `issues/README.md`: re-check each upstream issue/PR live, drop patches
+   whose fix has shipped, and update the issue's Patch and Status lines in
+   the same change. A new patch needs a new issue file.
 4. Generate Manifest only after all required source assets are available.
    Use `scripts/manifest.sh`, `scripts/lint.sh`, and `scripts/test-build.sh`
    as specified by the package procedure. Do not run Gentoo tools on the

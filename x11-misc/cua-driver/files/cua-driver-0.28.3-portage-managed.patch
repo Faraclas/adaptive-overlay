@@ -1,3 +1,6 @@
+Make `cua-driver update --apply` defer to Portage (pacman-managed path).
+Tracking: issues/cua-driver-portage-managed.md
+
 --- a/crates/cua-driver/src/updater.rs
 +++ b/crates/cua-driver/src/updater.rs
 @@ -22,8 +22,9 @@

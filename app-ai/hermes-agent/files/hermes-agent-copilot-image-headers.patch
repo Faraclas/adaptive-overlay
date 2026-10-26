@@ -1,3 +1,6 @@
+Copilot: keep configured headers on image requests; only force the vision flag.
+Tracking: issues/hermes-agent-copilot-image-headers.md
+
 --- a/agent/client_lifecycle.py
 +++ b/agent/client_lifecycle.py
 @@ -447,7 +447,18 @@

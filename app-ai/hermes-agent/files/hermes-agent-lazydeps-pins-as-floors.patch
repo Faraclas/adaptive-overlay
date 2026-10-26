@@ -1,3 +1,6 @@
+lazy_deps: treat exact pins as floors when lazy installs are disabled.
+Tracking: issues/hermes-agent-lazydeps-pins-as-floors.md
+
 --- a/tools/lazy_deps.py
 +++ b/tools/lazy_deps.py
 @@ -378,7 +378,11 @@

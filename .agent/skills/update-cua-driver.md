@@ -55,10 +55,14 @@ ready to build as-is.
 3. `RUST_MIN_VER`: compare `rust-toolchain.toml` and any `rust-version`
    (workspace and `crates/cua-driver`, `crates/cursor-theme-cli`). Raising it
    past the `testenv-rust-desktop` image's Rust needs an image rebuild first.
-4. Patch `files/cua-driver-*-portage-managed.patch` (targets
-   `crates/cua-driver/src/updater.rs`): check it with
-   `patch -p1 --dry-run` in the new workspace. Keep the file name while it
-   applies unchanged; rename/rebase only when it does not.
+4. Patches in `files/`: check each with `patch -p1 --dry-run` in the new
+   workspace. Keep the file name while it applies unchanged; rename/rebase
+   only when it does not. First read `issues/cua-driver-*.md` and re-check
+   their upstream refs (see "On every upgrade" in `issues/README.md`):
+   drop `cua-driver-*-libei-multimonitor.patch` once a release contains
+   trycua/cua#5853 (or an equivalent fix), and update the issue file
+   either way. `cua-driver-*-portage-managed.patch` (targets
+   `crates/cua-driver/src/updater.rs`) is local-only and always stays.
 5. Features and binaries: the ebuild builds
    `-p cua-driver -p cursor-theme-cli` with `cua-driver/portal-input` for
    `USE=portal`. Confirm those names still exist in

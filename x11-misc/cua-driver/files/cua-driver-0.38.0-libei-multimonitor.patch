@@ -16,6 +16,9 @@ where the pointer already was).
 Observed on GNOME 49 (Mutter 49.6), two 3840x2160 monitors side by side,
 cua-driver 0.38.0.
 
+Upstream: https://github.com/trycua/cua/issues/5808
+Tracking: issues/cua-driver-libei-multimonitor.md
+
 --- a/crates/platform-linux/src/wayland/libei.rs
 +++ b/crates/platform-linux/src/wayland/libei.rs
 @@ -24,10 +24,12 @@

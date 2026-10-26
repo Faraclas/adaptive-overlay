@@ -117,9 +117,15 @@ Packages live in `<category>/<name>/` directories:
 - `metadata.xml` — upstream, maintainer, USE flags
 - `files/` — optional: patches, config snippets
 
-Only these file types belong in the overlay tree. Do not leave
-helper scripts, scratch files, or extra documentation in the
+Only these file types belong in the package directories. Do not
+leave helper scripts, scratch files, or extra documentation in the
 committed tree.
+
+The one documentation exception is the top-level `issues/`
+directory: one file per upstream problem behind a local patch
+(format in `issues/README.md`). When an upgrade touches a
+patch, re-check and update its issue file; a new patch needs a
+new issue file and a `Tracking: issues/<file>` header line.
 
 ---
 

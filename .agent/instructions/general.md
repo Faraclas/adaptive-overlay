@@ -39,6 +39,7 @@ deployed.
 | Package metadata | `.agent/packages.json` |
 | Package-specific instructions | `.agent/instructions/` |
 | Skills / workflows | `.agent/skills/` (if present) |
+| Upstream issues behind local patches | `issues/` (see `issues/README.md`) |
 | CI scripts | `scripts/` |
 
 ---
@@ -50,10 +51,15 @@ deployed.
 - `metadata.xml` per package
 - `files/` directory contents (patches, config snippets) when required by an
   ebuild
+- `issues/` files: one per upstream problem behind a local patch (format in
+  `issues/README.md`). Add one with every new patch, and give the patch a
+  `Tracking: issues/<file>` header line.
 
 **Do not** leave helper scripts, scratch files, or extra documentation inside
 the overlay tree after you finish a task. The committed tree should contain
-only overlay-standard content.
+only overlay-standard content plus `issues/`. Notes, drafts and test code
+for an issue belong in its `issues/` file or folder, never in `files/` or
+`/home/elias/tmp`.
 
 ---
 

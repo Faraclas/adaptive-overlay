@@ -1,3 +1,6 @@
+computer_use: reconnect after CONNECTION_CLOSED, revive a dead private daemon, action="release".
+Tracking: issues/hermes-agent-computer-use-reconnect-release.md
+
 diff -ru a/tools/computer_use/cua_backend_daemon.py b/tools/computer_use/cua_backend_daemon.py
 --- a/tools/computer_use/cua_backend_daemon.py	2026-09-25 15:30:13.814372141 -0400
 +++ b/tools/computer_use/cua_backend_daemon.py	2026-09-25 15:30:13.814743828 -0400
