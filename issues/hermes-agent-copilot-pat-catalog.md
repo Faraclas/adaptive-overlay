@@ -42,6 +42,10 @@ Two bugs with a fine-grained Copilot PAT (`github_pat_*`):
   `client_headers(api_key=..., has_images=...)` hook. Covers
   `hermes-agent-copilot-image-headers.md` too. That the raw PAT reaches
   `client_headers` is inferred, not verified.
+- Plan (2026-10-26): do not file yet. The bug 1 finding comes from
+  reading plugin source, not from running it. Re-test with the first
+  packaged Hermes release that includes #144788 and the plugin; file on
+  hermes-labs-plugins only if a PAT catalog or image request still fails.
 - Kanban card: `hermes_upstream` / t_0d86805f.
 
 ## Notes: first Hermes release with #144788

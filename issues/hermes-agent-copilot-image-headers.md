@@ -26,5 +26,7 @@ instead of replacing.
   wholesale. But the plugin's image headers carry
   `Copilot-Integration-Id: vscode-chat` and win the merge, so PAT image
   requests still fail.
-- Report to hermes-labs-plugins together with the PAT catalog fix; see
+- Plan (2026-10-26): not filed yet. Re-test on the first packaged release
+  that includes #144788 and the plugin; if PAT image requests still fail,
+  report to hermes-labs-plugins together with the PAT catalog bug. See
   `hermes-agent-copilot-pat-catalog.md`.

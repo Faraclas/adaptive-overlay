@@ -5,7 +5,7 @@
   0.38.0-r1)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: open (checked 2026-10-25)
+- Status: open (checked 2026-10-26)
 - Drop when: a release contains #5853 or an equivalent fix, and a
   foreground pixel click on the right monitor works without the patch.
 
@@ -39,5 +39,29 @@ still works.
 ## Upstream
 
 - #5853 "onigiri: issue-5808-auto-1" is upstream automation
-  (`Closes #5808`). Open, review requested on 2026-10-25.
-- TODO: compare #5853 with our patch before dropping ours.
+  (`Closes #5808`). State on 2026-10-26: open, merge blocked, head
+  `5ae80d3`, review requested. CI not fully green (one flaky updater
+  test, Linux verification-skill job timed out). The PR body says live
+  multi-monitor testing on GNOME/KDE was not run.
+- Compared with our patch (2026-10-26), same behaviour:
+  - removes the single-`wl_output` clamp in `libei_click`,
+    `libei_move_absolute` and `libei_drag`;
+  - sends absolute points unchanged, the region only selects the device;
+  - errors when regions were announced but none contains the point;
+  - falls back to the first absolute-pointer device only when no regions
+    were announced;
+  - `click(0,0)` still means the output centre; `move`/`drag` take (0,0)
+    literally.
+- Where #5853 differs:
+  - Drag end outside the start device's regions fails before any input
+    is sent. Ours sends the raw point, EIS discards it and the drag stops
+    early. The PR is better here.
+  - Routing moves to a new `wayland/region_route.rs` (`route_absolute`,
+    `RegionRect`); `libei_click_with` takes an injectable dimensions
+    function.
+  - Adds unit tests (with a local EIS test server) and a CI step
+    `cargo test -p platform-linux --features portal-input --lib wayland::`.
+  - Our error message is richer (lists the announced regions).
+- Conclusion: functionally equivalent, slightly better on drags. Drop our
+  patch for the first release containing #5853, after a live
+  right-monitor test without it.
