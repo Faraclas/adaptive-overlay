@@ -35,6 +35,10 @@ check "$CU/schema.py" '"release",' \
     "computer_use: release in the tool schema"
 check "$CU/cua_backend_daemon.py" 'def ensure_alive' \
     "computer_use: private daemon revive on reconnect"
+if [ -f "$SITE/hermes_cli/route_identity.py" ]; then
+    check "$SITE/hermes_cli/route_identity.py" 'def is_claimed_root_route' \
+        "route_identity: Copilot plan hosts are not relays"
+fi
 
 echo "--- TUI bundle ---"
 TUI="$SITE/hermes_cli/tui_dist"
@@ -107,6 +111,39 @@ finally:
     pass "PAT/OAuth catalogs validate; profile tokens isolated; host fallback blocked"
 else
     fail "Copilot PAT discovery behavioral checks"
+fi
+
+if [ -f "$SITE/hermes_cli/route_identity.py" ]; then
+    echo "--- Copilot plan host catalog route (no network) ---"
+    if PYTHONPATH="$SITE" python3 -c '
+import types
+from unittest.mock import patch
+from hermes_cli import models
+from hermes_cli.route_identity import is_claimed_root_route
+
+copilot = types.SimpleNamespace(name="copilot")
+assert is_claimed_root_route(copilot, "https://api.business.githubcopilot.com")
+assert is_claimed_root_route(copilot, "https://api.business.githubcopilot.com/")
+for url in ("https://api.business.githubcopilot.com/v1",
+            "https://api.business.githubcopilot.com:8443",
+            "http://api.business.githubcopilot.com",
+            "https://api.githubcopilot.com.example.com",
+            "https://models.github.ai"):
+    assert not is_claimed_root_route(copilot, url), url
+assert not is_claimed_root_route(None, "https://api.business.githubcopilot.com")
+
+def cfg(base_url):
+    return patch.object(models, "_get_model_config_dict",
+                        return_value={"provider": "copilot", "base_url": base_url})
+with cfg("https://api.business.githubcopilot.com"):
+    assert models._configured_relay_base_url("copilot") == ""
+with cfg("https://relay.example.com/v1"):
+    assert models._configured_relay_base_url("copilot") == "https://relay.example.com/v1"
+' 2>&1; then
+        pass "plan host root is native; paths, ports, http and other hosts stay relays"
+    else
+        fail "Copilot plan host catalog route checks"
+    fi
 fi
 
 echo "--- Copilot image request headers (synthetic credentials, no network) ---"

@@ -1,0 +1,190 @@
+List the live Copilot catalog for a plan host in model.base_url.
+
+A bare https:// root of a host the provider claims (Copilot: githubcopilot.com
+and subdomains, e.g. api.business.githubcopilot.com) is the provider's own
+endpoint, not a relay. Backport of NousResearch/hermes-agent#142481 to 0.22.5,
+which has no profile hostnames: the claim is listed in route_identity.
+Tracking: issues/hermes-agent-copilot-business-catalog.md
+
+diff --git a/hermes_cli/models.py b/hermes_cli/models.py
+index 6b19437..1224684 100644
+--- a/hermes_cli/models.py
++++ b/hermes_cli/models.py
+@@ -27,7 +27,7 @@ from typing import Any, Optional, TYPE_CHECKING
+ if TYPE_CHECKING:
+     from typing import TypeGuard
+ 
+-from hermes_cli.route_identity import normalize_route_base_url
++from hermes_cli.route_identity import is_claimed_root_route, normalize_route_base_url
+ from hermes_cli.urllib_security import open_credentialed_url
+ from hermes_cli.version_info import get_version_info
+ from hermes_cli.models_catalog_static import (
+@@ -1753,19 +1753,19 @@ def _configured_relay_base_url(provider: str) -> str:
+     base_url = str(model_cfg.get("base_url") or "").strip().rstrip("/")
+     if not base_url:
+         return ""
+-    # A base_url equal to the provider's own endpoint (the profile's or the registry row's: TokenHub's
+-    # profile leaves it empty; OpenRouter has no registry row) is not a relay: setup persists
+-    # canonical URLs, and OAuth providers (Codex) need native discovery.
++    # Not a relay: the provider's own endpoint (the profile's or the registry row's: TokenHub's profile leaves it
++    # empty; OpenRouter has no registry row) or the bare HTTPS root of a host the profile claims. Setup persists
++    # canonical URLs; Codex (OAuth) needs native discovery. The check reads the raw URL: a stripped ``//`` looks bare.
+     try:
+         from hermes_cli.auth import PROVIDER_REGISTRY
+         from providers import get_provider_profile
+ 
+-        profile_url = getattr(get_provider_profile(normalized), "base_url", "")
++        profile = get_provider_profile(normalized)
+         registry_url = getattr(PROVIDER_REGISTRY.get(normalized), "inference_base_url", "")
+-        canonical = {normalize_route_base_url(u) for u in (profile_url, registry_url) if u}
++        canonical = {normalize_route_base_url(u) for u in (getattr(profile, "base_url", ""), registry_url) if u}
+     except Exception:
+         return base_url  # lookup failed: stay a relay, never widening where credentials go
+-    return "" if normalize_route_base_url(base_url) in canonical else base_url
++    return "" if is_claimed_root_route(profile, model_cfg.get("base_url")) or normalize_route_base_url(base_url) in canonical else base_url
+ 
+ 
+ def _relay_model_catalog(normalized: str, relay: str) -> Optional[list[str]]:
+diff --git a/hermes_cli/route_identity.py b/hermes_cli/route_identity.py
+index 01be9fa..7515690 100644
+--- a/hermes_cli/route_identity.py
++++ b/hermes_cli/route_identity.py
+@@ -44,6 +44,39 @@ def normalize_route_base_url(base_url: Any) -> str:
+     return normalized
+ 
+ 
++# Hosts a provider profile claims: the host itself and its subdomains. Upstream (#142481) reads
++# them from the profile's "hostnames" through providers.profile_for_host; 0.22.5 has neither, so
++# this Gentoo backport lists the one claim it needs (the Copilot plugin's, upstream).
++_CLAIMED_HOSTS: dict[str, tuple[str, ...]] = {"copilot": ("githubcopilot.com",)}
++
++
++def is_claimed_root_route(profile: Any, base_url: Any) -> bool:
++    """Whether *base_url* is the bare HTTPS root of a host that *profile* claims.
++
++    An account can carry such a host in model.base_url (a Copilot plan host such as
++    api.business.githubcopilot.com, which the token exchange reports as endpoints.api), and that
++    host is the provider's own endpoint, not a relay. A path, query, user info, non-default port
++    or plain HTTP keeps relay handling, so a relay mounted under a claimed host is still a relay.
++    A host the profile does not claim is no match. A URL that does not parse is no match either,
++    so it keeps relay handling.
++    """
++    from utils import base_url_hostname
++
++    if profile is None:
++        return False
++    claims = _CLAIMED_HOSTS.get(str(getattr(profile, "name", "") or ""), ())
++    normalized = normalize_route_base_url(str(base_url or "").strip())
++    try:
++        host = base_url_hostname(normalized)
++    except ValueError:  # urllib rejects the host (https://[broken, a full-width colon)
++        return False
++    return (
++        bool(host)
++        and any(host == claim or host.endswith("." + claim) for claim in claims)
++        and normalized == f"https://{host}"
++    )
++
++
+ def provider_owns_route(provider: Any, base_url: Any, config: Any = None) -> Optional[bool]:
+     """Whether ``model.base_url`` is *provider*'s own endpoint.
+ 
+diff --git a/tests/hermes_cli/test_models_claimed_host_route.py b/tests/hermes_cli/test_models_claimed_host_route.py
+new file mode 100644
+index 0000000..eb118a5
+--- /dev/null
++++ b/tests/hermes_cli/test_models_claimed_host_route.py
+@@ -0,0 +1,93 @@
++"""A model.base_url that is the bare HTTPS root of a host the configured provider claims is that
++provider's own endpoint, not a relay, so live model discovery runs for it.
++
++Gentoo backport of NousResearch/hermes-agent#142481 to 0.22.5. The cases follow the PR's tests,
++run against the real Copilot profile, whose claim on githubcopilot.com 0.22.5 cannot declare
++on the profile itself (see route_identity._CLAIMED_HOSTS)."""
++
++import pytest
++
++from hermes_cli import models
++from hermes_cli.config import atomic_config_write
++from hermes_cli.route_identity import is_claimed_root_route
++from hermes_constants import get_hermes_home
++
++
++@pytest.fixture
++def catalog_calls(monkeypatch):
++    calls = []
++
++    def native_catalog(slug, force_refresh):
++        calls.append(("native", None))
++        return ["native-model"]
++
++    def relay_catalog(normalized, relay):
++        calls.append(("relay", relay))
++        return ["relay-model"]
++
++    monkeypatch.setitem(models._PROVIDER_CATALOG_FETCHERS, "copilot", native_catalog)
++    monkeypatch.setattr(models, "_relay_model_catalog", relay_catalog)
++    return calls
++
++
++def _discover(base_url):
++    atomic_config_write(get_hermes_home() / "config.yaml", {
++        "model": {"provider": "copilot", "base_url": base_url},
++    })
++    return models.provider_model_ids("copilot", force_refresh=True)
++
++
++@pytest.mark.parametrize("base_url", [
++    "https://api.business.githubcopilot.com",
++    "https://api.business.githubcopilot.com/",
++    "https://api.individual.githubcopilot.com",
++    "https://api.enterprise.githubcopilot.com/",
++    "HTTPS://API.BUSINESS.GITHUBCOPILOT.COM:443/",
++    "https://githubcopilot.com",
++])
++def test_bare_https_root_of_a_claimed_host_is_the_providers_own_endpoint(base_url, catalog_calls):
++    assert "native-model" in _discover(base_url)
++    assert catalog_calls == [("native", None)]
++
++
++@pytest.mark.parametrize("base_url", [
++    "https://api.business.githubcopilot.com/relay",
++    "https://api.business.githubcopilot.com/v1",
++    "https://api.business.githubcopilot.com//",
++    "https://api.business.githubcopilot.com:8443",
++    "http://api.business.githubcopilot.com",
++    "https://user@api.business.githubcopilot.com",
++    "https://api.business.githubcopilot.com?relay=1",
++    "https://api.business.githubcopilot.com?",
++    "https://[broken",
++    "https://api.business.githubcopilot.com\uff1a443",
++])
++def test_a_claimed_host_with_more_than_a_bare_https_root_stays_a_relay(base_url, catalog_calls):
++    assert "relay-model" in _discover(base_url)
++    assert catalog_calls == [("relay", base_url.rstrip("/"))]  # discovery probes the URL minus trailing slashes
++
++
++@pytest.mark.parametrize("base_url", [
++    "https://api.business.githubcopilot.com.example.com",
++    "https://notgithubcopilot.com",
++    "https://unclaimed.test",
++    "https://models.github.ai",  # upstream's plugin claims it; this backport deliberately does not
++])
++def test_a_host_the_provider_does_not_claim_stays_a_relay(base_url, catalog_calls):
++    assert "relay-model" in _discover(base_url)
++    assert catalog_calls == [("relay", base_url.rstrip("/"))]
++
++
++def test_the_profiles_own_endpoint_is_still_not_a_relay(catalog_calls):
++    assert "native-model" in _discover("https://api.githubcopilot.com")
++    assert catalog_calls == [("native", None)]
++
++
++def test_a_claim_belongs_to_its_provider_only(monkeypatch):
++    monkeypatch.setattr(models, "_get_model_config_dict",
++                        lambda: {"provider": "deepseek", "base_url": "https://api.business.githubcopilot.com"})
++    assert models._configured_relay_base_url("deepseek") == "https://api.business.githubcopilot.com"
++
++
++def test_no_profile_is_no_claim():
++    assert is_claimed_root_route(None, "https://api.business.githubcopilot.com") is False

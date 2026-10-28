@@ -154,6 +154,9 @@ PATCHES=(
 	"${FILESDIR}/${PN}-copilot-image-headers.patch"
 	# Find install-stamp.json in hermes_cli/, where python_install puts it.
 	"${FILESDIR}/${PN}-0.22.5-install-stamp-path.patch"
+	# Live Copilot catalog for a plan host (api.business.githubcopilot.com)
+	# in model.base_url instead of the static fallback list.
+	"${FILESDIR}/${PN}-0.22.5-copilot-plan-host-catalog.patch"
 )
 
 src_prepare() {
