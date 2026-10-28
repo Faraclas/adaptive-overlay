@@ -48,6 +48,24 @@ Two bugs with a fine-grained Copilot PAT (`github_pat_*`):
   hermes-labs-plugins only if a PAT catalog or image request still fails.
 - Kanban card: `hermes_upstream` / t_0d86805f.
 
+## Observed on 0.22.5 (panther, 2026-10-28)
+
+- At gateway startup `agent.credential_pool` warns: "Copilot token
+  exchange degraded to RAW token ... enterprise-only models may 400 with
+  model_not_available_for_integrator".
+- Cause: the token is a fine-grained PAT from `COPILOT_GITHUB_TOKEN`.
+  `GET https://api.github.com/copilot_internal/v2/token` returns HTTP 404
+  for it. That endpoint only exchanges OAuth app tokens (`gho_`/`ghu_`),
+  so the warning is expected with a PAT and is not a separate bug.
+- Impact: none in practice. The raw PAT is sent as the bearer token.
+  The business host is not learned from the exchange, but `base_url` is
+  set explicitly. Chat turns send `copilot-developer-cli` because the
+  user config sets `model.default_headers.Copilot-Integration-Id`, which
+  `_apply_user_default_headers` merges with user-wins precedence.
+- Cost: a 404 counts as permanent, so there is one request with no
+  retries, then a 30-minute negative cache. The warning is logged once
+  per process.
+
 ## Notes: first Hermes release with #144788
 
 - Copilot becomes a plugin installed at runtime (`hermes plugins install
