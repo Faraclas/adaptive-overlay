@@ -13,7 +13,8 @@
 ## Problem
 
 Seen on panther after the first 0.22.5 install (2026-10-28): the model
-picker shows the old curated Copilot list. Tomcat (0.21.5) shows the live
+picker shows the old curated Copilot list. Tomcat (0.21.5, tag `v2026.9.24`,
+our `2026.9.24-r9` ebuild) shows the live
 list (15 models) with the same dotfiles config:
 
 ```yaml
@@ -66,13 +67,13 @@ Verified in containers (2026-10-28): the new tests plus
 `tests/hermes_cli/test_models_relay_base_url.py` pass (33 passed) on the
 fully patched 0.22.5 tree; `verify-hermes-agent.sh` checks the helper and
 that `_configured_relay_base_url("copilot")` is empty for the business
-root. Not yet tested live on panther.
+root. Verified live on panther (2026-10-28): after re-emerging, the picker
+lists the live Copilot Business catalog.
 
 ## Notes
 
-- After the live check on panther, offer a PR comment (user approves the
-  text first): the same rule, backported to 0.22.5, lists the live catalog
-  for a real Business account.
+- Posted our live Business-account result on #142481 (2026-10-28):
+  https://github.com/NousResearch/hermes-agent/pull/142481#issuecomment-6475539403
 - When moving to a release with #144788 (Copilot as a plugin), check
   whether #142481 landed; if not, the patch must be redone against that
   core, using `profile_for_host`.
