@@ -40,8 +40,9 @@ only changes the catalog request headers.
 ## Upstream
 
 - #142480 (open, P2, `provider/copilot`) reports it for a Business account.
-- #142481 (BlueberryDuck, open, no reviews; GitHub shows merge conflicts
-  as of 2026-10-28). teknium1 asked for a generic rule after Copilot left
+- #142481 (BlueberryDuck, open, no reviews). On 2026-10-28 GitHub showed
+  merge conflicts; on 2026-10-29 it shows "blocked" (no conflicts, waiting
+  on review/checks). teknium1 asked for a generic rule after Copilot left
   core (#144788): a bare `https://<host>` root of a host the provider's
   profile claims (`providers.profile_for_host`, profile `hostnames`) is
   the provider's own endpoint. The plugin claims `githubcopilot.com`, so
@@ -49,6 +50,12 @@ only changes the catalog request headers.
   and plain http stay relays.
 - The PR author tested a real Business account only with an earlier,
   Copilot-specific revision; the current revision with a stubbed catalog.
+- SoraxOriginali (2026-10-29) tested the current revision plus the
+  `github-copilot` plugin on a real Copilot Individual seat
+  (`base_url: https://api.individual.githubcopilot.com`): the forced
+  refresh returns the live catalog (25 models, `fallback=false`) instead
+  of the 17-model fallback; the PR's 22 tests pass.
+  https://github.com/NousResearch/hermes-agent/pull/142481#issuecomment-6503180226
 
 ## Our patch
 
