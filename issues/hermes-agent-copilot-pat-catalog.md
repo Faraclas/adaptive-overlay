@@ -2,7 +2,7 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-copilot-pat-discovery.patch` (used by
-  0.22.5, 2026.9.24-r9)
+  0.22.5)
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); the remaining bug is unfiled against

@@ -124,7 +124,7 @@
     "build_system": "python",
     "repackage": false,
     "auto_upgrade": true,
-    "notes": "Uses CalVer tags (e.g. v2026.9.7)."
+    "notes": "SemVer tags (e.g. v0.22.5) since 2026-10; date tags (v2026.9.x) are retired. Ignore +canary tags."
   },
   {
     "category": "app-misc",

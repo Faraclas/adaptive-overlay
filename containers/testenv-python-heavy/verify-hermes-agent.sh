@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-hermes-agent.sh: check the app-ai/hermes-agent build image.
 # Called by scripts/test-build.sh with the portage image directory, e.g.
-#   /var/tmp/portage/app-ai/hermes-agent-2026.9.24-r3/image
+#   /var/tmp/portage/app-ai/hermes-agent-0.22.5/image
 set -u
 IMAGE="${1:?usage: verify-hermes-agent.sh <build-image-dir>}"
 PASS=0 FAIL=0

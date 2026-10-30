@@ -1,8 +1,8 @@
 # hermes-agent: Copilot image requests drop configured headers
 
 - Package: `app-ai/hermes-agent`
-- Patch: `files/hermes-agent-copilot-image-headers.patch` (used by 0.22.5,
-  2026.9.24-r9); test `files/test_copilot_image_headers.py`
+- Patch: `files/hermes-agent-copilot-image-headers.patch` (used by 0.22.5);
+  test `files/test_copilot_image_headers.py`
 - Upstream: none filed (reported in a comment on #51411, 2026-10-04, now
   closed)
 - Status: unfiled (checked 2026-10-26)

@@ -2,12 +2,10 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.22.2-computer-use-release-reconnect.patch`
-  (used by 0.22.5); unversioned predecessor
-  `files/hermes-agent-computer-use-release-reconnect.patch` (used by
-  2026.9.24-r9)
+  (used by 0.22.5)
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/108215;
   PRs #108222, #115064, #118979
-- Status: open (checked 2026-10-25)
+- Status: open (checked 2026-10-30; still applies to upstream main)
 - Drop when: a release contains #108222 (drops parts 1 and 2) and a
   release action is upstream (drops part 3). Split the patch if only part
   of it lands.
@@ -36,8 +34,3 @@ Three changes in `tools/computer_use/`:
   labels after reconnect; replaces #127219 (closed unmerged).
 - Part 3 (release action): no upstream PR; local work.
 - Kanban card: `hermes_upstream` / t_6f79b7e4.
-
-## Notes
-
-Delete the unversioned predecessor patch together with
-`hermes-agent-2026.9.24-r9.ebuild`.
