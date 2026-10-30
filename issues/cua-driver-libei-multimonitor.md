@@ -5,7 +5,9 @@
   0.38.0-r1)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: open (checked 2026-10-26)
+- Status: fixed upstream, not yet released. #5853 merged 2026-10-30 as
+  `1e0da1a`; #5808 closed. Newest cua-driver-rs build then: 0.38.1
+  nightlies from before the merge (checked 2026-10-30).
 - Drop when: a release contains #5853 or an equivalent fix, and a
   foreground pixel click on the right monitor works without the patch.
 
@@ -38,6 +40,12 @@ still works.
 
 ## Upstream
 
+- Merged 2026-10-30 17:14 UTC as `1e0da1a` (11 commits, squashed; no
+  review comments). The final diff still matches the comparison below.
+  The merge adds tests showing that a positioned scroll to a point
+  outside every region sends no scroll. CI now runs the whole
+  `platform-linux --features portal-input --lib` test binary. Live
+  multi-monitor GNOME/KDE testing was still not run upstream.
 - #5853 "onigiri: issue-5808-auto-1" is upstream automation
   (`Closes #5808`). State on 2026-10-26: open, merge blocked, head
   `5ae80d3`, review requested. CI not fully green (one flaky updater
@@ -73,9 +81,12 @@ still works.
 
 ## Backlog
 
-- Build cua-driver from the #5853 branch (head `5ae80d3` or later)
+- On the first cua-driver-rs release after `1e0da1a`: bump the ebuild
   without our patch and repeat the live checks on the two-monitor GNOME
   setup: right-monitor click, scroll and drag; left-monitor Nautilus
-  click; a drag across the monitor edge (should fail cleanly). Then post
-  the results on #5853, since its live multi-monitor test was not run.
-  Deferred (2026-10-26): other work first. Ask before posting upstream.
+  click; a drag across the monitor edge. Mutter puts both monitors'
+  regions on one device, so that drag should work (upstream test
+  `drag_across_regions_of_one_device...`); it fails cleanly only when
+  the end lies outside the start device's regions. If all pass, drop
+  the patch and this file. Optionally report the live result on #5808.
+  Ask before posting upstream.
