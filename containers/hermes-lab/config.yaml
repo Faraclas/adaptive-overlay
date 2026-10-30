@@ -1,0 +1,5 @@
+# Seed ~/.hermes/config.yaml for the hermes-lab user. No secrets here:
+# add API keys inside the running container only, never to this file.
+security:
+  # Same as Panther and Tomcat: Portage owns Python deps.
+  allow_lazy_installs: false

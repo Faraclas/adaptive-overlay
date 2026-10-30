@@ -1,0 +1,53 @@
+# hermes-lab: a local sandbox for Hermes experiments (plugins, config,
+# upgrades) that must not run on Panther or Tomcat first.
+#
+# app-ai/hermes-agent is merged with Portage, as on the hosts, and
+# experiments run as the unprivileged user "lab". A baseline of the system
+# Python is recorded at build time so `lab-check-system` can show later
+# that nothing (pip, uv, Hermes pm) wrote outside /home.
+#
+# Local only; CI does not build or publish this image.
+# Use scripts/hermes-lab.sh; it builds from the repo root:
+#   podman build -f containers/hermes-lab/Containerfile \
+#       --build-arg HERMES_VERSION=0.22.5 -t localhost/hermes-lab:0.22.5 .
+#
+# Nothing is COPYed: lab-check-system and config.yaml are read from the
+# overlay mount, at build time and (via `hermes-lab.sh up`) at run time, so
+# editing them needs no rebuild. Buildah hashes the bind-mounted context,
+# so any change in the repo invalidates the emerge layer; a rebuild after a
+# commit takes the full ~20 minutes.
+
+FROM ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
+
+ARG HERMES_VERSION
+# Host flags minus browser/computer-use (need a desktop session) and
+# discord (needs a bot token).
+ARG HERMES_USE="-browser -computer-use -discord dashboard mcp websearch"
+ARG MAKEOPTS="-j16"
+
+# The overlay stays a symlink to the mount point, so the live checkout
+# mounted there by `hermes-lab.sh up` can be used to emerge newer ebuilds.
+RUN --mount=type=bind,target=/mnt/adaptive-overlay \
+    set -eux; \
+    test -n "${HERMES_VERSION}"; \
+    lab=/mnt/adaptive-overlay/containers/hermes-lab; \
+    rm -rf /var/db/repos/adaptive-overlay; \
+    ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay; \
+    mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license \
+        /etc/portage/package.use; \
+    cp /mnt/adaptive-overlay/containers/package.accept_keywords \
+        /etc/portage/package.accept_keywords/zz-adaptive-overlay; \
+    cp /mnt/adaptive-overlay/containers/package.license \
+        /etc/portage/package.license/zz-adaptive-overlay; \
+    echo "app-ai/hermes-agent ${HERMES_USE}" > /etc/portage/package.use/hermes-lab; \
+    MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=8 "=app-ai/hermes-agent-${HERMES_VERSION}"; \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/*; \
+    useradd -m -s /bin/bash lab; \
+    install -d -o lab -g lab -m 0700 /home/lab/.hermes; \
+    install -o lab -g lab -m 0600 "${lab}/config.yaml" /home/lab/.hermes/config.yaml; \
+    su - lab -c 'hermes --version'; \
+    bash "${lab}/lab-check-system" --record
+
+USER lab
+WORKDIR /home/lab
+CMD ["sleep", "infinity"]

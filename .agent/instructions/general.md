@@ -41,6 +41,7 @@ deployed.
 | Skills / workflows | `.agent/skills/` (if present) |
 | Upstream issues behind local patches | `issues/` (see `issues/README.md`) |
 | CI scripts | `scripts/` |
+| Container sources | `containers/` (`testenv*` published by CI; `hermes-lab` local only) |
 
 ---
 
@@ -92,6 +93,24 @@ scripts/test-build.sh <category>/<package>
 
 Runs a build inside a disposable container. Scripts in `scripts/` prefer
 Podman and fall back to Docker.
+
+### Hermes lab container — `scripts/hermes-lab.sh`
+
+`test-build.sh` never merges the package, so `hermes` cannot be run from
+it. For runtime experiments with `app-ai/hermes-agent` (plugins, config,
+upgrades), use the long-lived lab instead:
+
+```/dev/null/example.sh#L1-4
+scripts/hermes-lab.sh build      # localhost/hermes-lab:<newest ebuild>, ~20 min
+scripts/hermes-lab.sh up         # container "hermes-lab", overlay mounted ro
+scripts/hermes-lab.sh run 'hermes plugins list'   # as unprivileged user lab
+scripts/hermes-lab.sh check      # PASS = nothing outside /home changed
+```
+
+Sources are in `containers/hermes-lab/` (local only; CI does not build
+it). `emerge` inside the lab is allowed (`hermes-lab.sh root ...`); run
+`hermes plugins install`, `hermes pm` and similar only there, never on a
+host. `reset` discards all lab state.
 
 ### Linting
 
