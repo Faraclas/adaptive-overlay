@@ -2,9 +2,9 @@
 # upgrades) that must not run on Panther or Tomcat first.
 #
 # app-ai/hermes-agent is merged with Portage, as on the hosts, and
-# experiments run as the unprivileged user "lab". A baseline of the system
-# Python is recorded at build time so `lab-check-system` can show later
-# that nothing (pip, uv, Hermes pm) wrote outside /home.
+# experiments run as the unprivileged user "lab". `hermes-lab.sh check`
+# runs lab-check-system, which asks Portage whether Hermes still runs only
+# on Portage's Python and packages; the build fails unless it passes.
 #
 # Local only; CI does not build or publish this image.
 # Use scripts/hermes-lab.sh; it builds from the repo root:
@@ -12,10 +12,9 @@
 #       --build-arg HERMES_VERSION=0.22.5 -t localhost/hermes-lab:0.22.5 .
 #
 # Nothing is COPYed: lab-check-system and config.yaml are read from the
-# overlay mount, at build time and (via `hermes-lab.sh up`) at run time, so
-# editing them needs no rebuild. Buildah hashes the bind-mounted context,
-# so any change in the repo invalidates the emerge layer; a rebuild after a
-# commit takes the full ~20 minutes.
+# overlay mount, at build time and (via `hermes-lab.sh up`) at run time.
+# Day-to-day changes (a new ebuild or patch) are emerged inside the running
+# lab, not by rebuilding this image.
 
 FROM ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
 
@@ -45,8 +44,7 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     useradd -m -s /bin/bash lab; \
     install -d -o lab -g lab -m 0700 /home/lab/.hermes; \
     install -o lab -g lab -m 0600 "${lab}/config.yaml" /home/lab/.hermes/config.yaml; \
-    su - lab -c 'hermes --version'; \
-    bash "${lab}/lab-check-system" --record
+    su - lab -c "hermes --version && bash ${lab}/lab-check-system"
 
 USER lab
 WORKDIR /home/lab

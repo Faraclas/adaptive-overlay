@@ -1,87 +1,190 @@
 #!/bin/bash
-# lab-check-system: show that experiments in the lab changed nothing
-# outside /home.
+# lab-check-system: is this Hermes still running entirely on Portage's
+# Python and packages?
 #
-#   lab-check-system --record   save the baseline (done at image build)
-#   lab-check-system            compare against it; exit 1 on any change
+#   lab-check-system            exit 0 = PASS, 1 = FAIL
 #
-# Checks the md5sum of every file in the system Python's site-packages and
-# every Portage-owned file of app-ai/hermes-agent, and lists files outside
-# /home, /tmp, /var/tmp, /proc, /sys, /dev and /run modified since the
-# baseline. Also reports the size of any Hermes pm toolchain store
-# (/home/*/.hermes/tools), which the lab tests showed `hermes plugins install`
-# creates on a Portage install.
-set -euo pipefail
+# Runs as the user whose Hermes is checked (in the lab: "lab", via
+# scripts/hermes-lab.sh check). Needs no root and no baseline: it asks
+# Portage's own records, so a deliberate emerge never trips it. Read-only,
+# so it can also be run on a host.
+#
+# FAIL if any of these:
+#   1. a file of dev-lang/python, dev-python/* or app-ai/hermes-agent is
+#      missing or differs from what Portage installed (md5 against the
+#      package's CONTENTS in /var/db/pkg; mtime is ignored);
+#   2. a file no package owns in the system site-packages or
+#      /usr/local/lib*/python*, or an unowned python script in /usr/bin or
+#      /usr/local/bin (what pip/uv writing to the system leaves);
+#   3. Hermes's package manager (pm) has a committed dependency env, which
+#      Hermes puts on sys.path instead of Portage's site-packages at boot;
+#   4. the user's ~/.local site-packages has content (pip --user); Python
+#      loads it before the system site-packages.
+# Reports, without failing: what pm and plugin installs put in
+# $HERMES_HOME (tools, installs, plugins).
+#
+# 1 and 2 read /var/db/pkg directly instead of using qcheck/qfile:
+# qcheck 0.97.1 spends ~0.5 CPU-second per file on a large host (hours for
+# hermes-agent's 12k files), and this needs one pass for both.
+set -uo pipefail
 
-STATE=/var/lib/hermes-lab
-SITE=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-
-if [ "$(id -u)" -ne 0 ]; then
-	echo "error: run as root (scripts/hermes-lab.sh check does this)" >&2
-	exit 2
-fi
-
-site_sums() {
-	find "${SITE}" -type f -print0 | sort -z | xargs -0 md5sum
-}
-
-if [ "${1:-}" = "--record" ]; then
-	mkdir -p "${STATE}"
-	site_sums > "${STATE}/site-packages.md5"
-	touch "${STATE}/stamp"
-	echo "baseline recorded: $(wc -l < "${STATE}/site-packages.md5") files in ${SITE}"
-	exit 0
-fi
-
-[ -f "${STATE}/stamp" ] || { echo "error: no baseline; run with --record" >&2; exit 2; }
-
+PY=python3
+SITE=$("${PY}" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+HERMES_HOME="${HERMES_HOME:-${HOME}/.hermes}"
 status=0
+fail() { status=1; }
 
-echo "==> ${SITE}"
-sums=$(site_sums)
-if [ "${sums}" = "$(cat "${STATE}/site-packages.md5")" ]; then
-	echo "    unchanged ($(wc -l < "${STATE}/site-packages.md5") files)"
+# Checks 1 and 2 in one pass over /var/db/pkg.
+"${PY}" - "${SITE}" <<-'EOF' || fail
+	import glob, hashlib, os, re, sys
+
+	VDB = "/var/db/pkg"
+	SITE = sys.argv[1]
+	SELECT = {"dev-lang/python", "dev-lang/python-exec", "dev-lang/python-exec-conf",
+	          "app-ai/hermes-agent"}
+
+	dircache = {}
+	def canon(path):
+	    # Merged /usr: /bin, /sbin, /usr/sbin -> /usr/bin. Resolve the
+	    # directory only; the entry itself may be a symlink.
+	    d, b = os.path.split(path)
+	    if d not in dircache:
+	        dircache[d] = os.path.realpath(d)
+	    return os.path.join(dircache[d], b)
+
+	def md5(path):
+	    h = hashlib.md5()
+	    with open(path, "rb") as f:
+	        for chunk in iter(lambda: f.read(1 << 20), b""):
+	            h.update(chunk)
+	    return h.hexdigest()
+
+	owned, problems, npkgs = set(), [], 0
+	for cat in sorted(os.listdir(VDB)):
+	    if not os.path.isdir(os.path.join(VDB, cat)):
+	        continue
+	    for pf in sorted(os.listdir(os.path.join(VDB, cat))):
+	        contents = os.path.join(VDB, cat, pf, "CONTENTS")
+	        m = re.match(r"(.+?)-\d", pf)
+	        pn = m.group(1) if m else pf
+	        check = cat == "dev-python" or f"{cat}/{pn}" in SELECT
+	        npkgs += check
+	        try:
+	            lines = open(contents, encoding="utf-8", errors="surrogateescape")
+	        except FileNotFoundError:
+	            continue
+	        with lines:
+	            for line in lines:
+	                kind, _, rest = line.rstrip("\n").partition(" ")
+	                if kind == "obj":
+	                    path, digest, _ = rest.rsplit(" ", 2)
+	                elif kind == "sym":
+	                    path = rest.split(" -> ", 1)[0]
+	                else:
+	                    continue
+	                owned.add(canon(path))
+	                if not (check and kind == "obj"):
+	                    continue
+	                try:
+	                    if md5(path) != digest:
+	                        problems.append(f"changed  {path}  ({cat}/{pf})")
+	                except FileNotFoundError:
+	                    problems.append(f"missing  {path}  ({cat}/{pf})")
+	                except OSError as exc:
+	                    problems.append(f"unreadable  {path}  ({exc.strerror})")
+
+	def show(items):
+	    for p in items[:20]:
+	        print(f"    {p}")
+	    if len(items) > 20:
+	        print(f"    ... ({len(items)} total)")
+
+	print("==> 1. Portage files of Python, dev-python/* and hermes-agent")
+	if problems:
+	    show(problems)
+	else:
+	    print(f"    {npkgs} packages intact")
+
+	# What pip/uv writing to the system leaves. In /usr/bin that is an entry
+	# point: a regular file with a python shebang. Unowned symlinks there are
+	# made by gcc-config, binutils-config, perl and eselect, and other stray
+	# files are not this check's business.
+	def python_script(p):
+	    try:
+	        with open(p, "rb") as f:
+	            head = f.readline(256)
+	    except OSError:
+	        return False
+	    return head.startswith(b"#!") and b"python" in head
+
+	print("==> 2. Files no package owns")
+	orphans = []
+	tops = [(SITE, False)]
+	tops += [(p, False) for p in sorted(glob.glob("/usr/local/lib*/python*"))]
+	tops += [("/usr/local/bin", True), ("/usr/bin", True)]
+	for top, scripts_only in tops:
+	    if not os.path.isdir(top):
+	        continue
+	    dev = os.lstat(top).st_dev
+	    for d, dirs, files in os.walk(top):
+	        links = [x for x in dirs if os.path.islink(os.path.join(d, x))]
+	        dirs[:] = [x for x in dirs if x not in links
+	                   and os.lstat(os.path.join(d, x)).st_dev == dev]
+	        for name in files + links:
+	            p = os.path.join(d, name)
+	            if scripts_only and (os.path.islink(p) or not python_script(p)):
+	                continue
+	            if canon(p) not in owned:
+	                orphans.append(p)
+	if orphans:
+	    show(sorted(orphans))
+	else:
+	    print(f"    none in {SITE}, /usr/local/lib*/python*, python scripts in /usr/bin, /usr/local/bin")
+
+	sys.exit(1 if problems or orphans else 0)
+	EOF
+
+echo "==> 3. Hermes dependency selection"
+# Hermes's own read-only lookup; activate_dependencies() acts on the same
+# answer at every boot. If the internals move, report FAIL, not PASS.
+sel=$(HERMES_HOME="${HERMES_HOME}" "${PY}" - "${SITE}" 2>&1 <<-'EOF'
+	import sys
+	from pathlib import Path
+	try:
+	    from pm.environments import committed_venv
+	except Exception as exc:
+	    print(f"UNKNOWN: cannot query pm.environments.committed_venv ({exc})")
+	    sys.exit()
+	venv = committed_venv(Path(sys.argv[1]))
+	print("portage" if venv is None else f"pm env: {venv}")
+	EOF
+)
+if [ "${sel}" = "portage" ]; then
+	echo "    Portage's site-packages (no pm environment committed)"
 else
-	echo "    CHANGED:"
-	{ diff "${STATE}/site-packages.md5" - <<< "${sums}" | grep '^[<>]' || true; } \
-		| head -40 | sed 's/^/    /'
-	status=1
+	echo "    ${sel}"
+	fail
 fi
 
-echo "==> qcheck app-ai/hermes-agent"
-if [ -z "$(qcheck -B app-ai/hermes-agent 2>&1)" ]; then
-	echo "    all Portage-owned files intact"
+echo "==> 4. User site-packages (pip --user)"
+usersite=$("${PY}" -c 'import site; print(site.getusersitepackages())')
+if [ -d "${usersite}" ] && [ -n "$(ls -A "${usersite}")" ]; then
+	echo "    ${usersite}: $(ls -A "${usersite}" | wc -l) entries, shadows system packages"
+	fail
 else
-	{ qcheck app-ai/hermes-agent 2>&1 | grep -v '^ \* Checking' || true; } \
-		| head -20 | sed 's/^/    /'
-	status=1
-fi
-
-echo "==> files modified outside /home since the baseline"
-# `|| true`: head closes the pipe early on long lists (SIGPIPE + pipefail).
-# /etc/hosts, hostname and resolv.conf are written by podman at start.
-changed=$(find / -xdev \
-	\( -path /home -o -path /tmp -o -path /var/tmp -o -path /proc -o -path /sys \
-	   -o -path /dev -o -path /run -o -path /root -o -path "${STATE}" \
-	   -o -path /etc/hosts -o -path /etc/hostname -o -path /etc/resolv.conf \) -prune \
-	-o -type f -newer "${STATE}/stamp" -print 2>/dev/null | head -40 || true)
-if [ -z "${changed}" ]; then
 	echo "    none"
-else
-	echo "${changed}" | sed 's/^/    /'
-	status=1
 fi
 
-echo "==> Hermes pm stores (expected absent unless a test created them)"
-for home in /home/*; do
-	[ -d "${home}/.hermes/tools" ] || continue
-	echo "    ${home}/.hermes/tools: $(du -sh "${home}/.hermes/tools" | cut -f1)" \
-		"($(ls "${home}/.hermes/tools" | grep -v facts.json | tr '\n' ' '))"
+echo "==> What pm and plugin installs left in ${HERMES_HOME} (report only)"
+for d in tools installs plugins; do
+	p="${HERMES_HOME}/${d}"
+	[ -e "${p}" ] || { echo "    ${d}: absent"; continue; }
+	echo "    ${d}: $(du -sh "${p}" 2>/dev/null | cut -f1)  ($(ls -A "${p}" | tr '\n' ' '))"
 done
 
 if [ "${status}" -eq 0 ]; then
-	echo "PASS: system unchanged"
+	echo "PASS: Hermes runs on Portage's Python and packages only"
 else
-	echo "FAIL: system files changed (see above)"
+	echo "FAIL: see above"
 fi
 exit "${status}"

@@ -100,17 +100,30 @@ Podman and fall back to Docker.
 it. For runtime experiments with `app-ai/hermes-agent` (plugins, config,
 upgrades), use the long-lived lab instead:
 
-```/dev/null/example.sh#L1-4
+```/dev/null/example.sh#L1-6
 scripts/hermes-lab.sh build      # localhost/hermes-lab:<newest ebuild>, ~20 min
 scripts/hermes-lab.sh up         # container "hermes-lab", overlay mounted ro
 scripts/hermes-lab.sh run 'hermes plugins list'   # as unprivileged user lab
-scripts/hermes-lab.sh check      # PASS = nothing outside /home changed
+scripts/hermes-lab.sh root 'emerge -1 =app-ai/hermes-agent-<ver>'  # try an edit
+scripts/hermes-lab.sh check      # PASS = Hermes runs only on Portage's Python
+scripts/hermes-lab.sh snapshot <tag>   # keep a state; `reset <tag>` returns to it
 ```
 
 Sources are in `containers/hermes-lab/` (local only; CI does not build
-it). `emerge` inside the lab is allowed (`hermes-lab.sh root ...`); run
+it). The lab is a sandbox: build the image once per Hermes release, and
+try ebuild or patch changes by emerging them into the running lab (the
+live overlay is `/var/db/repos/adaptive-overlay` inside), not by
+rebuilding the image. `emerge` inside the lab is allowed; run
 `hermes plugins install`, `hermes pm` and similar only there, never on a
 host. `reset` discards all lab state.
+
+`check` (`containers/hermes-lab/lab-check-system`) fails if a file of
+Python, `dev-python/*` or hermes-agent differs from Portage's CONTENTS,
+if pip/uv left unowned files in the system site-packages,
+`/usr/local/lib*/python*` or as python scripts in `/usr/bin` or
+`/usr/local/bin`, if Hermes would boot on a pm env, or if `~/.local`
+site-packages has content. It is read-only and runs on a host in a few
+seconds (`bash containers/hermes-lab/lab-check-system`).
 
 ### Linting
 
