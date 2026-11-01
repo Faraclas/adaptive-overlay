@@ -84,10 +84,14 @@ src_install() {
 		README.md \
 		VERSION \
 		pyproject.toml \
+		uv.lock \
 		launcher.py \
 		server.py \
+		devtools \
+		docs \
 		ouroboros \
 		prompts \
+		scripts \
 		skills \
 		supervisor \
 		tests \

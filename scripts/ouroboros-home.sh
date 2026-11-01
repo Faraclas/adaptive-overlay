@@ -143,12 +143,13 @@ from ouroboros.utils import write_text_atomic
 s = dict(load_settings())
 s[\"OPENAI_COMPATIBLE_BASE_URL\"] = \"https://api.business.githubcopilot.com\"
 s[\"OPENAI_COMPATIBLE_API_KEY\"] = os.environ[\"COPILOT_GITHUB_TOKEN\"].strip()
-s[\"OUROBOROS_MODEL\"] = \"openai-compatible::claude-sonnet-5.5\"
-s[\"OUROBOROS_MODEL_LIGHT\"] = \"openai-compatible::claude-haiku-5.5\"
-s[\"OUROBOROS_MODEL_FALLBACKS\"] = \"openai-compatible::claude-opus-5.5,openai-compatible::gemini-4-argon\"
-s[\"OUROBOROS_MODEL_VISION\"] = \"openai-compatible::claude-sonnet-5.5\"
-s[\"OUROBOROS_MODEL_CONSCIOUSNESS\"] = \"openai-compatible::claude-haiku-5.5\"
-s[\"OUROBOROS_MODEL_SAFETY\"] = \"openai-compatible::claude-haiku-5.5\"
+s[\"OUROBOROS_MODEL\"] = \"openai-compatible::gpt-6.1-sol\"
+s[\"OUROBOROS_MODEL_LIGHT\"] = \"openai-compatible::gpt-6-luna\"
+s[\"OUROBOROS_MODEL_HEAVY\"] = \"openai-compatible::claude-opus-5.5\"
+s[\"OUROBOROS_MODEL_FALLBACKS\"] = \"openai-compatible::claude-opus-5.5,openai-compatible::gpt-6.1-terra,openai-compatible::claude-sonnet-5.5\"
+s[\"OUROBOROS_MODEL_VISION\"] = \"openai-compatible::gpt-6.1-sol\"
+s[\"OUROBOROS_MODEL_CONSCIOUSNESS\"] = \"openai-compatible::gpt-6.1-sol\"
+s[\"OUROBOROS_MODEL_SAFETY\"] = \"openai-compatible::gpt-6-luna\"
 to_write = prepare_settings_for_persist(s, authored_keys=(\"OUROBOROS_MODEL_SAFETY\",), allow_safety_lowering=True)
 write_text_atomic(SETTINGS_PATH, serialize_settings(to_write))
 "
@@ -202,7 +203,6 @@ up)
         # etc.) forwarded into the container without duplicating secrets on disk.
         PASSTHROUGH_VARS=(
             ${OUROBOROS_PASSTHROUGH_VARS:-
-                OPENAI_API_KEY
                 ANTHROPIC_API_KEY
                 OPENROUTER_API_KEY
                 DEEPSEEK_API_KEY
