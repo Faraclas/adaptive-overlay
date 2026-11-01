@@ -22,6 +22,8 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     rm -rf /var/db/repos/adaptive-overlay; \
     ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay; \
     mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license; \
+    getuto; \
+    grep -q getbinpkg /etc/portage/make.conf || sed -i 's/FEATURES="/FEATURES="getbinpkg binpkg-request-signature /' /etc/portage/make.conf; \
     cp /mnt/adaptive-overlay/containers/package.accept_keywords \
         /etc/portage/package.accept_keywords/zz-adaptive-overlay; \
     cp /mnt/adaptive-overlay/containers/package.license \
@@ -43,10 +45,10 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
         > /etc/portage/repos.conf/adaptive-overlay.conf; \
     rm -rf /var/db/repos/gentoo /var/db/repos/adaptive-overlay; \
     emaint sync -a; \
-    rm -rf /var/tmp/portage/* /var/cache/distfiles/*; \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/* /var/cache/binhost/*; \
     useradd -m -u 1000 -G portage,wheel -s /bin/bash agent; \
     mkdir -p /etc/sudoers.d; \
-    printf 'Defaults:agent !requiretty, setenv\nagent ALL=(root) NOPASSWD: /usr/bin/emerge, /usr/bin/ebuild, /usr/bin/pkgcheck, /usr/bin/pkgdev, /usr/bin/egencache, /usr/bin/eselect, /usr/bin/emaint, /usr/bin/etc-update, /usr/bin/dispatch-conf\n' \
+    printf 'Defaults:agent !requiretty, setenv\nagent ALL=(root) NOPASSWD: /usr/bin/emerge, /usr/bin/ebuild, /usr/bin/pkgcheck, /usr/bin/pkgdev, /usr/bin/egencache, /usr/bin/eselect, /usr/bin/emaint, /usr/bin/etc-update, /usr/bin/dispatch-conf, /usr/bin/gcc-config, /usr/bin/getuto\n' \
         > /etc/sudoers.d/agent-portage; \
     chmod 0440 /etc/sudoers.d/agent-portage; \
     install -d -o agent -g agent -m 0755 \

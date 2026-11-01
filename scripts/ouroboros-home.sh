@@ -170,6 +170,7 @@ build)
     echo "==> Building ${IMAGE}:${VERSION} using ${RUNTIME}"
     echo "    Overlay : ${OVERLAY_DIR}"
     "${RUNTIME}" build \
+        --pull=newer \
         -f "${OVERLAY_DIR}/containers/ouroboros-home/Containerfile" \
         --build-arg "OUROBOROS_VERSION=${VERSION}" \
         --build-arg "MAKEOPTS=-j$(nproc)" \
