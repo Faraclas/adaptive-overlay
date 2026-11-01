@@ -18,11 +18,7 @@ RUN mkdir -p /etc/portage && \
     getuto && \
     printf 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox getbinpkg binpkg-request-signature"\n' \
     >> /etc/portage/make.conf && \
-    printf 'PORTAGE_BINHOST="https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/"\n' \
-    >> /etc/portage/make.conf && \
     printf 'MAKEOPTS="-j8"\n' \
-    >> /etc/portage/make.conf && \
-    printf 'PYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' \
     >> /etc/portage/make.conf
 
 

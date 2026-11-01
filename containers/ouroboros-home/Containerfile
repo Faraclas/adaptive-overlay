@@ -1,71 +1,102 @@
 # ouroboros-home: persistent Gentoo habitat for razzant/ouroboros.
 #
-# Portage compiles and owns the Python interpreter, C/Rust/Cython extensions
-# (tree-sitter, tree-sitter-language-pack, pydantic-core, primp, pillow,
-# cryptography), Node.js, Git, and ripgrep. The mutable Ouroboros repository
-# ("brain") lives on a host-mounted volume at /home/agent/ouroboros, placed
-# first on PYTHONPATH, while durable state lives at /home/agent/data.
+# Standalone origin: starts directly from upstream Gentoo stage3
+# (amd64-desktop-systemd) + portage, completely decoupled from the ephemeral
+# CI testenv* containers.
+#
+# All packages — including the GCC 16 toolchain (with LTO), base stage3 @world,
+# and Ory's runtime/developer stack (Python, Rust, Go, Node.js, C/Rust/Cython
+# extensions, Git, GitHub CLI, pkgcheck, pkgdev) — are compiled from source
+# (-getbinpkg) with Panther's native Zen 5 (-march=native / AVX-512) flags,
+# capped at 8 CPU threads (-j8).
 #
 # Local only; CI does not build or publish this image.
 # Use scripts/ouroboros-home.sh from the repo root:
 #   podman build -f containers/ouroboros-home/Containerfile \
 #       --build-arg OUROBOROS_VERSION=7.9.0 -t localhost/ouroboros-home:7.9.0 .
 
-FROM ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
+FROM docker.io/gentoo/portage:latest AS portage
+FROM docker.io/gentoo/stage3:amd64-desktop-systemd
 
-ARG OUROBOROS_VERSION
+COPY --from=portage /var/db/repos/gentoo /var/db/repos/gentoo
+
+ARG OUROBOROS_VERSION=7.9.0
 ARG MAKEOPTS="-j8"
 
+# ---------------------------------------------------------------------------
+# Layer 1: Native Zen 5 Portage configuration & repository registration
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    rm -rf /etc/portage/binrepos.conf /var/cache/binhost; \
+    mkdir -p \
+        /etc/portage/package.accept_keywords \
+        /etc/portage/package.license \
+        /etc/portage/package.use \
+        /etc/portage/repos.conf \
+        /var/db/repos/adaptive-overlay; \
+    printf 'COMMON_FLAGS="-march=native -O2 -pipe"\nCFLAGS="${COMMON_FLAGS}"\nCXXFLAGS="${COMMON_FLAGS}"\nFCFLAGS="${COMMON_FLAGS}"\nFFLAGS="${COMMON_FLAGS}"\nCPU_FLAGS_X86="aes avx avx2 avx512_bf16 avx512_bitalg avx512_vbmi2 avx512_vnni avx512_vp2intersect avx512_vpopcntdq avx512bw avx512cd avx512dq avx512f avx512ifma avx512vbmi avx512vl avx_vnni bmi1 bmi2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"\nRUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"\nMAKEOPTS="%s"\nCARGO_BUILD_JOBS="8"\nEMERGE_DEFAULT_OPTS="--jobs=1 --load-average=8"\nACCEPT_LICENSE="*"\nLLVM_TARGETS="X86 AMDGPU"\nLC_MESSAGES=C.utf8\nL10N="en en-US"\nFEATURES="-getbinpkg -ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\nPYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' "${MAKEOPTS}" \
+        > /etc/portage/make.conf; \
+    printf 'sys-devel/gcc lto\ndev-lang/rust clippy lto rust-analyzer rust-src rustfmt\n' \
+        > /etc/portage/package.use/sys-devel; \
+    printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nauto-sync = no\n' \
+        > /etc/portage/repos.conf/gentoo.conf; \
+    printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nauto-sync = no\n' \
+        > /etc/portage/repos.conf/adaptive-overlay.conf
+
+# ---------------------------------------------------------------------------
+# Layer 2: Rebuild the compiler toolchain with native Zen 5 + LTO
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    MAKEOPTS="${MAKEOPTS}" emerge --oneshot --quiet-build sys-apps/portage; \
+    MAKEOPTS="${MAKEOPTS}" emerge --oneshot --quiet-build \
+        sys-devel/binutils \
+        sys-devel/gcc \
+        sys-libs/glibc; \
+    gcc-config 1 || true; \
+    . /etc/profile; \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/*
+
+# ---------------------------------------------------------------------------
+# Layer 3: Rebuild the entire base stage3 @world with the new Zen 5 toolchain
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    MAKEOPTS="${MAKEOPTS}" emerge --emptytree --quiet-build @world; \
+    MAKEOPTS="${MAKEOPTS}" emerge --depclean --quiet; \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/*
+
+# ---------------------------------------------------------------------------
+# Layer 4: Emerge Ory's habitat packages, enable git-synced overlays & user
+# ---------------------------------------------------------------------------
 RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     set -eux; \
     test -n "${OUROBOROS_VERSION}"; \
     rm -rf /var/db/repos/adaptive-overlay; \
     ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay; \
-    mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license /etc/portage/package.use; \
-    rm -rf /etc/portage/binrepos.conf /var/cache/binhost; \
-    printf 'COMMON_FLAGS="-march=native -O2 -pipe"\nCFLAGS="${COMMON_FLAGS}"\nCXXFLAGS="${COMMON_FLAGS}"\nFCFLAGS="${COMMON_FLAGS}"\nFFLAGS="${COMMON_FLAGS}"\nCPU_FLAGS_X86="aes avx avx2 avx512_bf16 avx512_bitalg avx512_vbmi2 avx512_vnni avx512_vp2intersect avx512_vpopcntdq avx512bw avx512cd avx512dq avx512f avx512ifma avx512vbmi avx512vl avx_vnni bmi1 bmi2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"\nRUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"\nMAKEOPTS="%s"\nCARGO_BUILD_JOBS="8"\nEMERGE_DEFAULT_OPTS="--jobs=1 --load-average=8"\nACCEPT_LICENSE="*"\nLLVM_TARGETS="X86 AMDGPU"\nLC_MESSAGES=C.utf8\nL10N="en en-US"\nFEATURES="-getbinpkg -ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\nPYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' "${MAKEOPTS}" \
-        > /etc/portage/make.conf; \
-    printf 'sys-devel/gcc lto pgo\n' > /etc/portage/package.use/sys-devel; \
     cp /mnt/adaptive-overlay/containers/package.accept_keywords \
         /etc/portage/package.accept_keywords/zz-adaptive-overlay; \
     cp /mnt/adaptive-overlay/containers/package.license \
         /etc/portage/package.license/zz-adaptive-overlay; \
-    MAKEOPTS="${MAKEOPTS}" emerge --oneshot --quiet-build sys-apps/portage; \
-    MAKEOPTS="${MAKEOPTS}" emerge --update --deep --newuse --quiet-build @world; \
-    MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=1 \
-        app-admin/sudo "=app-ai/ouroboros-${OUROBOROS_VERSION}"; \
-    MAKEOPTS="${MAKEOPTS}" emerge --quiet-build -1 \
-        dev-libs/tree-sitter \
-        dev-python/cryptography \
+    MAKEOPTS="${MAKEOPTS}" emerge --quiet-build \
+        app-admin/sudo \
+        app-eselect/eselect-repository \
+        app-misc/jq \
+        dev-lang/go \
+        dev-lang/rust \
         dev-python/numpy \
-        dev-python/pillow \
-        dev-python/primp \
         dev-python/pydantic \
-        dev-python/pydantic-core \
-        dev-python/tree-sitter \
-        dev-python/tree-sitter-language-pack \
         dev-util/github-cli \
         dev-util/pkgcheck \
         dev-util/pkgdev \
-        dev-vcs/git \
-        sci-libs/openblas \
-        sys-apps/ripgrep; \
-    emerge --noreplace \
-        app-eselect/eselect-repository \
-        dev-lang/go \
-        dev-lang/rust-bin \
-        dev-python/numpy \
-        dev-python/pydantic \
-        dev-util/pkgcheck \
-        dev-util/pkgdev \
-        net-libs/nodejs; \
-    eselect news read all >/dev/null 2>&1 || true; \
+        net-libs/nodejs \
+        "=app-ai/ouroboros-${OUROBOROS_VERSION}"; \
+    eselect repository enable guru; \
     printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nsync-type = git\nsync-uri = https://github.com/gentoo-mirror/gentoo.git\nauto-sync = yes\nsync-depth = 1\nsync-git-verify-commit-signature = yes\nsync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc\nsync-openpgp-keyserver = hkps://keys.gentoo.org\nsync-openpgp-key-refresh-retry-count = 40\nsync-openpgp-key-refresh-retry-overall-timeout = 1200\nsync-openpgp-key-refresh-retry-delay-exp-base = 2\nsync-openpgp-key-refresh-retry-delay-max = 60\nsync-openpgp-key-refresh-retry-delay-mult = 4\n' \
         > /etc/portage/repos.conf/gentoo.conf; \
     printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nsync-type = git\nsync-uri = https://github.com/Faraclas/adaptive-overlay.git\nauto-sync = yes\n' \
         > /etc/portage/repos.conf/adaptive-overlay.conf; \
     rm -rf /var/db/repos/gentoo /var/db/repos/adaptive-overlay; \
     emaint sync -a; \
+    eselect news read all >/dev/null 2>&1 || true; \
     rm -rf /var/tmp/portage/* /var/cache/distfiles/*; \
     useradd -m -u 1000 -G portage,wheel -s /bin/bash agent; \
     mkdir -p /etc/sudoers.d; \

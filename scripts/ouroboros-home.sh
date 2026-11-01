@@ -167,10 +167,12 @@ build)
     done
     VERSION="${VERSION:-$(latest_version)}"
     [ -n "${VERSION}" ] || { echo "error: no app-ai/ouroboros ebuild found." >&2; exit 1; }
-    echo "==> Building ${IMAGE}:${VERSION} using ${RUNTIME}"
+    echo "==> Building ${IMAGE}:${VERSION} using ${RUNTIME} (capped at ${OUROBOROS_CPUS:-8} CPUs)"
     echo "    Overlay : ${OVERLAY_DIR}"
     "${RUNTIME}" build \
         --pull=newer \
+        --cpu-period=100000 \
+        --cpu-quota="$(( ${OUROBOROS_CPUS:-8} * 100000 ))" \
         -f "${OVERLAY_DIR}/containers/ouroboros-home/Containerfile" \
         --build-arg "OUROBOROS_VERSION=${VERSION}" \
         --build-arg "MAKEOPTS=-j${OUROBOROS_JOBS:-8}" \
