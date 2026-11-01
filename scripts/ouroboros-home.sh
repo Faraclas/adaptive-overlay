@@ -120,6 +120,10 @@ bootstrap_brain_if_empty() {
         set -euo pipefail
         git config --global user.name "Elias Faraclas"
         git config --global user.email "10173012+Faraclas@users.noreply.github.com"
+        if [ -f /home/agent/.ssh/id_ed25519 ]; then
+            git config --global url."git@github.com:Faraclas/ouroboros.git".insteadOf "https://github.com/Faraclas/ouroboros.git"
+            git config --global url."git@github.com:Faraclas/ouroboros.git".insteadOf "https://github.com/Faraclas/ouroboros"
+        fi
         if [ ! -d /home/agent/ouroboros/.git ]; then
             echo "==> Bootstrapping /home/agent/ouroboros from /usr/share/ouroboros/seed"
             cp -a /usr/share/ouroboros/seed/. /home/agent/ouroboros/
