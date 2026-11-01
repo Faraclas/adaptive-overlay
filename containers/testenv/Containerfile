@@ -17,6 +17,8 @@ COPY --from=portage /var/db/repos/gentoo /var/db/repos/gentoo
 RUN mkdir -p /etc/portage && \
     printf 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\n' \
     >> /etc/portage/make.conf && \
+    printf 'MAKEOPTS="-j8"\n' \
+    >> /etc/portage/make.conf && \
     printf 'PYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' \
     >> /etc/portage/make.conf
 

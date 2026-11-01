@@ -25,6 +25,7 @@ FROM ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest
 # -----------------------------------------------------------------------
 # Portage: disable sandbox features that fail in rootless containers
 RUN mkdir -p /etc/portage && \
+    getuto && \
     echo 'FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox -usersandbox getbinpkg binpkg-request-signature"' \
     >> /etc/portage/make.conf && \
     echo 'MAKEOPTS="-j3"' >> /etc/portage/make.conf && \
