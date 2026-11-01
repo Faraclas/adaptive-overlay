@@ -221,6 +221,7 @@ up)
                 EXTRA_ARGS+=(-e "${var}")
             fi
         done
+        EXTRA_ARGS+=(-e "OPENAI_API_KEY=")
         # Optional override file if you ever want container-specific tokens
         # different from your host shell environment.
         if [ -f "${CONFIG_DIR}/.env" ]; then
