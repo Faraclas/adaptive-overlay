@@ -31,7 +31,7 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     rm -rf /var/tmp/portage/* /var/cache/distfiles/*; \
     useradd -m -u 1000 -G portage,wheel -s /bin/bash agent; \
     mkdir -p /etc/sudoers.d; \
-    printf 'agent ALL=(root) NOPASSWD: /usr/bin/emerge, /usr/bin/ebuild, /usr/bin/pkgcheck, /usr/bin/pkgdev, /usr/bin/egencache\n' \
+    printf 'Defaults:agent !requiretty, setenv\nagent ALL=(root) NOPASSWD: /usr/bin/emerge, /usr/bin/ebuild, /usr/bin/pkgcheck, /usr/bin/pkgdev, /usr/bin/egencache, /usr/bin/eselect, /usr/bin/emaint, /usr/bin/etc-update, /usr/bin/dispatch-conf\n' \
         > /etc/sudoers.d/agent-portage; \
     chmod 0440 /etc/sudoers.d/agent-portage; \
     install -d -o agent -g agent -m 0755 \

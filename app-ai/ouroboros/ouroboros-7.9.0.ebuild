@@ -29,6 +29,7 @@ SLOT="0"
 RESTRICT="test"
 
 RDEPEND="
+	dev-util/github-cli
 	dev-vcs/git
 	net-libs/nodejs
 	sys-apps/ripgrep
