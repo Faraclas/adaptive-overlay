@@ -129,6 +129,25 @@ bootstrap_brain_if_empty() {
             git -C /home/agent/ouroboros remote add upstream https://github.com/razzant/ouroboros.git || true
             git -C /home/agent/ouroboros add -A
             git -C /home/agent/ouroboros commit -q -m "Initial seed bootstrap from Portage"
+            git -C /home/agent/ouroboros tag -f v7.9.0 HEAD
+        fi
+        if [ ! -f /home/agent/data/settings.json ] && [ -n "${COPILOT_GITHUB_TOKEN:-}" ]; then
+            python3 -c "
+import os
+from ouroboros.config import SETTINGS_PATH, load_settings, prepare_settings_for_persist, serialize_settings
+from ouroboros.utils import write_text_atomic
+s = dict(load_settings())
+s[\"OPENAI_COMPATIBLE_BASE_URL\"] = \"https://api.business.githubcopilot.com\"
+s[\"OPENAI_COMPATIBLE_API_KEY\"] = os.environ[\"COPILOT_GITHUB_TOKEN\"].strip()
+s[\"OUROBOROS_MODEL\"] = \"openai-compatible::claude-sonnet-5.5\"
+s[\"OUROBOROS_MODEL_LIGHT\"] = \"openai-compatible::claude-haiku-5.5\"
+s[\"OUROBOROS_MODEL_FALLBACKS\"] = \"openai-compatible::claude-opus-5.5,openai-compatible::gemini-4-argon\"
+s[\"OUROBOROS_MODEL_VISION\"] = \"openai-compatible::claude-sonnet-5.5\"
+s[\"OUROBOROS_MODEL_CONSCIOUSNESS\"] = \"openai-compatible::claude-haiku-5.5\"
+s[\"OUROBOROS_MODEL_SAFETY\"] = \"openai-compatible::claude-haiku-5.5\"
+to_write = prepare_settings_for_persist(s, authored_keys=(\"OUROBOROS_MODEL_SAFETY\",), allow_safety_lowering=True)
+write_text_atomic(SETTINGS_PATH, serialize_settings(to_write))
+"
         fi
     '
 }
@@ -239,7 +258,7 @@ start-server)
 stop-server)
     need_running
     "${RUNTIME}" exec -u agent "${NAME}" bash -lc '
-        pkill -f "/home/agent/ouroboros/server.py" 2>/dev/null || true
+        pkill -f "[/]home/agent/ouroboros/server.py" 2>/dev/null || true
     '
     echo "Ouroboros server stopped."
     ;;
