@@ -80,6 +80,7 @@ jobs:
         with:
           context: .
           file: containers/testenv/Containerfile
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

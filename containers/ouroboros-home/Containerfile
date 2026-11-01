@@ -30,8 +30,15 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
         /etc/portage/package.accept_keywords/zz-adaptive-overlay; \
     cp /mnt/adaptive-overlay/containers/package.license \
         /etc/portage/package.license/zz-adaptive-overlay; \
-    MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=8 \
+    MAKEOPTS="${MAKEOPTS}" emerge --oneshot --quiet-build sys-apps/portage; \
+    MAKEOPTS="${MAKEOPTS}" emerge --update --deep --newuse --quiet-build @world; \
+    MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=1 \
         app-admin/sudo "=app-ai/ouroboros-${OUROBOROS_VERSION}"; \
+    MAKEOPTS="${MAKEOPTS}" emerge --quiet-build -1 \
+        dev-python/numpy \
+        dev-python/pydantic \
+        dev-util/pkgcheck \
+        dev-util/pkgdev; \
     emerge --noreplace \
         app-eselect/eselect-repository \
         dev-lang/go \
@@ -41,6 +48,7 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
         dev-util/pkgcheck \
         dev-util/pkgdev \
         net-libs/nodejs; \
+    eselect news read all >/dev/null 2>&1 || true; \
     printf '[DEFAULT]\nmain-repo = gentoo\n\n[gentoo]\nlocation = /var/db/repos/gentoo\nsync-type = git\nsync-uri = https://github.com/gentoo-mirror/gentoo.git\nauto-sync = yes\nsync-depth = 1\nsync-git-verify-commit-signature = yes\nsync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc\nsync-openpgp-keyserver = hkps://keys.gentoo.org\nsync-openpgp-key-refresh-retry-count = 40\nsync-openpgp-key-refresh-retry-overall-timeout = 1200\nsync-openpgp-key-refresh-retry-delay-exp-base = 2\nsync-openpgp-key-refresh-retry-delay-max = 60\nsync-openpgp-key-refresh-retry-delay-mult = 4\n' \
         > /etc/portage/repos.conf/gentoo.conf; \
     printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nsync-type = git\nsync-uri = https://github.com/Faraclas/adaptive-overlay.git\nauto-sync = yes\n' \

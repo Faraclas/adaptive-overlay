@@ -31,8 +31,12 @@ RUN mkdir -p /var/db/repos/adaptive-overlay /etc/portage/repos.conf && \
     printf '[adaptive-overlay]\nlocation = /var/db/repos/adaptive-overlay\nmasters = gentoo\nauto-sync = no\n' \
         > /etc/portage/repos.conf/adaptive-overlay.conf
 
-# Install overlay tooling
-RUN emerge --oneshot --quiet-build --update --deep dev-util/pkgcheck dev-util/pkgdev
+# Update Portage and @world against the freshly copied ::gentoo tree, then
+# install overlay tooling.
+RUN MAKEOPTS="-j8" emerge --oneshot --quiet-build sys-apps/portage && \
+    MAKEOPTS="-j8" emerge --update --deep --newuse --quiet-build @world && \
+    MAKEOPTS="-j8" emerge --oneshot --quiet-build --update --deep dev-util/pkgcheck dev-util/pkgdev && \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/*
 
 # Add GURU overlay for third-party dependencies (like interception-tools)
 RUN emerge --oneshot --quiet-build app-eselect/eselect-repository && \
