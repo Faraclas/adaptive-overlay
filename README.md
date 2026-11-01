@@ -12,6 +12,7 @@ main Gentoo repository.
 Currently included packages:
 
 - **app-ai/hermes-agent** - The agent that grows with you
+- **app-ai/ouroboros** - Self-creating AI agent with constitution and persistent identity
 - **app-editors/zed** - Fast, collaborative code editor
 - **app-misc/ai-voice-server** - A self-hosted, highly accurate, and GPU-accelerated voice dictation pipeline
 - **dev-util/agent-browser** - Browser automation CLI for AI agents (Chrome over CDP)
@@ -24,6 +25,7 @@ Currently included packages:
 - **dev-python/openai** - The official Python library for the OpenAI API
 - **dev-python/primp** - HTTP client that can impersonate web browsers
 - **dev-python/sse-starlette** - Server-Sent Events for Starlette and FastAPI
+- **dev-python/tree-sitter-language-pack** - Comprehensive collection of 160+ tree-sitter language parsers
 - **media-gfx/d2** - Diagram scripting language with SVG, PNG, and PDF export
 - **media-gfx/d2-mcp** - Local stdio MCP server using the installed D2 renderer
 - **media-sound/amp-locker** - Audio plugin locker

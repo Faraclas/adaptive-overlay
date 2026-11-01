@@ -1,0 +1,37 @@
+#!/bin/bash
+# home-check-system — verify that ouroboros-home still uses only Portage's
+# system Python packages plus the mounted /home/agent/ouroboros brain checkout.
+set -euo pipefail
+
+FAIL=0
+pass() { echo "  ok   $*"; }
+fail() { echo "  FAIL $*" >&2; FAIL=$((FAIL + 1)); }
+
+echo "==> Checking ouroboros-home Python hygiene"
+
+if [ "${PYTHONNOUSERSITE:-}" = "1" ]; then
+    pass "PYTHONNOUSERSITE=1 active"
+else
+    fail "PYTHONNOUSERSITE is not set to 1"
+fi
+
+USER_SITE=$(find "${HOME}/.local" -path '*/site-packages/*' 2>/dev/null | head -n 5 || true)
+if [ -z "${USER_SITE}" ]; then
+    pass "~/.local site-packages is empty"
+else
+    fail "~/.local site-packages contains files: ${USER_SITE}"
+fi
+
+LOCAL_LIB=$(find /usr/local/lib /usr/local/lib64 -name '*.py' -o -name '*.so' 2>/dev/null | head -n 5 || true)
+if [ -z "${LOCAL_LIB}" ]; then
+    pass "/usr/local/lib* has no unmanaged Python modules"
+else
+    fail "/usr/local/lib* contains unmanaged files: ${LOCAL_LIB}"
+fi
+
+if [ "${FAIL}" -eq 0 ]; then
+    echo "PASS: ouroboros-home Python environment is clean."
+else
+    echo "FAIL: ${FAIL} check(s) failed." >&2
+    exit 1
+fi

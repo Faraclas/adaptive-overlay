@@ -41,7 +41,7 @@ deployed.
 | Skills / workflows | `.agent/skills/` (if present) |
 | Upstream issues behind local patches | `issues/` (see `issues/README.md`) |
 | CI scripts | `scripts/` |
-| Container sources | `containers/` (`testenv*` published by CI; `hermes-lab` local only) |
+| Container sources | `containers/` (`testenv*` published by CI; `hermes-lab` and `ouroboros-home` local only) |
 
 ---
 

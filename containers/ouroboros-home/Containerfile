@@ -1,0 +1,62 @@
+# ouroboros-home: persistent Gentoo habitat for razzant/ouroboros.
+#
+# Portage compiles and owns the Python interpreter, C/Rust/Cython extensions
+# (tree-sitter, tree-sitter-language-pack, pydantic-core, primp, pillow,
+# cryptography), Node.js, Git, and ripgrep. The mutable Ouroboros repository
+# ("brain") lives on a host-mounted volume at /home/agent/ouroboros, placed
+# first on PYTHONPATH, while durable state lives at /home/agent/data.
+#
+# Local only; CI does not build or publish this image.
+# Use scripts/ouroboros-home.sh from the repo root:
+#   podman build -f containers/ouroboros-home/Containerfile \
+#       --build-arg OUROBOROS_VERSION=7.9.0 -t localhost/ouroboros-home:7.9.0 .
+
+FROM ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
+
+ARG OUROBOROS_VERSION
+ARG MAKEOPTS="-j16"
+
+RUN --mount=type=bind,target=/mnt/adaptive-overlay \
+    set -eux; \
+    test -n "${OUROBOROS_VERSION}"; \
+    rm -rf /var/db/repos/adaptive-overlay; \
+    ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay; \
+    mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license; \
+    cp /mnt/adaptive-overlay/containers/package.accept_keywords \
+        /etc/portage/package.accept_keywords/zz-adaptive-overlay; \
+    cp /mnt/adaptive-overlay/containers/package.license \
+        /etc/portage/package.license/zz-adaptive-overlay; \
+    MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=8 \
+        app-admin/sudo "=app-ai/ouroboros-${OUROBOROS_VERSION}"; \
+    rm -rf /var/tmp/portage/* /var/cache/distfiles/*; \
+    useradd -m -u 1000 -G portage,wheel -s /bin/bash agent; \
+    mkdir -p /etc/sudoers.d; \
+    printf 'agent ALL=(root) NOPASSWD: /usr/bin/emerge, /usr/bin/ebuild, /usr/bin/pkgcheck, /usr/bin/pkgdev, /usr/bin/egencache\n' \
+        > /etc/sudoers.d/agent-portage; \
+    chmod 0440 /etc/sudoers.d/agent-portage; \
+    install -d -o agent -g agent -m 0755 \
+        /home/agent/ouroboros \
+        /home/agent/data \
+        /home/agent/.cargo \
+        /workspaces/projects \
+        /workspaces/subagent_worktrees \
+        /workspaces/Deliverables; \
+    su - agent -c "ouroboros --help >/dev/null && python3 -c 'import ouroboros.markdown_source as m, tree_sitter_language_pack as t; assert t.get_parser(\"markdown\") is not None'"
+
+ENV OUROBOROS_REPO_DIR=/home/agent/ouroboros \
+    OUROBOROS_DATA_DIR=/home/agent/data \
+    OUROBOROS_PID_FILE=/home/agent/data/ouroboros.pid \
+    OUROBOROS_SUBAGENT_PROJECTS_ROOT=/workspaces/projects \
+    OUROBOROS_SUBAGENT_WORKTREE_ROOT=/workspaces/subagent_worktrees \
+    OUROBOROS_DELIVERABLES_ROOT=/workspaces/Deliverables \
+    OUROBOROS_FILE_BROWSER_DEFAULT=/workspaces \
+    OUROBOROS_SERVER_HOST=0.0.0.0 \
+    OUROBOROS_SERVER_PORT=8765 \
+    PYTHONPATH=/home/agent/ouroboros \
+    PYTHONNOUSERSITE=1 \
+    PIP_USER=0
+
+EXPOSE 8765
+USER agent
+WORKDIR /home/agent
+CMD ["sleep", "infinity"]

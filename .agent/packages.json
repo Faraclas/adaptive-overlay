@@ -127,6 +127,28 @@
     "notes": "SemVer tags (e.g. v0.22.5) since 2026-10; date tags (v2026.9.x) are retired. Ignore +canary tags."
   },
   {
+    "category": "app-ai",
+    "name": "ouroboros",
+    "upstream_repo": "razzant/ouroboros",
+    "upstream_type": "github-release",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Self-modifying autonomous agent; runs inside containers/ouroboros-home via scripts/ouroboros-home.sh. Strips unused gigachat and huggingface_hub deps and relaxes mcp/tree-sitter upper bounds."
+  },
+  {
+    "category": "dev-python",
+    "name": "tree-sitter-language-pack",
+    "upstream_repo": "Goldziher/tree-sitter-language-pack",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(0\\..*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "Pinned to 0.9.x line for razzant/ouroboros AST grammar compatibility (1.x changed grammar/node-type behavior)."
+  },
+  {
     "category": "app-misc",
     "name": "ai-voice-server",
     "upstream_repo": "Faraclas/ai-voice-server",

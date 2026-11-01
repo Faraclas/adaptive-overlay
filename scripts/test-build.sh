@@ -116,7 +116,7 @@ if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
-elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ]; then
+elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ] || [ "${PACKAGE_DIR}" = "app-ai/ouroboros" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-python-heavy/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
