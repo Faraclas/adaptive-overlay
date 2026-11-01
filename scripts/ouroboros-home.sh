@@ -173,7 +173,7 @@ build)
         --pull=newer \
         -f "${OVERLAY_DIR}/containers/ouroboros-home/Containerfile" \
         --build-arg "OUROBOROS_VERSION=${VERSION}" \
-        --build-arg "MAKEOPTS=-j$(nproc)" \
+        --build-arg "MAKEOPTS=-j${OUROBOROS_JOBS:-8}" \
         -t "${IMAGE}:${VERSION}" -t "${IMAGE}:latest" \
         "${OVERLAY_DIR}"
     echo "==> Built ${IMAGE}:${VERSION} (also :latest)."
@@ -230,6 +230,7 @@ up)
         "${RUNTIME}" run -d --init \
             --name "${NAME}" \
             --hostname "${NAME}" \
+            --cpus="${OUROBOROS_CPUS:-8}" \
             "${EXTRA_ARGS[@]}" \
             -p "127.0.0.1:${PORT}:8765" \
             -v "${OVERLAY_DIR}:/mnt/adaptive-overlay:ro" \

@@ -14,7 +14,7 @@
 FROM ghcr.io/faraclas/adaptive-overlay/testenv-python-heavy:latest
 
 ARG OUROBOROS_VERSION
-ARG MAKEOPTS="-j16"
+ARG MAKEOPTS="-j8"
 
 RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     set -eux; \
@@ -23,7 +23,7 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     ln -s /mnt/adaptive-overlay /var/db/repos/adaptive-overlay; \
     mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license /etc/portage/package.use; \
     rm -rf /etc/portage/binrepos.conf /var/cache/binhost; \
-    printf 'COMMON_FLAGS="-march=native -O2 -pipe"\nCFLAGS="${COMMON_FLAGS}"\nCXXFLAGS="${COMMON_FLAGS}"\nFCFLAGS="${COMMON_FLAGS}"\nFFLAGS="${COMMON_FLAGS}"\nCPU_FLAGS_X86="aes avx avx2 avx512_bf16 avx512_bitalg avx512_vbmi2 avx512_vnni avx512_vp2intersect avx512_vpopcntdq avx512bw avx512cd avx512dq avx512f avx512ifma avx512vbmi avx512vl avx_vnni bmi1 bmi2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"\nRUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"\nMAKEOPTS="%s"\nACCEPT_LICENSE="*"\nLLVM_TARGETS="X86 AMDGPU"\nLC_MESSAGES=C.utf8\nL10N="en en-US"\nFEATURES="-getbinpkg -ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\nPYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' "${MAKEOPTS}" \
+    printf 'COMMON_FLAGS="-march=native -O2 -pipe"\nCFLAGS="${COMMON_FLAGS}"\nCXXFLAGS="${COMMON_FLAGS}"\nFCFLAGS="${COMMON_FLAGS}"\nFFLAGS="${COMMON_FLAGS}"\nCPU_FLAGS_X86="aes avx avx2 avx512_bf16 avx512_bitalg avx512_vbmi2 avx512_vnni avx512_vp2intersect avx512_vpopcntdq avx512bw avx512cd avx512dq avx512f avx512ifma avx512vbmi avx512vl avx_vnni bmi1 bmi2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"\nRUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"\nMAKEOPTS="%s"\nCARGO_BUILD_JOBS="8"\nEMERGE_DEFAULT_OPTS="--jobs=1 --load-average=8"\nACCEPT_LICENSE="*"\nLLVM_TARGETS="X86 AMDGPU"\nLC_MESSAGES=C.utf8\nL10N="en en-US"\nFEATURES="-getbinpkg -ipc-sandbox -network-sandbox -pid-sandbox -usersandbox"\nPYTHON_TARGETS="python3_14"\nPYTHON_SINGLE_TARGET="python3_14"\n' "${MAKEOPTS}" \
         > /etc/portage/make.conf; \
     printf 'sys-devel/gcc lto pgo\n' > /etc/portage/package.use/sys-devel; \
     cp /mnt/adaptive-overlay/containers/package.accept_keywords \
