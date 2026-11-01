@@ -35,10 +35,21 @@ RUN --mount=type=bind,target=/mnt/adaptive-overlay \
     MAKEOPTS="${MAKEOPTS}" emerge --quiet --jobs=1 \
         app-admin/sudo "=app-ai/ouroboros-${OUROBOROS_VERSION}"; \
     MAKEOPTS="${MAKEOPTS}" emerge --quiet-build -1 \
+        dev-libs/tree-sitter \
+        dev-python/cryptography \
         dev-python/numpy \
+        dev-python/pillow \
+        dev-python/primp \
         dev-python/pydantic \
+        dev-python/pydantic-core \
+        dev-python/tree-sitter \
+        dev-python/tree-sitter-language-pack \
+        dev-util/github-cli \
         dev-util/pkgcheck \
-        dev-util/pkgdev; \
+        dev-util/pkgdev \
+        dev-vcs/git \
+        sci-libs/openblas \
+        sys-apps/ripgrep; \
     emerge --noreplace \
         app-eselect/eselect-repository \
         dev-lang/go \
