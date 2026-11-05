@@ -69,6 +69,63 @@ else
     fail "import-level checks"
 fi
 
+COPILOT_PLUGIN="$SITE/plugins/model-providers/github-copilot"
+if [ ! -f "$SITE/hermes_cli/copilot_auth.py" ]; then
+    # 0.22.6+: Copilot left core; USE=copilot ships the github-copilot plugin.
+    echo "--- Copilot plugin (bundled; synthetic credentials, no network) ---"
+    if [[ " ${USE:-} " == *" -copilot "* ]]; then
+        if [ ! -e "$COPILOT_PLUGIN" ]; then
+            pass "copilot disabled: plugin not installed"
+        else
+            fail "copilot disabled but the plugin was installed"
+        fi
+    elif [ ! -f "$COPILOT_PLUGIN/__init__.py" ]; then
+        fail "github-copilot plugin missing from plugins/model-providers"
+    elif [ -e "$COPILOT_PLUGIN/tests" ]; then
+        fail "github-copilot plugin tests were installed"
+    elif env -i PATH="$PATH" PYTHONPATH="$SITE" HOME=/nonexistent-fixture/copilot \
+        HERMES_HOME=/nonexistent-fixture/copilot python3 -c '
+import sys
+from pathlib import Path
+from unittest.mock import patch
+import providers
+assert Path(providers.__file__).resolve().is_relative_to(Path(sys.argv[1]).resolve())
+from providers import get_provider_profile
+from agent.provider_route_hooks import route_answer
+from hermes_cli import models
+from hermes_cli.left_core_migration import plugin_present
+
+for name in ("copilot", "copilot-acp"):
+    assert get_provider_profile(name) is not None, name
+assert plugin_present("github-copilot", Path("/nonexistent-fixture/copilot"))
+
+host = "https://api.business.githubcopilot.com"
+for key, integration in [("github_pat_fixture", "copilot-developer-cli"),
+                         ("tid=exchanged", "vscode-chat")]:
+    for images in (False, True):
+        h = route_answer("client_headers", provider="copilot", base_url=host,
+                         api_key=key, has_images=images)
+        assert h["Copilot-Integration-Id"] == integration, (key, images)
+        assert ("Copilot-Vision-Request" in h) is images
+
+def cfg(base_url):
+    return patch.object(models, "_get_model_config_dict",
+                        return_value={"provider": "copilot", "base_url": base_url})
+for url in (host, host + "/", "https://api.individual.githubcopilot.com"):
+    with cfg(url):
+        assert models._configured_relay_base_url("copilot") == "", url
+for url in (host + "/v1", host + ":8443", "http://api.business.githubcopilot.com",
+            "https://relay.example.com/v1"):
+    with cfg(url):
+        assert models._configured_relay_base_url("copilot") == url, url
+' "$SITE" 2>&1; then
+        pass "copilot plugin loads from the bundle; PAT integration id; plan host is native"
+    else
+        fail "Copilot plugin behavioral checks"
+    fi
+fi
+
+if [ -f "$SITE/hermes_cli/copilot_auth.py" ]; then
 echo "--- Copilot PAT discovery (synthetic credentials, no network) ---"
 if PYTHONPATH="$SITE" python3 -c '
 from unittest.mock import patch
@@ -164,6 +221,7 @@ runpy.run_path(test, run_name="__main__")
 else
     fail "Copilot image header behavioral checks"
 fi
+fi # 0.22.5: Copilot in core
 
 echo "--- Headless Chrome service ---"
 CHROME_UNIT="$IMAGE/usr/lib/systemd/user/hermes-chrome.service"
@@ -178,6 +236,17 @@ if [[ " ${USE:-} " == *" browser "* ]]; then
             "headless Chrome remains available before graphical login"
     else
         fail "browser enabled but headless Chrome service is missing"
+    fi
+    if [ ! -f "$SITE/hermes_cli/copilot_auth.py" ]; then
+        # 0.22.6+: browser_exec (browser-harness) is the only browser tool.
+        check "$IMAGE/etc/hermes/chromium-executable-path" \
+            /usr/libexec/hermes-agent/hermes-agent-browser \
+            "browser_exec launches the system Chrome wrapper"
+        if [ ! -e "$IMAGE/etc/env.d/99hermes-agent-browser" ]; then
+            pass "no agent-browser env.d entry"
+        else
+            fail "stale agent-browser env.d entry installed"
+        fi
     fi
 elif [ ! -e "$CHROME_UNIT" ]; then
     pass "browser disabled: headless Chrome service not installed"

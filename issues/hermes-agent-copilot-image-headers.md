@@ -2,14 +2,16 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-copilot-image-headers.patch` (used by 0.22.5);
-  test `files/test_copilot_image_headers.py`
+  test `files/test_copilot_image_headers.py`. 0.22.7: covered by
+  `files/hermes-agent-copilot-plugin-pat-integration-id.patch` (see
+  `hermes-agent-copilot-pat-catalog.md`)
 - Upstream: none filed (reported in a comment on #51411, 2026-10-04, now
   closed)
 - Status: unfiled (checked 2026-11-05: patch fails on v0.22.7, core
   side obsolete; plugin `346cfe9` unchanged)
-- Drop when: the `github-copilot` plugin sends a PAT-compatible
-  integration ID on image requests. The core-side patch is obsolete after
-  #144788 either way.
+- Drop when: the core patch and test go with the 0.22.5 ebuild. For 0.22.7
+  the plugin patch's `client_headers(api_key=..., has_images=True)` fix
+  replaces it.
 
 ## Problem
 
@@ -31,3 +33,8 @@ instead of replacing.
   that includes #144788 and the plugin; if PAT image requests still fail,
   report to hermes-labs-plugins together with the PAT catalog bug. See
   `hermes-agent-copilot-pat-catalog.md`.
+- 2026-11-05: confirmed on v0.22.7 by reading `agent/client_lifecycle.py`:
+  image requests get `{**default_headers, **image_headers}` from the
+  route's `client_headers(..., api_key=..., has_images=True)`. The plugin
+  patch makes that answer carry `copilot-developer-cli` for a PAT, so one
+  plugin fix covers both bugs; one upstream report for both.

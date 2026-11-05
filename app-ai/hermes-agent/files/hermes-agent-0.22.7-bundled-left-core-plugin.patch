@@ -1,0 +1,121 @@
+Count a bundled model-provider plugin as installed for the left-core migration.
+
+Portage installs the github-copilot plugin into core's plugins/model-providers/,
+where provider discovery loads it for every home. plugin_present() only looked
+in <HERMES_HOME>/plugins/, so every start reported Copilot as "not installed,
+so it is off" (security.allow_lazy_installs: false) or fetched a second copy
+from the catalog.
+Tracking: issues/hermes-agent-bundled-left-core-plugin.md
+
+diff --git a/hermes_cli/left_core_migration.py b/hermes_cli/left_core_migration.py
+index aed24185..6ac19174 100644
+--- a/hermes_cli/left_core_migration.py
++++ b/hermes_cli/left_core_migration.py
+@@ -790,8 +790,13 @@ def claim_kept_notices() -> list[str]:
+ 
+ 
+ def plugin_present(plugin: str, home: Path) -> bool:
+-    """Installed in *home* (enabled or not: a user who disabled it chose to). Read-only."""
+-    return (home / "plugins" / plugin).is_dir()
++    """Installed in *home* (enabled or not: a user who disabled it chose to), or shipped with this
++    core as a bundled model-provider plugin (a distribution package that installs it next to core's
++    own providers, which discovery loads for every home). Read-only."""
++    if (home / "plugins" / plugin).is_dir():
++        return True
++    from providers import _BUNDLED_PLUGINS_DIR
++    return (_BUNDLED_PLUGINS_DIR / plugin / "__init__.py").is_file()
+ 
+ 
+ def _core_carried(feature: LeftCoreFeature, selection: list) -> bool:
+diff --git a/tests/hermes_cli/test_left_core_bundled_plugin.py b/tests/hermes_cli/test_left_core_bundled_plugin.py
+new file mode 100644
+index 00000000..282e5f09
+--- /dev/null
++++ b/tests/hermes_cli/test_left_core_bundled_plugin.py
+@@ -0,0 +1,86 @@
++"""A left-core plugin a distribution package ships in core's bundled ``plugins/model-providers/``
++counts as installed for every home: discovery loads it there, so the migration must neither fetch
++it again nor report the feature as off (with ``security.allow_lazy_installs: false`` it did so on
++every start). Gentoo adaptive-overlay patch (issues/hermes-agent-bundled-left-core-plugin.md)."""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++import hermes_cli.left_core_migration as lcm
++
++
++@pytest.fixture(autouse=True)
++def _fresh(monkeypatch):
++    monkeypatch.setattr(lcm, "_attempted", set())
++    for name in ("HERMES_INFERENCE_PROVIDER", "COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
++        monkeypatch.delenv(name, raising=False)
++    import hermes_cli.memory_provider_migration as mpm
++    monkeypatch.setattr(mpm, "catalog_source", lambda name: name)  # never the network
++
++
++@pytest.fixture
++def bundled(tmp_path, monkeypatch):
++    import providers
++    root = tmp_path / "bundled"
++    root.mkdir()
++    monkeypatch.setattr(providers, "_BUNDLED_PLUGINS_DIR", root)
++    return root
++
++
++@pytest.fixture
++def installs(monkeypatch):
++    calls = []
++
++    def fake_install(identifier, *, force, enable, catalog_name=None, assume_deps_consent=None, **kw):
++        calls.append(catalog_name)
++        return {"ok": False, "error": "fatal: unable to access the catalog repo"}
++    import hermes_cli.plugins_cmd as pc
++    monkeypatch.setattr(pc, "dashboard_install_plugin", fake_install)
++    monkeypatch.delenv("HERMES_DISABLE_LAZY_INSTALLS", raising=False)
++    return calls
++
++
++def _home(tmp_path: Path, monkeypatch) -> Path:
++    home = tmp_path / "home"
++    home.mkdir()
++    (home / "config.yaml").write_text(
++        "model:\n  provider: copilot\nsecurity:\n  allow_lazy_installs: false\n", encoding="utf-8")
++    monkeypatch.setenv("HERMES_HOME", str(home))
++    return home
++
++
++def _ship(bundled: Path, plugin: str = "github-copilot") -> None:
++    (bundled / plugin).mkdir()
++    (bundled / plugin / "__init__.py").write_text("", encoding="utf-8")
++
++
++def test_bundled_plugin_counts_as_present(tmp_path, bundled):
++    home = tmp_path / "home"
++    home.mkdir()
++    assert not lcm.plugin_present("github-copilot", home)
++    (bundled / "github-copilot").mkdir()  # a leftover dir without __init__.py does not count
++    assert not lcm.plugin_present("github-copilot", home)
++    (bundled / "github-copilot" / "__init__.py").write_text("", encoding="utf-8")
++    assert lcm.plugin_present("github-copilot", home)
++
++
++def test_startup_with_lazy_installs_off_is_quiet_when_bundled(tmp_path, monkeypatch, bundled, installs):
++    home = _home(tmp_path, monkeypatch)
++    _ship(bundled)
++    said = []
++    assert lcm.recover_at_startup(say=said.append) == []
++    assert installs == []
++    assert not [m for m in said if "github-copilot" in m]
++    from hermes_cli.config import read_user_config_raw
++    assert "github-copilot" in read_user_config_raw(home / "config.yaml")["_left_core_installed"]
++
++
++def test_startup_without_the_bundled_copy_still_reports_it_off(tmp_path, monkeypatch, bundled, installs):
++    _home(tmp_path, monkeypatch)
++    said = []
++    assert lcm.recover_at_startup(say=said.append) == []
++    assert installs == []
++    assert any("'github-copilot' plugin is not installed" in m for m in said)

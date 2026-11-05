@@ -13,6 +13,10 @@ HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
 # Tag v0.22.7 commit for install-stamp.json provenance
 HERMES_COMMIT="b200f5bc60e31588ba2cb60e288029c4a54ba5fa"
+# github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
+# plugin-catalog/github-copilot.yaml pins. Bump together with that file.
+HERMES_COPILOT_COMMIT="346cfe972f72b6a966e84c1004cf8742554b193d"
+HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
 
 if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
@@ -21,10 +25,16 @@ else
 	SRC_URI="https://github.com/NousResearch/hermes-agent/archive/v${PV}.tar.gz -> ${P}.tar.gz"
 	KEYWORDS="~amd64"
 fi
+SRC_URI+="
+	copilot? (
+		https://github.com/NousResearch/hermes-labs-plugins/archive/${HERMES_COPILOT_COMMIT}.tar.gz
+			-> hermes-labs-plugins-${HERMES_COPILOT_COMMIT}.tar.gz
+	)
+"
 
 LICENSE="MIT"
 SLOT="0"
-IUSE="browser computer-use +dashboard discord +mcp +websearch"
+IUSE="browser computer-use +copilot +dashboard discord +mcp +websearch"
 # Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
 # RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
 # when solving deps on musl profiles.
@@ -75,7 +85,7 @@ RDEPEND="
 	dev-python/aiohttp[${PYTHON_USEDEP}]
 	dev-python/firecrawl-anydoc[${PYTHON_USEDEP}]
 	net-libs/nodejs
-	browser? ( dev-util/agent-browser )
+	browser? ( dev-python/browser-harness[${PYTHON_USEDEP}] )
 	elibc_glibc? (
 		browser? (
 			|| (
@@ -148,21 +158,26 @@ PATCHES=(
 	# action="release" to end this session's desktop connection cleanly, and
 	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
 	"${FILESDIR}/${PN}-0.22.2-computer-use-release-reconnect.patch"
-	# Copilot PAT catalog transport and profile-scoped token resolution.
-	"${FILESDIR}/${PN}-copilot-pat-discovery.patch"
-	# Preserve effective integration/custom headers on native image requests.
-	"${FILESDIR}/${PN}-copilot-image-headers.patch"
 	# Find install-stamp.json in hermes_cli/, where python_install puts it.
 	"${FILESDIR}/${PN}-0.22.5-install-stamp-path.patch"
-	# Live Copilot catalog for a plan host (api.business.githubcopilot.com)
-	# in model.base_url instead of the static fallback list.
-	"${FILESDIR}/${PN}-0.22.5-copilot-plan-host-catalog.patch"
+	# Live catalog for a plan host (api.business.githubcopilot.com) in
+	# model.base_url instead of the static fallback list.
+	"${FILESDIR}/${PN}-0.22.7-copilot-plan-host-catalog.patch"
+	# The bundled github-copilot plugin counts as installed: no "Copilot is
+	# off" notice and no catalog fetch of a second copy on every start.
+	"${FILESDIR}/${PN}-0.22.7-bundled-left-core-plugin.patch"
 )
 
 src_prepare() {
 	sed -i -e "s/version = \"0.0.0\"/version = \"${PV}\"/" pyproject.toml || die
 	export HERMES_NIX_BUILD=1
-	cp "${FILESDIR}/test_copilot_image_headers.py" tests/agent/ || die
+
+	if use copilot; then
+		pushd "${HERMES_COPILOT_S}" >/dev/null || die
+		# A fine-grained PAT needs the copilot-developer-cli integration id.
+		eapply "${FILESDIR}/${PN}-copilot-plugin-pat-integration-id.patch"
+		popd >/dev/null || die
+	fi
 
 	cat >> hermes_bootstrap.py <<- 'EOF' || die
 
@@ -172,11 +187,6 @@ src_prepare() {
 	        os.environ.setdefault("HERMES_NODE", "/usr/bin/node")
 	    if os.path.isfile("/usr/bin/cua-driver"):
 	        os.environ.setdefault("HERMES_CUA_DRIVER_CMD", "/usr/bin/cua-driver")
-	    if os.path.isfile("/usr/libexec/hermes-agent/hermes-agent-browser"):
-	        os.environ.setdefault(
-	            "AGENT_BROWSER_EXECUTABLE_PATH",
-	            "/usr/libexec/hermes-agent/hermes-agent-browser",
-	        )
 	EOF
 
 	cat > "${T}/install-stamp.json" <<- EOF || die
@@ -223,6 +233,13 @@ python_install() {
 
 	python_domodule skills optional-skills plugins locales optional-mcps
 
+	if use copilot; then
+		# Next to core's own providers, where provider discovery loads it for
+		# every profile; not in ${S}, whose tests expect no bundled Copilot.
+		python_moduleinto plugins/model-providers/github-copilot
+		python_domodule "${HERMES_COPILOT_S}"/{__init__.py,plugin.yaml,copilot,copilot_acp}
+	fi
+
 	python_moduleinto hermes_cli
 	python_domodule "${T}/install-stamp.json"
 
@@ -242,9 +259,13 @@ src_install() {
 	newconfd "${FILESDIR}/hermesagent.confd" "hermesagent"
 	newinitd "${FILESDIR}/hermesagent.initd" "hermesagent"
 	if use browser; then
-		newenvd "${FILESDIR}/hermes-agent.env" "99hermes-agent-browser"
 		exeinto /usr/libexec/hermes-agent
 		doexe "${FILESDIR}/hermes-agent-browser"
+		# browser_exec launches this Chromium when no CDP endpoint is set
+		# (read by hermes_cli/browser_runtime.py, else it wants pm's own).
+		insinto /etc/hermes
+		echo /usr/libexec/hermes-agent/hermes-agent-browser \
+			| newins - chromium-executable-path
 		systemd_douserunit "${FILESDIR}/hermes-chrome.service"
 	fi
 	if use dashboard; then
@@ -258,6 +279,11 @@ pkg_postinst() {
 	elog "  Hermes cannot pip-install optional deps into a Portage install;"
 	elog "  make missing features fail fast instead:"
 	elog "    1. hermes config set security.allow_lazy_installs false"
+	if use copilot; then
+		elog "  GitHub Copilot (left Hermes core in 0.22.6) ships as the bundled"
+		elog "  github-copilot plugin; it loads without plugins.enabled. Do not run"
+		elog "  'hermes plugins install github-copilot'."
+	fi
 
 	elog " "
 	elog "===== Hermes gateway (messaging, cron, kanban dispatcher) ====="
@@ -284,17 +310,16 @@ pkg_postinst() {
 	if use browser; then
 		elog " "
 		elog "===== Hermes browser tools ====="
-		elog "  Uses dev-util/agent-browser with your system Chrome (prefers"
-		elog "  google-chrome-beta, then -stable, then google-chrome, then chromium)."
-		elog "  Setup (as your user):"
-		elog "    1. . /etc/profile   (or log in again; picks up env.d)"
-		elog "    2. hermes config set browser.backend off"
-		elog "       (the Browser Use CLI backend is not packaged)"
+		elog "  browser_exec (dev-python/browser-harness) drives your system Chrome"
+		elog "  (prefers google-chrome-beta, then -stable, then google-chrome, then"
+		elog "  chromium; see /etc/hermes/chromium-executable-path). From 0.22.6 the"
+		elog "  built-in browser_* tools and agent-browser are gone; config migration"
+		elog "  52 drops browser.backend."
 		elog "  Optional, persistent headless Chrome shared by all sessions"
-		elog "  (CDP on 127.0.0.1:9222, profile ~/.hermes/chrome-debug):"
-		elog "    3. systemctl --user enable --now hermes-chrome"
-		elog "    4. hermes config set browser.cdp_url http://127.0.0.1:9222"
-		elog "    5. hermes gateway restart"
+		elog "  (CDP on 127.0.0.1:9222, profile ~/.hermes/chrome-debug), as your user:"
+		elog "    1. systemctl --user enable --now hermes-chrome"
+		elog "    2. hermes config set browser.cdp_url http://127.0.0.1:9222"
+		elog "    3. hermes gateway restart"
 		elog "  Undo: systemctl --user disable --now hermes-chrome"
 		elog "        hermes config set browser.cdp_url ''"
 		elog "  Warning: any local program can drive that browser through the"
