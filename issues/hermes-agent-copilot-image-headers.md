@@ -5,10 +5,11 @@
   test `files/test_copilot_image_headers.py`. 0.22.7: covered by
   `files/hermes-agent-copilot-plugin-pat-integration-id.patch` (see
   `hermes-agent-copilot-pat-catalog.md`)
-- Upstream: none filed (reported in a comment on #51411, 2026-10-04, now
-  closed)
-- Status: unfiled (checked 2026-11-05: patch fails on v0.22.7, core
-  side obsolete; plugin `346cfe9` unchanged)
+- Upstream: reported in a comment on #51411 (2026-10-04, now closed);
+  plugin side filed with the PAT catalog bug as
+  https://github.com/NousResearch/hermes-labs-plugins/issues/63
+- Status: open (filed and checked 2026-11-05: patch fails on v0.22.7,
+  core side obsolete; plugin `346cfe9` unchanged)
 - Drop when: the core patch and test go with the 0.22.5 ebuild. For 0.22.7
   the plugin patch's `client_headers(api_key=..., has_images=True)` fix
   replaces it.
@@ -37,4 +38,5 @@ instead of replacing.
   image requests get `{**default_headers, **image_headers}` from the
   route's `client_headers(..., api_key=..., has_images=True)`. The plugin
   patch makes that answer carry `copilot-developer-cli` for a PAT, so one
-  plugin fix covers both bugs; one upstream report for both.
+  plugin fix covers both bugs; one upstream report for both
+  (hermes-labs-plugins#63).
