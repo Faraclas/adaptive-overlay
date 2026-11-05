@@ -219,6 +219,10 @@ src_prepare() {
 	local KHRONOS_EGL_GIT="khronos-egl = { git = \"https://github.com/zed-industries/khronos-egl\", rev = \"${KHRONOS_EGL_COMMIT}\" }"
 	local KHRONOS_EGL_PATH="khronos-egl = { path = \"${WORKDIR}/khronos-egl-${KHRONOS_EGL_COMMIT}\" }"
 
+	local CRASH_CONTEXT_COMMIT="911b04e09b79b736cc15cbe712e83e2d3f348bb9"
+	local CRASH_CONTEXT_GIT="crash-context = { git = \"https://github.com/rust-minidump/minidump-writer\", rev = \"${CRASH_CONTEXT_COMMIT}\" }"
+	local CRASH_CONTEXT_PATH="crash-context = { path = \"${WORKDIR}/minidump-writer-${CRASH_CONTEXT_COMMIT}/crates/crash-context\" }"
+
 	local TREE_SITTER_COMMIT="803c6ebaac27d69e1808b45058482e868d073ceb"
 	local TREE_SITTER_GIT="tree-sitter = { git = \"https://github.com/tree-sitter/tree-sitter\", rev = \"${TREE_SITTER_COMMIT}\" }"
 	local TREE_SITTER_PATH="tree-sitter = \\{ path = \"${WORKDIR}/tree-sitter-${TREE_SITTER_COMMIT}/lib\" \\}"
@@ -247,6 +251,7 @@ src_prepare() {
 		-e "s#${ASYNC_TASK_GIT}#${ASYNC_TASK_PATH}#" \
 		-e "s#${CPAL_GIT}#${CPAL_PATH}#" \
 		-e "s#${KHRONOS_EGL_GIT}#${KHRONOS_EGL_PATH}#" \
+		-e "s#${CRASH_CONTEXT_GIT}#${CRASH_CONTEXT_PATH}#" \
 		-e "s#${TREE_SITTER_GIT}#${TREE_SITTER_PATH}#" \
 		-e "s#${TREE_SITTER_LANGUAGE_GIT}#${TREE_SITTER_LANGUAGE_PATH}#" \
 		-e "s#${LIVEKIT_GIT}#${LIVEKIT_PATH}#" \

@@ -261,10 +261,22 @@ When `--apply` does its global sed replacement of old→new commit hashes,
 these variables are updated automatically (because they contain the same
 hash string). No separate action is needed for existing repos.
 
-For **new** repos that need `src_prepare()` handling: this is rare. It
-only applies when the upstream `Cargo.toml` uses workspace-level path
-overrides that conflict with the git checkout layout. Most git deps
-work fine with just a `GIT_CRATES` entry.
+For **new** repos that need `src_prepare()` handling: most git deps
+work fine with just a `GIT_CRATES` entry. The exception is any git
+entry under `[patch.crates-io]` in zed's root `Cargo.toml`: cargo
+cannot redirect a patch source through the eclass's `[patch."<url>"]`
+config, so the build fails offline with `failed to load source for
+dependency `<crate>`` / `you are in the offline mode`. Every such entry
+needs a `*_COMMIT` / `*_GIT` / `*_PATH` triple and a `-e` line in the
+`src_prepare()` sed (see `KHRONOS_EGL` or `CRASH_CONTEXT`; append the
+subpath to `*_PATH` for a crate inside a workspace). Check with:
+
+```sh
+sed -n '/^\[patch.crates-io\]/,/^\[profile/p' Cargo.toml | grep 'git ='
+```
+
+and compare against the old version's list (zed 1.27.0 added
+`crash-context` this way).
 
 ---
 
