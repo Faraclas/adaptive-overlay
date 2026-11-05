@@ -16,6 +16,7 @@ declare -A GIT_CRATES=(
 	[candle-nn]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-nn'
 	[candle-onnx]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-onnx'
 	[cpal]='https://github.com/RustAudio/cpal;e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7;cpal-%commit%'
+	[crash-context]='https://github.com/rust-minidump/minidump-writer;911b04e09b79b736cc15cbe712e83e2d3f348bb9;minidump-writer-%commit%/crates/crash-context'
 	[dap-types]='https://github.com/zed-industries/dap-types;1b461b310481d01e02b2603c16d7144b926339f8;dap-types-%commit%/dap-types'
 	[gh-workflow-macros]='https://github.com/zed-industries/gh-workflow;37f3c0575d379c218a9c455ee67585184e40d43f;gh-workflow-%commit%/crates/gh-workflow-macros'
 	[gh-workflow]='https://github.com/zed-industries/gh-workflow;37f3c0575d379c218a9c455ee67585184e40d43f;gh-workflow-%commit%/crates/gh-workflow'
@@ -25,11 +26,12 @@ declare -A GIT_CRATES=(
 	[livekit-protocol]='https://github.com/zed-industries/livekit-rust-sdks;0a1c519cfce9b365229026b55de9b9dbdb6fed3c;livekit-rust-sdks-%commit%/livekit-protocol'
 	[livekit-runtime]='https://github.com/zed-industries/livekit-rust-sdks;0a1c519cfce9b365229026b55de9b9dbdb6fed3c;livekit-rust-sdks-%commit%/livekit-runtime'
 	[livekit]='https://github.com/zed-industries/livekit-rust-sdks;0a1c519cfce9b365229026b55de9b9dbdb6fed3c;livekit-rust-sdks-%commit%/livekit'
-	[lsp-types]='https://github.com/zed-industries/lsp-types;f1783e63a7f4eb4397bf51d4148b4895a1f7ab16;lsp-types-%commit%'
-	[naga]='https://github.com/gfx-rs/wgpu;3b3506ea31154edc04de64debda0e780cba2639c;wgpu-%commit%/naga'
+	[lsp-types]='https://github.com/zed-industries/lsp-types;82d7fc66ebdfabcfeb26ba16bbed9f3d26211fc3;lsp-types-%commit%'
+	[naga]='https://github.com/gfx-rs/wgpu;cddb2f5d80dc0009b2ef6767635140cacf90a007;wgpu-%commit%/naga'
 	[notify-types]='https://github.com/zed-industries/notify;d842f16b2716bd60f09caf3ae3a894237ab38f54;notify-%commit%/notify-types'
 	[notify]='https://github.com/zed-industries/notify;d842f16b2716bd60f09caf3ae3a894237ab38f54;notify-%commit%/notify'
 	[nvim-rs]='https://github.com/KillTheMule/nvim-rs;764dd270c642f77f10f3e19d05cc178a6cbe69f3;nvim-rs-%commit%'
+	[oo7]='https://github.com/zed-industries/oo7;731c1215edb6905876c6137ab300428c7b8d7c13;oo7-%commit%/client'
 	[pet-conda]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-conda'
 	[pet-core]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-core'
 	[pet-env-var-path]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-env-var-path'
@@ -57,31 +59,31 @@ declare -A GIT_CRATES=(
 	[pet-windows-store]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-windows-store'
 	[pet-winpython]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet-winpython'
 	[pet]='https://github.com/zed-industries/python-environment-tools;5aad7164bfc2a58977b103c8ef8fdd7302ed2e9f;python-environment-tools-%commit%/crates/pet'
-	[proptest]='https://github.com/proptest-rs/proptest;3dca198a8fef1b32e3a66f1e1897c955b4dc5b5b;proptest-%commit%/proptest'
 	[merman]='https://github.com/zed-industries/merman;a3ed8d9f3fd1d74c802f25ed9edd501743796504;merman-%commit%/crates/merman'
 	[rodio]='https://github.com/RustAudio/rodio;3ee9745862279ce1d18db593155016e7ce024aeb;rodio-%commit%'
 	[trash]='https://github.com/zed-industries/trash-rs;41c6c800d884a89351f3b8856d12894cccee261d;trash-rs-%commit%'
-	[tree-sitter]='https://github.com/tree-sitter/tree-sitter;43623ec9bf0eaaf7113285c46e8a09018f181b18;tree-sitter-%commit%/lib'
+	[tree-sitter]='https://github.com/tree-sitter/tree-sitter;803c6ebaac27d69e1808b45058482e868d073ceb;tree-sitter-%commit%/lib'
 	[tree-sitter-cpp]='https://github.com/tree-sitter/tree-sitter-cpp;5cb9b693cfd7bfacab1d9ff4acac1a4150700609;tree-sitter-cpp-%commit%'
 	[tree-sitter-gitcommit]='https://github.com/zed-industries/tree-sitter-git-commit;88309716a69dd13ab83443721ba6e0b491d37ee9;tree-sitter-git-commit-%commit%'
+	[tree-sitter-go]='https://github.com/zed-industries/tree-sitter-go;6862a49e3c5a7567a6c576420e9a8f944e198a85;tree-sitter-go-%commit%'
 	[tree-sitter-gomod]='https://github.com/camdencheek/tree-sitter-go-mod;2e886870578eeba1927a2dc4bd2e2b3f598c5f9a;tree-sitter-go-mod-%commit%'
 	[tree-sitter-gowork]='https://github.com/zed-industries/tree-sitter-go-work;acb0617bf7f4fda02c6217676cc64acb89536dc7;tree-sitter-go-work-%commit%'
 	[tree-sitter-heex]='https://github.com/zed-industries/tree-sitter-heex;1dd45142fbb05562e35b2040c6129c9bca346592;tree-sitter-heex-%commit%'
-	[tree-sitter-language]='https://github.com/tree-sitter/tree-sitter;43623ec9bf0eaaf7113285c46e8a09018f181b18;tree-sitter-%commit%/crates/language'
+	[tree-sitter-language]='https://github.com/tree-sitter/tree-sitter;803c6ebaac27d69e1808b45058482e868d073ceb;tree-sitter-%commit%/crates/language'
 	[tree-sitter-md]='https://github.com/zed-industries/tree-sitter-markdown;b596e737286780d7bfa9fcddceaeeb754574b352;tree-sitter-markdown-%commit%'
 	[tree-sitter-typescript]='https://github.com/zed-industries/tree-sitter-typescript;e2c53597d6a5d9cf7bbe8dccde576fe1e46c5899;tree-sitter-typescript-%commit%'
 	[tree-sitter-yaml]='https://github.com/zed-industries/tree-sitter-yaml;baff0b51c64ef6a1fb1f8390f3ad6015b83ec13a;tree-sitter-yaml-%commit%'
 	[wasm_thread]='https://github.com/zed-industries/wasm_thread;0cf96c7708dfb97ccf3da50347e25edcf75d6937;wasm_thread-%commit%'
 	[webrtc-sys-build]='https://github.com/zed-industries/livekit-rust-sdks;0a1c519cfce9b365229026b55de9b9dbdb6fed3c;livekit-rust-sdks-%commit%/webrtc-sys/build'
 	[webrtc-sys]='https://github.com/zed-industries/livekit-rust-sdks;0a1c519cfce9b365229026b55de9b9dbdb6fed3c;livekit-rust-sdks-%commit%/webrtc-sys'
-	[wgpu]='https://github.com/gfx-rs/wgpu;3b3506ea31154edc04de64debda0e780cba2639c;wgpu-%commit%/wgpu'
+	[wgpu]='https://github.com/gfx-rs/wgpu;cddb2f5d80dc0009b2ef6767635140cacf90a007;wgpu-%commit%/wgpu'
 	[windows-capture]='https://github.com/zed-industries/windows-capture;f0d6c1b6691db75461b732f6d5ff56eed002eeb9;windows-capture-%commit%'
 	[wprcontrol]='https://github.com/zed-industries/wprcontrol;cd811f7d744f65291e13131b1d907fda63ed91a1;wprcontrol-%commit%'
 	[xim-ctext]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%/xim-ctext'
 	[xim-parser]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%/xim-parser'
 	[zed-font-kit]='https://github.com/zed-industries/font-kit;94b0f28166665e8fd2f53ff6d268a14955c82269;font-kit-%commit%'
 	[zed-reqwest]='https://github.com/zed-industries/reqwest;33bc764aa15ff7b200bf7c93bd96e24878d53e14;reqwest-%commit%'
-	[zed-scap]='https://github.com/zed-industries/scap;4afea48c3b002197176fb19cd0f9b180dd36eaac;scap-%commit%'
+	[zed-scap]='https://github.com/zed-industries/scap;b5c86ec58dd4b6b7732bf6ac8be03d6b1f190a82;scap-%commit%'
 	[zed-xim]='https://github.com/zed-industries/xim-rs;16f35a2c881b815a2b6cdfd6687988e84f8447d8;xim-rs-%commit%'
 )
 
@@ -217,7 +219,7 @@ src_prepare() {
 	local KHRONOS_EGL_GIT="khronos-egl = { git = \"https://github.com/zed-industries/khronos-egl\", rev = \"${KHRONOS_EGL_COMMIT}\" }"
 	local KHRONOS_EGL_PATH="khronos-egl = { path = \"${WORKDIR}/khronos-egl-${KHRONOS_EGL_COMMIT}\" }"
 
-	local TREE_SITTER_COMMIT="43623ec9bf0eaaf7113285c46e8a09018f181b18"
+	local TREE_SITTER_COMMIT="803c6ebaac27d69e1808b45058482e868d073ceb"
 	local TREE_SITTER_GIT="tree-sitter = { git = \"https://github.com/tree-sitter/tree-sitter\", rev = \"${TREE_SITTER_COMMIT}\" }"
 	local TREE_SITTER_PATH="tree-sitter = \\{ path = \"${WORKDIR}/tree-sitter-${TREE_SITTER_COMMIT}/lib\" \\}"
 	local TREE_SITTER_LANGUAGE_GIT="tree-sitter-language = { git = \"https://github.com/tree-sitter/tree-sitter\", rev = \"${TREE_SITTER_COMMIT}\" }"
