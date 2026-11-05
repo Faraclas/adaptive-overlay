@@ -172,6 +172,39 @@
   },
   {
     "category": "dev-python",
+    "name": "browser-harness",
+    "upstream_repo": "browser-use/browser-harness",
+    "upstream_type": "github-tag",
+    "version_pattern": "v(.*)",
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": true,
+    "notes": "Engine of Hermes' browser_exec tool (core dep from 0.22.7 on). Keep the version hermes-agent's pyproject pins; the ebuild drops the top-level mcp_server module."
+  },
+  {
+    "category": "dev-python",
+    "name": "cdp-use",
+    "upstream_repo": "browser-use/cdp-use",
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "browser-harness dependency (pinned there). Upstream has no tags; follow PyPI and browser-harness's pin."
+  },
+  {
+    "category": "dev-python",
+    "name": "fetch-use",
+    "upstream_repo": null,
+    "upstream_type": "manual",
+    "version_pattern": null,
+    "build_system": "python",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "browser-harness dependency (pinned there); Browser Use cloud fetch client, unused without BROWSER_USE_API_KEY. No public repo; follow PyPI and browser-harness's pin."
+  },
+  {
+    "category": "dev-python",
     "name": "ddgs",
     "upstream_repo": "deedy5/ddgs",
     "upstream_type": "github-tag",

@@ -1,0 +1,153 @@
+github-copilot plugin: send copilot-developer-cli for a fine-grained PAT.
+
+GitHub answers a github_pat_* token sent with Copilot-Integration-Id:
+vscode-chat with HTTP 400 ("Personal Access Tokens are not supported for
+this endpoint"), on /models and on chat. Pick the id from the token in
+copilot_request_headers(), used by the catalog fetch and the client_headers
+hook (text and image clients). Applies to hermes-labs-plugins 346cfe9,
+subdir github-copilot.
+Tracking: issues/hermes-agent-copilot-pat-catalog.md
+
+diff --git a/copilot/catalog.py b/copilot/catalog.py
+index b7a76e10..19b247ff 100644
+--- a/copilot/catalog.py
++++ b/copilot/catalog.py
+@@ -108,11 +108,11 @@ def _resolve_copilot_catalog_api_key() -> str:
+ 
+ # ─── live /models catalog ───
+ 
+-def copilot_default_headers(*, is_agent_turn: bool = True) -> dict[str, str]:
+-    """Standard headers for Copilot API requests."""
++def copilot_default_headers(*, is_agent_turn: bool = True, api_key: str = "") -> dict[str, str]:
++    """Standard headers for Copilot API requests made with *api_key*."""
+     from .credentials import copilot_request_headers
+ 
+-    return copilot_request_headers(is_agent_turn=is_agent_turn)
++    return copilot_request_headers(is_agent_turn=is_agent_turn, api_key=api_key)
+ 
+ 
+ _COPILOT_CHAT_ENDPOINTS = {"/chat/completions", "/responses", "/v1/messages"}
+@@ -180,7 +180,7 @@ def fetch_github_model_catalog(
+ 
+     attempts: list[dict[str, str]] = []
+     if api_key:
+-        attempts.append({**copilot_default_headers(), "Authorization": f"Bearer {api_key}"})
++        attempts.append({**copilot_default_headers(api_key=api_key), "Authorization": f"Bearer {api_key}"})
+     attempts.append(copilot_default_headers())
+ 
+     for headers in attempts:
+diff --git a/copilot/credentials.py b/copilot/credentials.py
+index f67659b2..24305f1b 100644
+--- a/copilot/credentials.py
++++ b/copilot/credentials.py
+@@ -421,11 +421,18 @@ def get_copilot_api_token(raw_token: str) -> tuple[str, Optional[str]]:
+         return raw_token, None
+ 
+ 
++def copilot_integration_id(api_key: str = "") -> str:
++    """``Copilot-Integration-Id`` for *api_key*. GitHub rejects a fine-grained PAT under the editor id
++    (HTTP 400 "Personal Access Tokens are not supported for this endpoint"); the Copilot CLI's id
++    accepts it. OAuth and exchanged tokens keep the editor id."""
++    return "copilot-developer-cli" if str(api_key or "").startswith("github_pat_") else "vscode-chat"
++
++
+ def copilot_request_headers(
+-    *, is_agent_turn: bool = True, is_vision: bool = False) -> dict[str, str]:
+-    """Build the standard headers for Copilot API requests."""
++    *, is_agent_turn: bool = True, is_vision: bool = False, api_key: str = "") -> dict[str, str]:
++    """Build the standard headers for Copilot API requests made with *api_key*."""
+     headers: dict[str, str] = {"Editor-Version": _EDITOR_VERSION, "User-Agent": "HermesAgent/1.0",
+-                               "Copilot-Integration-Id": "vscode-chat",
++                               "Copilot-Integration-Id": copilot_integration_id(api_key),
+                                "Openai-Intent": "conversation-edits",
+                                "x-initiator": "agent" if is_agent_turn else "user"}
+     if is_vision:
+diff --git a/copilot/wire.py b/copilot/wire.py
+index 131ab7ab..73aaf880 100644
+--- a/copilot/wire.py
++++ b/copilot/wire.py
+@@ -47,10 +47,10 @@ def model_api_mode(
+     return "chat_completions"
+ 
+ 
+-def editor_headers(*, is_vision: bool = False) -> dict[str, str]:
++def editor_headers(*, is_vision: bool = False, api_key: str = "") -> dict[str, str]:
+     from .credentials import copilot_request_headers
+ 
+-    return copilot_request_headers(is_agent_turn=True, is_vision=is_vision)
++    return copilot_request_headers(is_agent_turn=True, is_vision=is_vision, api_key=api_key)
+ 
+ 
+ class CopilotWireMixin:
+@@ -64,7 +64,7 @@ class CopilotWireMixin:
+     def client_headers(
+         self, *, base_url: str, api_key: str = "", has_images: bool = False,
+     ) -> dict[str, str] | None:
+-        return editor_headers(is_vision=has_images) if is_copilot_host(base_url) else None
++        return editor_headers(is_vision=has_images, api_key=api_key) if is_copilot_host(base_url) else None
+ 
+     def request_headers(self, *, base_url: str, model: str = "", user_initiated: bool = False) -> dict[str, str]:
+         # First call of a user turn says ``user``; follow-ups keep the client default ``x-initiator: agent``.
+diff --git a/tests/test_copilot_pat_integration_id.py b/tests/test_copilot_pat_integration_id.py
+new file mode 100644
+index 00000000..5eb181ff
+--- /dev/null
++++ b/tests/test_copilot_pat_integration_id.py
+@@ -0,0 +1,57 @@
++"""A fine-grained PAT (``github_pat_*``) needs the Copilot CLI's integration id.
++
++GitHub answers a PAT sent with ``Copilot-Integration-Id: vscode-chat`` with HTTP 400 ("Personal
++Access Tokens are not supported for this endpoint") on the catalog and the chat endpoints; the
++same request with ``copilot-developer-cli`` succeeds. OAuth and exchanged tokens keep
++``vscode-chat``. Gentoo adaptive-overlay patch (issues/hermes-agent-copilot-pat-catalog.md).
++"""
++
++from __future__ import annotations
++
++from unittest.mock import patch
++
++import pytest
++
++import providers as _providers
++
++_providers.get_provider_profile("copilot")  # imports the plugin package
++from github_copilot_plugin.copilot import catalog as copilot_catalog
++
++PAT = "github_pat_fixture"
++CLI_ID = "copilot-developer-cli"
++
++
++@pytest.mark.parametrize("api_key, integration", [
++    (PAT, CLI_ID), ("tid=exchanged", "vscode-chat"), ("gho_oauth", "vscode-chat"), ("", "vscode-chat"),
++])
++@pytest.mark.parametrize("has_images", [False, True])
++def test_client_headers_pick_the_integration_id_for_the_token(api_key, integration, has_images):
++    from agent.provider_route_hooks import route_answer
++
++    headers = route_answer("client_headers", provider="copilot", base_url="https://api.business.githubcopilot.com",
++                           api_key=api_key, has_images=has_images)
++    assert headers["Copilot-Integration-Id"] == integration
++    assert ("Copilot-Vision-Request" in headers) is has_images
++
++
++@pytest.mark.parametrize("api_key, integration", [(PAT, CLI_ID), ("tid=exchanged", "vscode-chat")])
++def test_catalog_request_sends_the_integration_id_for_the_token(api_key, integration):
++    sent = []
++
++    def endpoint(url, *, timeout, headers):
++        sent.append(dict(headers))
++        return {"data": [{"id": "fixture-model", "capabilities": {"type": "chat"}}]}
++
++    with patch.object(copilot_catalog, "_github_model_catalog_cache", None), \
++            patch.object(copilot_catalog, "get_json", endpoint):
++        assert copilot_catalog.fetch_github_model_catalog(api_key=api_key)
++    assert sent[0]["Authorization"] == f"Bearer {api_key}"
++    assert sent[0]["Copilot-Integration-Id"] == integration
++
++
++def test_chat_turn_with_a_pat_sends_the_cli_integration_id():
++    from conftest import offline_chat_turn
++
++    requests = offline_chat_turn("https://api.business.githubcopilot.com", model="gpt-4.1", api_key=PAT)
++    assert requests, "the turn sent no chat request"
++    assert requests[0].headers.get("copilot-integration-id") == CLI_ID

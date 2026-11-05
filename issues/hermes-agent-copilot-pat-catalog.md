@@ -1,17 +1,18 @@
 # hermes-agent: Copilot PAT model catalog fails; scoped token not found
 
 - Package: `app-ai/hermes-agent`
-- Patch: `files/hermes-agent-copilot-pat-discovery.patch` (used by
-  0.22.5)
+- Patch: `files/hermes-agent-copilot-pat-discovery.patch` (core, used by
+  0.22.5); `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
+  (against the github-copilot plugin, used by 0.22.7 with USE=copilot)
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
-  unmerged 2026-10-26); the remaining bug is unfiled against
-  hermes-labs-plugins
-- Status: unfiled (checked 2026-11-05)
-- Drop when: 0.22.5 keeps it. v0.22.6/v0.22.7 contain #144788 and the
-  patch no longer applies (`hermes_cli/copilot_auth.py` is gone); v0.22.7
-  pins the plugin at `346cfe9`, unchanged since the check below, so carry
-  the PAT header fix against the plugin until the plugin ships it.
+  unmerged 2026-10-26); bug 1:
+  https://github.com/NousResearch/hermes-labs-plugins/issues/63
+- Status: open (filed and checked 2026-11-05; plugin `github-copilot/`
+  last changed in `346cfe9`)
+- Drop when: the core patch goes with the 0.22.5 ebuild. The plugin patch
+  goes when the plugin sha core's `plugin-catalog/github-copilot.yaml`
+  pins sends a PAT-compatible integration id.
 
 ## Problem
 
@@ -47,6 +48,10 @@ Two bugs with a fine-grained Copilot PAT (`github_pat_*`):
   reading plugin source, not from running it. Re-test with the first
   packaged Hermes release that includes #144788 and the plugin; file on
   hermes-labs-plugins only if a PAT catalog or image request still fails.
+  Re-tested 2026-11-05: it still fails (see "0.22.7: plugin patch");
+  filed as hermes-labs-plugins#63 (covers the image-headers bug too).
+  Related, not the same: #43 (exchange 404 on Individual plans), #48
+  (classic `ghp_` picked from the credential pool).
 - Kanban card: `hermes_upstream` / t_0d86805f.
 
 ## Observed on 0.22.5 (panther, 2026-10-28)
@@ -76,3 +81,35 @@ Two bugs with a fine-grained Copilot PAT (`github_pat_*`):
   tokens and `hermes auth add copilot` logins. `left_core_migration.py`
   prints a re-login notice for old setups.
 - Rework this patch and the image-headers patch against the plugin.
+  Done for 0.22.7; see the next section.
+
+## 0.22.7: plugin patch (2026-11-05)
+
+Live check on panther, read-only `GET /models` with the real PAT (only
+status codes recorded):
+
+| Host | `vscode-chat` | `copilot-developer-cli` |
+| --- | --- | --- |
+| `api.githubcopilot.com` | 400 | 200 (34 models) |
+| `api.business.githubcopilot.com` | 400 | 200 (34 models) |
+
+The 400 body: "Personal Access Tokens are not supported for this
+endpoint". So bug 1 is real on the plugin, for the catalog and for the
+image client (core 0.22.7 merges `{**default_headers, **image_headers}`,
+and the plugin's image headers carry `vscode-chat`, which beat a
+configured `model.default_headers` id).
+
+The patch adds `copilot_integration_id(api_key)` in
+`copilot/credentials.py` (`copilot-developer-cli` for `github_pat_*`,
+else `vscode-chat`), and passes the key through
+`copilot_request_headers`, `copilot_default_headers` (catalog fetch) and
+`editor_headers` / the `client_headers` hook. Every core caller of
+`client_headers` that builds the main or image client passes `api_key`
+(`agent_init`, `client_lifecycle`, `agent_runtime_helpers`); the
+auxiliary client does not, but it applies `model.default_headers` after.
+
+Tests: `tests/test_copilot_pat_integration_id.py` in the plugin (client
+headers with and without images, catalog request, a real offline chat
+turn). In the lab on v0.22.7: the 4 PAT cases fail on the unpatched
+plugin and pass with the patch; the plugin's whole suite passes (155).
+
