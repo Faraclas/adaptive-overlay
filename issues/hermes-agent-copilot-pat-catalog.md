@@ -7,10 +7,11 @@
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); the remaining bug is unfiled against
   hermes-labs-plugins
-- Status: unfiled (checked 2026-10-26)
-- Drop when: 0.22.x keeps it. From the first release containing #144788
-  the patch cannot apply (`hermes_cli/copilot_auth.py` is gone); carry the
-  PAT header fix against the plugin until the plugin ships it.
+- Status: unfiled (checked 2026-11-05)
+- Drop when: 0.22.5 keeps it. v0.22.6/v0.22.7 contain #144788 and the
+  patch no longer applies (`hermes_cli/copilot_auth.py` is gone); v0.22.7
+  pins the plugin at `346cfe9`, unchanged since the check below, so carry
+  the PAT header fix against the plugin until the plugin ships it.
 
 ## Problem
 

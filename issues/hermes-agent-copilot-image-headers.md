@@ -5,7 +5,8 @@
   test `files/test_copilot_image_headers.py`
 - Upstream: none filed (reported in a comment on #51411, 2026-10-04, now
   closed)
-- Status: unfiled (checked 2026-10-26)
+- Status: unfiled (checked 2026-11-05: patch fails on v0.22.7, core
+  side obsolete; plugin `346cfe9` unchanged)
 - Drop when: the `github-copilot` plugin sends a PAT-compatible
   integration ID on image requests. The core-side patch is obsolete after
   #144788 either way.

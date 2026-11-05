@@ -5,7 +5,8 @@
   by 0.22.5)
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/142480,
   PR https://github.com/NousResearch/hermes-agent/pull/142481
-- Status: open (checked 2026-10-28)
+- Status: open (checked 2026-11-05: #142481 still open; patch fails 1
+  of 2 hunks on v0.22.7, redo with `profile_for_host`)
 - Drop when: a packaged release contains #142481 (or another fix for
   #142480) and the picker lists the live catalog with
   `base_url: https://api.business.githubcopilot.com`.
