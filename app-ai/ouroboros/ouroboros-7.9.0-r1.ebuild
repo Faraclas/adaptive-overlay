@@ -29,13 +29,17 @@ SLOT="0"
 RESTRICT="test"
 
 RDEPEND="
+	dev-libs/nspr
+	dev-libs/nss
 	dev-util/github-cli
 	dev-vcs/git
+	media-libs/alsa-lib
 	net-libs/nodejs
 	sys-apps/ripgrep
 	dev-python/croniter[${PYTHON_USEDEP}]
 	dev-python/ddgs[${PYTHON_USEDEP}]
 	dev-python/dulwich[${PYTHON_USEDEP}]
+	>=dev-python/httptools-0.8.0[${PYTHON_USEDEP}]
 	dev-python/httpx2[${PYTHON_USEDEP}]
 	>=dev-python/jsonschema-4.0[${PYTHON_USEDEP}]
 	>=dev-python/mcp-1.10[${PYTHON_USEDEP}]
@@ -46,6 +50,7 @@ RDEPEND="
 	>=dev-python/pytest-7.0[${PYTHON_USEDEP}]
 	>=dev-python/pytest-timeout-2.1[${PYTHON_USEDEP}]
 	>=dev-python/pytest-xdist-3.5[${PYTHON_USEDEP}]
+	>=dev-python/python-dotenv-0.13[${PYTHON_USEDEP}]
 	dev-python/python-multipart[${PYTHON_USEDEP}]
 	>=dev-python/pyyaml-6.0[${PYTHON_USEDEP}]
 	dev-python/requests[${PYTHON_USEDEP}]
@@ -55,7 +60,9 @@ RDEPEND="
 	>=dev-python/tree-sitter-language-pack-0.9.1[${PYTHON_USEDEP}]
 	>=dev-python/typing-extensions-4.5.0[${PYTHON_USEDEP}]
 	dev-python/tzdata[${PYTHON_USEDEP}]
-	dev-python/uvicorn[${PYTHON_USEDEP}]
+	>=dev-python/uvicorn-0.30[${PYTHON_USEDEP}]
+	>=dev-python/uvloop-0.15.1[${PYTHON_USEDEP}]
+	>=dev-python/watchfiles-0.20[${PYTHON_USEDEP}]
 	dev-python/websockets[${PYTHON_USEDEP}]
 "
 DEPEND="${RDEPEND}"
