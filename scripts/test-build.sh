@@ -86,7 +86,7 @@ if echo "${PACKAGE_DIR}" | grep -qE '^(app-ai|dev-python)/'; then
 elif [ "${PACKAGE_DIR}" = "app-editors/zed" ] || [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust-desktop:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust-desktop:latest"
-elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ]; then
+elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ] || [ "${PACKAGE_DIR}" = "dev-util/ast-grep" ] || [ "${PACKAGE_DIR}" = "sys-apps/sd" ]; then
     LOCAL_IMAGE="localhost/adaptive-overlay-testenv-rust:local"
     REMOTE_IMAGE="ghcr.io/faraclas/adaptive-overlay/testenv-rust:latest"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
@@ -118,7 +118,7 @@ elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ] || [ "${PACKAGE_DIR}" = "app-ai/ouroboros" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-python-heavy/verify-${PACKAGE_NAME}.sh"
-elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ]; then
+elif [ "${PACKAGE_DIR}" = "media-gfx/d2" ] || [ "${PACKAGE_DIR}" = "media-gfx/d2-mcp" ] || [ "${PACKAGE_DIR}" = "dev-util/ast-grep" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_CAT}" = "media-sound" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-audio/verify-${PACKAGE_NAME}.sh"

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>10173012+Faraclas@users.noreply.github.com</email>
+    <name>Elias Faraclas</name>
+  </maintainer>
+  <longdescription>
+    ast-grep is a fast, CLI tool for code structural search, lint, and
+    rewrite based on tree-sitter AST pattern matching.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">ast-grep/ast-grep</remote-id>
+  </upstream>
+</pkgmetadata>
