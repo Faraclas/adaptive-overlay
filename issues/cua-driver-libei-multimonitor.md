@@ -2,14 +2,12 @@
 
 - Package: `x11-misc/cua-driver`
 - Patch: `files/cua-driver-0.38.0-libei-multimonitor.patch` (used by
-  0.38.0-r1)
+  0.38.0-r1 only; 0.43.2 has the upstream fix)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: fixed upstream, not yet released. #5853 merged 2026-10-30 as
-  `1e0da1a`; #5808 closed. Newest cua-driver-rs build then: 0.38.1
-  nightlies from before the merge (checked 2026-10-30).
-- Drop when: a release contains #5853 or an equivalent fix, and a
-  foreground pixel click on the right monitor works without the patch.
+- Status: resolved (0.43.2; checked 2026-11-08)
+- Drop when: no retained ebuild references the patch; 0.43.2 includes the
+  upstream fix.
 
 ## Problem
 
@@ -47,10 +45,8 @@ still works.
   `platform-linux --features portal-input --lib` test binary. Live
   multi-monitor GNOME/KDE testing was still not run upstream.
 - #5853 "onigiri: issue-5808-auto-1" is upstream automation
-  (`Closes #5808`). State on 2026-10-26: open, merge blocked, head
-  `5ae80d3`, review requested. CI not fully green (one flaky updater
-  test, Linux verification-skill job timed out). The PR body says live
-  multi-monitor testing on GNOME/KDE was not run.
+  (`Closes #5808`). It merged 2026-10-30 as `1e0da1a`; the live GitHub
+  API reports both the PR and #5808 closed (checked 2026-11-08).
 - Compared with our patch (2026-10-26), same behaviour:
   - removes the single-`wl_output` clamp in `libei_click`,
     `libei_move_absolute` and `libei_drag`;
@@ -70,9 +66,10 @@ still works.
   - Adds unit tests (with a local EIS test server) and a CI step
     `cargo test -p platform-linux --features portal-input --lib wayland::`.
   - Our error message is richer (lists the announced regions).
-- Conclusion: functionally equivalent, slightly better on drags. Drop our
-  patch for the first release containing #5853, after a live
-  right-monitor test without it.
+- Conclusion: 0.43.2 contains the upstream fix (`wayland/region_route.rs`
+  and `route_absolute`) and no longer applies the local patch. Keep the
+  patch only for the retained 0.38.0 ebuild. A live multi-monitor test was
+  not available during this upgrade.
 - Origin: #5853 came from our report. Issue filed 2026-10-24 02:22 UTC;
   the PR's first commit is 04:37 UTC, PR opened 06:48 UTC, branch
   `onigiri/issue-5808` (looks like upstream's issue-to-PR automation).
@@ -81,12 +78,8 @@ still works.
 
 ## Backlog
 
-- On the first cua-driver-rs release after `1e0da1a`: bump the ebuild
-  without our patch and repeat the live checks on the two-monitor GNOME
-  setup: right-monitor click, scroll and drag; left-monitor Nautilus
-  click; a drag across the monitor edge. Mutter puts both monitors'
-  regions on one device, so that drag should work (upstream test
-  `drag_across_regions_of_one_device...`); it fails cleanly only when
-  the end lies outside the start device's regions. If all pass, drop
-  the patch and this file. Optionally report the live result on #5808.
-  Ask before posting upstream.
+- 0.43.2 is the first checked release containing `1e0da1a`'s fix. The
+  upgraded ebuild no longer applies the patch; the old ebuild still needs
+  it. Remove the patch and this file after no retained ebuild references it.
+  A live right-monitor check remains useful; ask before posting results
+  upstream.

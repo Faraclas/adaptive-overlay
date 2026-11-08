@@ -12,7 +12,7 @@ CRATES="
 	allocator-api2@0.2.21
 	ambient-authority@0.0.2
 	android_system_properties@0.1.5
-	annotate-snippets@0.9.2
+	annotate-snippets@0.11.5
 	anstream@1.0.0
 	anstyle-parse@1.0.0
 	anstyle-query@1.1.5
@@ -22,6 +22,7 @@ CRATES="
 	apple-cf@0.9.3
 	apple-metal@0.6.0
 	apple-native-keyring-store@1.0.2
+	arbitrary@1.4.2
 	arrayref@0.3.9
 	arrayvec@0.7.6
 	ashpd@0.13.11
@@ -49,7 +50,7 @@ CRATES="
 	autocfg@1.5.0
 	base64@0.22.1
 	basic-toml@0.1.10
-	bindgen@0.69.5
+	bindgen@0.72.1
 	bit-set@0.8.0
 	bit-vec@0.8.0
 	bitflags@1.3.2
@@ -80,7 +81,7 @@ CRATES="
 	cbindgen@0.29.4
 	cc@1.2.62
 	cexpr@0.6.0
-	cfg-expr@0.15.8
+	cfg-expr@0.20.9
 	cfg-if@1.0.4
 	chacha20@0.10.1
 	chacha20poly1305@0.11.0
@@ -102,7 +103,6 @@ CRATES="
 	cobs@0.3.0
 	colorchoice@1.0.5
 	concurrent-queue@2.5.0
-	convert_case@0.6.0
 	cookie-factory@0.3.3
 	cookie@0.18.1
 	cookie_store@0.22.1
@@ -172,16 +172,13 @@ CRATES="
 	fs-set-times@0.20.3
 	fs2@0.4.3
 	funty@2.0.0
-	futures-channel@0.3.32
 	futures-core@0.3.32
-	futures-executor@0.3.32
 	futures-io@0.3.32
 	futures-lite@2.6.1
 	futures-macro@0.3.32
 	futures-sink@0.3.32
 	futures-task@0.3.32
 	futures-util@0.3.32
-	futures@0.3.32
 	generic-array@0.14.7
 	gethostname@1.1.0
 	getrandom@0.2.17
@@ -234,14 +231,13 @@ CRATES="
 	keyring-core@1.0.0
 	keyring@4.1.6
 	lazy_static@1.5.0
-	lazycell@1.3.0
 	leb128fmt@0.1.0
 	libc@0.2.186
 	libloading@0.8.9
 	libm@0.2.16
 	libredox@0.1.17
-	libspa-sys@0.8.0
-	libspa@0.8.0
+	libspa-sys@0.10.1
+	libspa@0.10.1
 	linux-raw-sys@0.12.1
 	litemap@0.8.2
 	litrs@1.0.0
@@ -266,7 +262,6 @@ CRATES="
 	native-tls@0.2.18
 	ndarray@0.16.1
 	nix@0.23.2
-	nix@0.27.1
 	nom@1.2.4
 	nom@7.1.3
 	nom@8.0.0
@@ -328,8 +323,7 @@ CRATES="
 	phf_shared@0.12.1
 	pin-project-lite@0.2.17
 	piper@0.2.5
-	pipewire-sys@0.8.0
-	pipewire@0.8.0
+	pipewire-sys@0.10.1
 	pkg-config@0.3.33
 	plain@0.2.3
 	png@0.18.1
@@ -370,15 +364,18 @@ CRATES="
 	regex@1.12.3
 	regorus@0.10.1
 	reis@0.7.0
+	relative-path@2.0.2
 	ring@0.17.14
-	rustc-hash@1.1.0
+	rquickjs-core@0.14.0
+	rquickjs-sys@0.14.0
+	rquickjs@0.14.0
 	rustc-hash@2.1.3
 	rustc_version@0.4.1
 	rustix-linux-procfs@0.1.1
 	rustix@1.1.4
 	rustls-pki-types@1.14.1
-	rustls-webpki@0.103.13
-	rustls@0.23.40
+	rustls-webpki@0.103.16
+	rustls@0.23.45
 	rustversion@1.0.22
 	ryu@1.0.23
 	schannel@0.1.29
@@ -424,10 +421,10 @@ CRATES="
 	subtle@2.6.1
 	syn@2.0.117
 	synstructure@0.13.2
-	system-deps@6.2.2
+	system-deps@7.0.8
 	tap@1.0.1
 	tar@0.4.46
-	target-lexicon@0.12.16
+	target-lexicon@0.13.5
 	tempfile@3.27.0
 	textwrap@0.16.2
 	thiserror-impl@1.0.69
@@ -448,6 +445,7 @@ CRATES="
 	tokio@1.52.1
 	toml@0.8.23
 	toml@0.9.12+spec-1.1.0
+	toml@1.1.3+spec-1.1.0
 	toml_datetime@0.6.11
 	toml_datetime@0.7.5+spec-1.1.0
 	toml_datetime@1.1.1+spec-1.1.0
@@ -469,8 +467,7 @@ CRATES="
 	uds_windows@1.2.1
 	unicode-general-category@1.1.0
 	unicode-ident@1.0.24
-	unicode-segmentation@1.13.3
-	unicode-width@0.1.14
+	unicode-width@0.2.2
 	unicode-xid@0.2.6
 	uniffi@0.31.0
 	uniffi_bindgen@0.31.0
@@ -511,11 +508,12 @@ CRATES="
 	wasmparser@0.244.0
 	wayland-backend@0.3.15
 	wayland-client@0.31.14
+	wayland-protocols-plasma@0.3.12
 	wayland-protocols-wlr@0.3.12
 	wayland-protocols@0.32.12
 	wayland-scanner@0.31.10
 	wayland-sys@0.31.11
-	webpki-roots@1.0.7
+	webpki-roots@1.0.10
 	weedle2@5.0.0
 	weezl@0.1.12
 	winapi-i686-pc-windows-gnu@0.4.0
@@ -593,7 +591,6 @@ CRATES="
 	x11rb@0.13.2
 	xkbcommon@0.9.0
 	xkeysym@0.2.1
-	yansi-term@0.1.2
 	yoke-derive@0.8.2
 	yoke@0.8.2
 	zbus-lockstep-macros@0.5.2
