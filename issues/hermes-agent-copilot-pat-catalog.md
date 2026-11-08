@@ -123,8 +123,18 @@ Same plugin pin (`346cfe9`), so the patch is carried unchanged; CI
 build-test applied it and `verify-hermes-agent.sh` passed the PAT
 integration id checks.
 
-hermes-labs-plugins#69 (5 additions, 1 file) changes only the integration
-id choice. Before dropping our patch for it, check that it also covers the
-catalog fetch and the `client_headers(has_images=True)` path, which our
-patch and tests cover.
+hermes-labs-plugins#69 (head `dfa9f1e`, 5 additions, 1 file) changes only
+`copilot_request_headers()`: it sends `copilot-developer-cli` when
+`resolve_copilot_token()` returns a `github_pat_` token. The catalog
+fetch (`catalog.py`) and the image headers (`wire.py` `editor_headers`)
+both build their headers through that function, so #69 likely covers
+both paths (read from source, not run). It decides from the env/secret
+token, not from the key actually sent, so a mixed setup (PAT in env, a
+different credential sent, or the reverse) could get the wrong id; a
+single PAT in `COPILOT_GITHUB_TOKEN`, as on panther, is fine.
 
+Decision (2026-11-08): do not test or comment on #69 now. It is
+unmerged, so no plugin sha we could pin contains it; keep our patch.
+When a fix lands in plugin `main` and core's catalog pins a sha with it,
+run `tests/test_copilot_pat_integration_id.py` against that sha without
+our patch, then drop the patch.
