@@ -2,9 +2,9 @@
 
 - Package: `x11-misc/cua-driver`
 - Patch: `files/cua-driver-0.28.3-portage-managed.patch` (used by
-  0.28.3-r1, 0.38.0-r1)
+  0.38.0-r1 and 0.43.2)
 - Upstream: none filed
-- Status: local (checked 2026-10-25)
+- Status: local (checked 2026-11-08)
 - Drop when: upstream offers a generic "managed by the system package
   manager" switch we can set at build time.
 
