@@ -38,7 +38,6 @@ RDEPEND="
 	dev-util/ast-grep
 	dev-util/difftastic
 	dev-util/github-cli
-	dev-util/scc
 	dev-vcs/git
 	media-libs/alsa-lib
 	net-libs/nodejs
@@ -46,7 +45,6 @@ RDEPEND="
 	sys-apps/fd
 	sys-apps/ripgrep
 	sys-apps/ripgrep-all
-	sys-apps/sd
 	dev-python/croniter[${PYTHON_USEDEP}]
 	dev-python/ddgs[${PYTHON_USEDEP}]
 	dev-python/dulwich[${PYTHON_USEDEP}]
