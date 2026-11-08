@@ -29,13 +29,24 @@ SLOT="0"
 RESTRICT="test"
 
 RDEPEND="
+	app-benchmarks/hyperfine
+	app-misc/jq
+	app-shells/fzf
 	dev-libs/nspr
 	dev-libs/nss
+	dev-python/uv
+	dev-util/ast-grep
+	dev-util/difftastic
 	dev-util/github-cli
+	dev-util/scc
 	dev-vcs/git
 	media-libs/alsa-lib
 	net-libs/nodejs
+	sys-apps/eza
+	sys-apps/fd
 	sys-apps/ripgrep
+	sys-apps/ripgrep-all
+	sys-apps/sd
 	dev-python/croniter[${PYTHON_USEDEP}]
 	dev-python/ddgs[${PYTHON_USEDEP}]
 	dev-python/dulwich[${PYTHON_USEDEP}]
