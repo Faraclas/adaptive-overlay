@@ -1,7 +1,7 @@
 #!/bin/bash
 # verify-hermes-agent.sh: check the app-ai/hermes-agent build image.
 # Called by scripts/test-build.sh with the portage image directory, e.g.
-#   /var/tmp/portage/app-ai/hermes-agent-0.22.5/image
+#   /var/tmp/portage/app-ai/hermes-agent-0.23.0/image
 set -u
 IMAGE="${1:?usage: verify-hermes-agent.sh <build-image-dir>}"
 PASS=0 FAIL=0
@@ -124,104 +124,6 @@ for url in (host + "/v1", host + ":8443", "http://api.business.githubcopilot.com
         fail "Copilot plugin behavioral checks"
     fi
 fi
-
-if [ -f "$SITE/hermes_cli/copilot_auth.py" ]; then
-echo "--- Copilot PAT discovery (synthetic credentials, no network) ---"
-if PYTHONPATH="$SITE" python3 -c '
-from unittest.mock import patch
-from hermes_cli import models, copilot_auth
-from hermes_cli.models_validate import validate_requested_model
-from agent.secret_scope import set_secret_scope, reset_secret_scope
-
-for key, integration in [("github_pat_fixture", "copilot-developer-cli"),
-                         ("exchanged_oauth_fixture", "vscode-chat")]:
-    seen = []
-    def endpoint(url, *, timeout, headers):
-        assert headers["Authorization"] == "Bearer " + key
-        assert headers["Copilot-Integration-Id"] == integration
-        seen.append(True)
-        return {"data": [{"id": "fixture-new-model"}]}
-    with patch.object(models, "_github_model_catalog_cache", None), \
-         patch.object(models, "_get_json", endpoint), \
-         patch.object(models, "provider_model_ids", return_value=[]):
-        result = validate_requested_model("fixture-new-model", "copilot",
-            api_key=key, base_url=models.COPILOT_BASE_URL)
-        assert result["recognized"] and not result["message"]
-        assert len(seen) == 1
-
-for name in ("a", "b", "a"):
-    token = "github_pat_profile_" + name
-    bound = set_secret_scope({"COPILOT_GITHUB_TOKEN": token},
-                             profile_home="/nonexistent-fixture/" + name)
-    try:
-        assert copilot_auth.resolve_copilot_token() == (token, "COPILOT_GITHUB_TOKEN")
-    finally:
-        reset_secret_scope(bound)
-bound = set_secret_scope({}, profile_home="/nonexistent-fixture/missing")
-try:
-    with patch.object(copilot_auth, "_try_gh_cli_token") as host_login:
-        assert copilot_auth.resolve_copilot_token() == ("", "")
-        host_login.assert_not_called()
-finally:
-    reset_secret_scope(bound)
-' 2>&1; then
-    pass "PAT/OAuth catalogs validate; profile tokens isolated; host fallback blocked"
-else
-    fail "Copilot PAT discovery behavioral checks"
-fi
-
-if [ -f "$SITE/hermes_cli/route_identity.py" ]; then
-    echo "--- Copilot plan host catalog route (no network) ---"
-    if PYTHONPATH="$SITE" python3 -c '
-import types
-from unittest.mock import patch
-from hermes_cli import models
-from hermes_cli.route_identity import is_claimed_root_route
-
-copilot = types.SimpleNamespace(name="copilot")
-assert is_claimed_root_route(copilot, "https://api.business.githubcopilot.com")
-assert is_claimed_root_route(copilot, "https://api.business.githubcopilot.com/")
-for url in ("https://api.business.githubcopilot.com/v1",
-            "https://api.business.githubcopilot.com:8443",
-            "http://api.business.githubcopilot.com",
-            "https://api.githubcopilot.com.example.com",
-            "https://models.github.ai"):
-    assert not is_claimed_root_route(copilot, url), url
-assert not is_claimed_root_route(None, "https://api.business.githubcopilot.com")
-
-def cfg(base_url):
-    return patch.object(models, "_get_model_config_dict",
-                        return_value={"provider": "copilot", "base_url": base_url})
-with cfg("https://api.business.githubcopilot.com"):
-    assert models._configured_relay_base_url("copilot") == ""
-with cfg("https://relay.example.com/v1"):
-    assert models._configured_relay_base_url("copilot") == "https://relay.example.com/v1"
-' 2>&1; then
-        pass "plan host root is native; paths, ports, http and other hosts stay relays"
-    else
-        fail "Copilot plan host catalog route checks"
-    fi
-fi
-
-echo "--- Copilot image request headers (synthetic credentials, no network) ---"
-REGRESSION="$(dirname "${BASH_SOURCE[0]}")/../../app-ai/hermes-agent/files/test_copilot_image_headers.py"
-if env -i PATH="$PATH" PYTHONPATH="$SITE" HOME=/nonexistent-fixture/images \
-    HERMES_HOME=/nonexistent-fixture/images python3 -c '
-import runpy
-import sys
-from pathlib import Path
-import agent.client_lifecycle as lifecycle
-# Reject accidentally testing host/source modules instead of the built image.
-assert Path(lifecycle.__file__).resolve().is_relative_to(Path(sys.argv[1]).resolve())
-test = sys.argv[2]
-sys.argv = [test, "-v"]
-runpy.run_path(test, run_name="__main__")
-' "$SITE" "$REGRESSION" 2>&1; then
-    pass "image headers: Chat/Responses, casing, mandatory vision, OAuth, isolation, cache reuse"
-else
-    fail "Copilot image header behavioral checks"
-fi
-fi # 0.22.5: Copilot in core
 
 echo "--- Headless Chrome service ---"
 CHROME_UNIT="$IMAGE/usr/lib/systemd/user/hermes-chrome.service"

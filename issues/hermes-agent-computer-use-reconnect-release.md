@@ -2,10 +2,10 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.22.2-computer-use-release-reconnect.patch`
-  (used by 0.22.5 and 0.22.7)
+  (used by 0.22.7 and 0.23.0)
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/108215;
   PRs #108222, #115064, #118979
-- Status: open (checked 2026-11-05; all three PRs open; applies to v0.22.7)
+- Status: open (checked 2026-11-08; all three PRs open; applies to v0.23.0)
 - Drop when: a release contains #108222 (drops parts 1 and 2) and a
   release action is upstream (drops part 3). Split the patch if only part
   of it lands.

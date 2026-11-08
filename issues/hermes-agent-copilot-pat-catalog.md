@@ -1,17 +1,21 @@
 # hermes-agent: Copilot PAT model catalog fails; scoped token not found
 
 - Package: `app-ai/hermes-agent`
-- Patch: `files/hermes-agent-copilot-pat-discovery.patch` (core, used by
-  0.22.5); `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
-  (against the github-copilot plugin, used by 0.22.7 with USE=copilot)
+- Patch: `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
+  (against the github-copilot plugin, used by 0.22.7 and 0.23.0 with
+  USE=copilot). The core patch (`hermes-agent-copilot-pat-discovery.patch`)
+  went with the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); bug 1:
-  https://github.com/NousResearch/hermes-labs-plugins/issues/63
-- Status: open (filed and checked 2026-11-05; plugin `github-copilot/`
-  last changed in `346cfe9`)
-- Drop when: the core patch goes with the 0.22.5 ebuild. The plugin patch
-  goes when the plugin sha core's `plugin-catalog/github-copilot.yaml`
+  https://github.com/NousResearch/hermes-labs-plugins/issues/63, fix PR
+  https://github.com/NousResearch/hermes-labs-plugins/pull/69 (opened
+  2026-11-08 by a third party)
+- Status: open (checked 2026-11-08: #63 and #69 open; v0.23.0's
+  `plugin-catalog/github-copilot.yaml` still pins `346cfe9`, plugin `main`
+  has one newer `github-copilot/` commit, `2ce59cf`, raw pool tokens for
+  the catalog)
+- Drop when: the plugin sha core's `plugin-catalog/github-copilot.yaml`
   pins sends a PAT-compatible integration id.
 
 ## Problem
@@ -113,3 +117,24 @@ headers with and without images, catalog request, a real offline chat
 turn). In the lab on v0.22.7: the 4 PAT cases fail on the unpatched
 plugin and pass with the patch; the plugin's whole suite passes (155).
 
+## 0.23.0 (2026-11-08)
+
+Same plugin pin (`346cfe9`), so the patch is carried unchanged; CI
+build-test applied it and `verify-hermes-agent.sh` passed the PAT
+integration id checks.
+
+hermes-labs-plugins#69 (head `dfa9f1e`, 5 additions, 1 file) changes only
+`copilot_request_headers()`: it sends `copilot-developer-cli` when
+`resolve_copilot_token()` returns a `github_pat_` token. The catalog
+fetch (`catalog.py`) and the image headers (`wire.py` `editor_headers`)
+both build their headers through that function, so #69 likely covers
+both paths (read from source, not run). It decides from the env/secret
+token, not from the key actually sent, so a mixed setup (PAT in env, a
+different credential sent, or the reverse) could get the wrong id; a
+single PAT in `COPILOT_GITHUB_TOKEN`, as on panther, is fine.
+
+Decision (2026-11-08): do not test or comment on #69 now. It is
+unmerged, so no plugin sha we could pin contains it; keep our patch.
+When a fix lands in plugin `main` and core's catalog pins a sha with it,
+run `tests/test_copilot_pat_integration_id.py` against that sha without
+our patch, then drop the patch.

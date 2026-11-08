@@ -1,18 +1,16 @@
 # hermes-agent: Copilot image requests drop configured headers
 
 - Package: `app-ai/hermes-agent`
-- Patch: `files/hermes-agent-copilot-image-headers.patch` (used by 0.22.5);
-  test `files/test_copilot_image_headers.py`. 0.22.7: covered by
-  `files/hermes-agent-copilot-plugin-pat-integration-id.patch` (see
-  `hermes-agent-copilot-pat-catalog.md`)
+- Patch: none. The core patch and its test went with the 0.22.5 ebuild
+  (removed 2026-11-08). 0.22.7 and 0.23.0: covered by
+  `files/hermes-agent-copilot-plugin-pat-integration-id.patch`, tracked in
+  `hermes-agent-copilot-pat-catalog.md`
 - Upstream: reported in a comment on #51411 (2026-10-04, now closed);
   plugin side filed with the PAT catalog bug as
   https://github.com/NousResearch/hermes-labs-plugins/issues/63
-- Status: open (filed and checked 2026-11-05: patch fails on v0.22.7,
-  core side obsolete; plugin `346cfe9` unchanged)
-- Drop when: the core patch and test go with the 0.22.5 ebuild. For 0.22.7
-  the plugin patch's `client_headers(api_key=..., has_images=True)` fix
-  replaces it.
+- Status: resolved (v0.22.7 core; checked 2026-11-08). The plugin side is
+  open in `hermes-agent-copilot-pat-catalog.md`
+- Drop when: delete this file when the PAT catalog issue is resolved.
 
 ## Problem
 

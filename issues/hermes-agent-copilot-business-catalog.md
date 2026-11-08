@@ -1,14 +1,13 @@
 # hermes-agent: Copilot plan host in base_url hides the live model catalog
 
 - Package: `app-ai/hermes-agent`
-- Patch: `files/hermes-agent-0.22.5-copilot-plan-host-catalog.patch` (used
-  by 0.22.5); `files/hermes-agent-0.22.7-copilot-plan-host-catalog.patch`
-  (used by 0.22.7)
+- Patch: `files/hermes-agent-0.22.7-copilot-plan-host-catalog.patch`
+  (used by 0.22.7 and 0.23.0). The 0.22.5 backport went with the 0.22.5
+  ebuild (removed 2026-11-08).
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/142480,
   PR https://github.com/NousResearch/hermes-agent/pull/142481
-- Status: open (checked 2026-11-05; PR open, head `a9ed776`, not in v0.22.7)
-- Status: open (checked 2026-11-05: #142481 still open; patch fails 1
-  of 2 hunks on v0.22.7, redo with `profile_for_host`)
+- Status: open (checked 2026-11-08: #142481 open, head `a9ed776`, not in
+  v0.23.0; the patch applies to v0.23.0)
 - Drop when: a packaged release contains #142481 (or another fix for
   #142480) and the picker lists the live catalog with
   `base_url: https://api.business.githubcopilot.com`.
@@ -71,7 +70,7 @@ PR's 22 tests plus `test_models_relay_base_url.py` pass on v0.22.7 with
 our patch stack; `verify-hermes-agent.sh` checks the business, individual
 and trailing-slash roots are native and paths, ports and http stay relays.
 
-0.22.5 (below): same helper name (`hermes_cli/route_identity.is_claimed_root_route`), same
+0.22.5 (historical; that ebuild and its backport are gone): same helper name (`hermes_cli/route_identity.is_claimed_root_route`), same
 rule and the same one-line hook in `_configured_relay_base_url()` as the
 PR. 0.22.5 has no `profile_for_host` or profile `hostnames`, so the claim
 is a table in `route_identity.py`: `copilot` -> `githubcopilot.com`. It
