@@ -92,7 +92,7 @@ RUST_MIN_VER="1.95.0"
 RUST_NEEDS_LLVM=1
 WEBRTC_COMMIT="0001d84-4"
 
-inherit cargo check-reqs desktop flag-o-matic llvm-r1 xdg
+inherit cargo check-reqs desktop flag-o-matic llvm-r2 xdg
 
 DESCRIPTION="The fast, collaborative code editor"
 HOMEPAGE="https://zed.dev https://github.com/zed-industries/zed"
@@ -167,7 +167,7 @@ QA_FLAGS_IGNORED="usr/bin/zedit"
 pkg_setup() {
 	strip-unsupported-flags
 	check-reqs_pkg_setup
-	llvm-r1_pkg_setup
+	llvm-r2_pkg_setup
 	rust_pkg_setup
 }
 

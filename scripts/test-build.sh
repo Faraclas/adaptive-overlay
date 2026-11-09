@@ -113,7 +113,7 @@ BUILD_IMAGE="/var/tmp/portage/${PACKAGE_DIR%/*}/${EBUILD_STEM}/image"
 # e.g. containers/testenv-rust/verify-zed.sh for app-editors/zed
 PACKAGE_NAME="${PACKAGE_DIR##*/}"
 if [ "${PACKAGE_DIR}" = "app-editors/zed" ]; then
-    VERIFY_SCRIPT_REL="containers/testenv-rust/verify-${PACKAGE_NAME}.sh"
+    VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "x11-misc/cua-driver" ]; then
     VERIFY_SCRIPT_REL="containers/testenv-rust-desktop/verify-${PACKAGE_NAME}.sh"
 elif [ "${PACKAGE_DIR}" = "app-ai/hermes-agent" ] || [ "${PACKAGE_DIR}" = "app-ai/ouroboros" ]; then
