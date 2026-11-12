@@ -1,0 +1,48 @@
+Make the upstream updater and channel commands defer to Portage.
+Tracking: issues/cua-driver-portage-managed.md
+
+--- a/crates/cua-driver/src/updater.rs
++++ b/crates/cua-driver/src/updater.rs
+@@ -32,6 +32,7 @@
+ pub(crate) enum UpdateOwner {
+     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+     Pacman,
++    Portage,
+     /// The app that carries this driver in its `Contents/Helpers`, by name
+     /// (`Cua Spaces`). The driver updates with the app; the standalone
+     /// installer would add a second driver beside it.
+@@ -48,6 +49,12 @@
+                  The upstream installer and stable/nightly channel switching are disabled."
+                     .to_owned()
+             }
++            Self::Portage => {
++                "This executable is managed by Portage. Update with `emerge -u x11-misc/cua-driver`; \
++                 release selection and availability are controlled by your package repository. \
++                 The upstream installer and stable/nightly channel switching are disabled."
++                    .to_owned()
++            }
+             Self::HostApp(app) => format!(
+                 "This Cua Driver is part of {app} and updates with it. Update {app} itself \
+                  (in Cua Spaces: Cua Spaces > Check for Updates…). The standalone installer and \
+@@ -69,6 +76,13 @@
+     #[cfg(target_os = "linux")]
+     {
+         let executable = std::env::current_exe().ok()?;
++        // Gentoo: never replace executables owned by the system package manager.
++        if executable
++            .canonicalize()
++            .is_ok_and(|path| path.starts_with("/usr/bin"))
++        {
++            return Some(UpdateOwner::Portage);
++        }
+         pacman_owns_executable(&executable, std::path::Path::new("/usr/bin/pacman"))
+             .then_some(UpdateOwner::Pacman)
+     }
+@@ -241,6 +255,7 @@
+     fn managed_install_never_starts_installer() {
+         for (owner, guidance) in [
+             (UpdateOwner::Pacman, "sudo pacman -Syu"),
++            (UpdateOwner::Portage, "emerge -u x11-misc/cua-driver"),
+             (
+                 UpdateOwner::HostApp("Other".to_owned()),
+                 "part of Other and updates with it",

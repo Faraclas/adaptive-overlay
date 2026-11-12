@@ -1,11 +1,11 @@
 # cua-driver: libei pointer input never reaches a second monitor
 
 - Package: `x11-misc/cua-driver`
-- Patch: `files/cua-driver-0.38.0-libei-multimonitor.patch` (used by
-  0.38.0-r1 only; 0.43.2 has the upstream fix)
+- Patch: none (removed with the last affected ebuild, 0.38.0-r1;
+  0.43.2 and 0.47.19 have the upstream fix)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: resolved (0.43.2; checked 2026-11-08)
+- Status: resolved (0.43.2; checked 2026-11-12)
 - Drop when: no retained ebuild references the patch; 0.43.2 includes the
   upstream fix.
 
@@ -46,7 +46,7 @@ still works.
   multi-monitor GNOME/KDE testing was still not run upstream.
 - #5853 "onigiri: issue-5808-auto-1" is upstream automation
   (`Closes #5808`). It merged 2026-10-30 as `1e0da1a`; the live GitHub
-  API reports both the PR and #5808 closed (checked 2026-11-08).
+  API reports both the PR and #5808 closed (checked 2026-11-12).
 - Compared with our patch (2026-10-26), same behaviour:
   - removes the single-`wl_output` clamp in `libei_click`,
     `libei_move_absolute` and `libei_drag`;
@@ -67,9 +67,9 @@ still works.
     `cargo test -p platform-linux --features portal-input --lib wayland::`.
   - Our error message is richer (lists the announced regions).
 - Conclusion: 0.43.2 contains the upstream fix (`wayland/region_route.rs`
-  and `route_absolute`) and no longer applies the local patch. Keep the
-  patch only for the retained 0.38.0 ebuild. A live multi-monitor test was
-  not available during this upgrade.
+  and `route_absolute`) and no longer applies the local patch. The fix
+  remains present in 0.47.19. The local patch was removed with 0.38.0-r1.
+  A live multi-monitor test was not available during this upgrade.
 - Origin: #5853 came from our report. Issue filed 2026-10-24 02:22 UTC;
   the PR's first commit is 04:37 UTC, PR opened 06:48 UTC, branch
   `onigiri/issue-5808` (looks like upstream's issue-to-PR automation).
@@ -79,7 +79,6 @@ still works.
 ## Backlog
 
 - 0.43.2 is the first checked release containing `1e0da1a`'s fix. The
-  upgraded ebuild no longer applies the patch; the old ebuild still needs
-  it. Remove the patch and this file after no retained ebuild references it.
+  retained ebuilds no longer need the patch, which has been removed.
   A live right-monitor check remains useful; ask before posting results
   upstream.
