@@ -650,16 +650,16 @@ SLOT="0"
 KEYWORDS="~amd64"
 IUSE="gnome +portal"
 
-# X11/Xlib FFI (MPX drags, XTest) is always linked; portal input adds
-# libei (via the pure-Rust reis crate) and libxkbcommon.
+# X11/Xlib FFI (MPX drags, XTest) is always linked; Wayland typing needs
+# libxkbcommon, and portal input adds libei (via the pure-Rust reis crate).
 DEPEND="
 	x11-libs/libX11
 	x11-libs/libXext
 	x11-libs/libXi
 	x11-libs/libXtst
+	>=x11-libs/libxkbcommon-1.0
 	portal? (
 		dev-libs/libei
-		x11-libs/libxkbcommon
 	)
 "
 # gdbus (dev-libs/glib) is used at runtime to reach the WinRects helper;
