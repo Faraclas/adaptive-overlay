@@ -17,6 +17,8 @@ HERMES_COMMIT="3b421578588243f920886e6fe79a6faa87ea026e"
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
 HERMES_COPILOT_COMMIT="4987918a068fcf4b3efbb584db5dd05e5f57c669"
 HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
+# Pinned pnpm version from pm/lock.json for building ui-tui and web frontends.
+HERMES_PNPM_PV="12.15.0"
 
 if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
@@ -26,6 +28,8 @@ else
 	KEYWORDS="~amd64"
 fi
 SRC_URI+="
+	https://registry.npmjs.org/pnpm/-/pnpm-${HERMES_PNPM_PV}.tgz
+		-> hermes-pnpm-${HERMES_PNPM_PV}.tgz
 	copilot? (
 		https://github.com/NousResearch/hermes-labs-plugins/archive/${HERMES_COPILOT_COMMIT}.tar.gz
 			-> hermes-labs-plugins-${HERMES_COPILOT_COMMIT}.tar.gz
@@ -111,7 +115,7 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
-	net-libs/nodejs[npm]
+	net-libs/nodejs
 "
 
 EPYTEST_PLUGINS=()
@@ -129,15 +133,10 @@ hermes_agent_prepare_node_deps() {
 	if use dashboard; then
 		workspaces+=( --workspace web )
 	fi
-	npm_config_cache="${T}/.npm" npm ci \
-		--engine-strict=false \
-		--ignore-scripts \
-		--no-audit \
-		--no-fund \
-		--include=dev \
-		--include=optional \
-		--include-workspace-root=true \
-		"${workspaces[@]}" || die
+	PATH="${WORKDIR}/package:${PATH}" \
+	PNPM_HOME="${T}/pnpm" \
+	npm_config_store_dir="${T}/pnpm-store" \
+		node scripts/build/node-deps.mjs --source . "${workspaces[@]}" || die
 }
 
 hermes_agent_build_tui() {
