@@ -1,13 +1,11 @@
 # cua-driver: libei pointer input never reaches a second monitor
 
 - Package: `x11-misc/cua-driver`
-- Patch: `files/cua-driver-0.38.0-libei-multimonitor.patch` (used by
-  0.38.0-r1 only; 0.43.2 has the upstream fix)
+- Patch: none (the last ebuild needing it, 0.38.0-r1, was removed)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: resolved (0.43.2; checked 2026-11-08)
-- Drop when: no retained ebuild references the patch; 0.43.2 includes the
-  upstream fix.
+- Status: resolved (0.43.2; checked 2026-11-15)
+- Drop when: fixed in 0.43.2; patch removed with 0.38.0-r1.
 
 ## Problem
 
@@ -66,10 +64,10 @@ still works.
   - Adds unit tests (with a local EIS test server) and a CI step
     `cargo test -p platform-linux --features portal-input --lib wayland::`.
   - Our error message is richer (lists the announced regions).
-- Conclusion: 0.43.2 contains the upstream fix (`wayland/region_route.rs`
-  and `route_absolute`) and no longer applies the local patch. Keep the
-  patch only for the retained 0.38.0 ebuild. A live multi-monitor test was
-  not available during this upgrade.
+- Conclusion: 0.43.2 and 0.51.5 contain the upstream fix
+  (`wayland/region_route.rs` and `route_absolute`). The local patch was
+  removed with 0.38.0-r1. A live multi-monitor test was not available
+  during this upgrade.
 - Origin: #5853 came from our report. Issue filed 2026-10-24 02:22 UTC;
   the PR's first commit is 04:37 UTC, PR opened 06:48 UTC, branch
   `onigiri/issue-5808` (looks like upstream's issue-to-PR automation).
@@ -78,8 +76,5 @@ still works.
 
 ## Backlog
 
-- 0.43.2 is the first checked release containing `1e0da1a`'s fix. The
-  upgraded ebuild no longer applies the patch; the old ebuild still needs
-  it. Remove the patch and this file after no retained ebuild references it.
-  A live right-monitor check remains useful; ask before posting results
-  upstream.
+- 0.43.2 is the first checked release containing `1e0da1a`'s fix. A live
+  right-monitor check remains useful; ask before posting results upstream.
