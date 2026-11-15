@@ -11,11 +11,11 @@ inherit distutils-r1 systemd
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
-# Tag v0.23.0 commit for install-stamp.json provenance
-HERMES_COMMIT="2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19"
+# Tag v0.23.1 commit for install-stamp.json provenance
+HERMES_COMMIT="3b421578588243f920886e6fe79a6faa87ea026e"
 # github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
-HERMES_COPILOT_COMMIT="346cfe972f72b6a966e84c1004cf8742554b193d"
+HERMES_COPILOT_COMMIT="4987918a068fcf4b3efbb584db5dd05e5f57c669"
 HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
 
 if [[ ${PV} == 9999 ]]; then
