@@ -1,0 +1,48 @@
+Make `cua-driver update --apply` defer to Portage.
+Tracking: issues/cua-driver-portage-managed.md
+
+--- a/crates/cua-driver/src/updater.rs
++++ b/crates/cua-driver/src/updater.rs
+@@ -31,6 +31,8 @@
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub(crate) enum UpdateOwner {
+     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
++    Portage,
++    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+     Pacman,
+     /// The app that carries this driver in its `Contents/Helpers`, by name
+     /// (`Cua Spaces`). The driver updates with the app; the standalone
+@@ -42,6 +44,12 @@
+ impl UpdateOwner {
+     pub(crate) fn guidance(&self) -> String {
+         match self {
++            Self::Portage => {
++                "This executable is managed by Portage. Update with `emerge -u x11-misc/cua-driver`; \
++                 release selection and availability are controlled by your package repository. \
++                 The upstream installer and stable/nightly channel switching are disabled."
++                    .to_owned()
++            }
+             Self::Pacman => {
+                 "This executable is managed by pacman. Update with `sudo pacman -Syu`; \
+                  release selection and availability are controlled by your package repository. \
+@@ -69,6 +77,12 @@
+     #[cfg(target_os = "linux")]
+     {
+         let executable = std::env::current_exe().ok()?;
++        if executable
++            .canonicalize()
++            .is_ok_and(|path| path.starts_with("/usr/bin"))
++        {
++            return Some(UpdateOwner::Portage);
++        }
+         pacman_owns_executable(&executable, std::path::Path::new("/usr/bin/pacman"))
+             .then_some(UpdateOwner::Pacman)
+     }
+@@ -240,6 +254,7 @@
+     #[test]
+     fn managed_install_never_starts_installer() {
+         for (owner, guidance) in [
++            (UpdateOwner::Portage, "emerge -u x11-misc/cua-driver"),
+             (UpdateOwner::Pacman, "sudo pacman -Syu"),
+             (
+                 UpdateOwner::HostApp("Other".to_owned()),
