@@ -13,3 +13,7 @@ dev-python/fastapi ~amd64
 sys-apps/sd ~amd64
 dev-util/scc ~amd64
 dev-util/difftastic ~amd64
+# Ouroboros optional/full-suite provider SDKs
+dev-python/anthropic ~amd64
+dev-python/docstring-parser ~amd64
+dev-python/pydantic-settings ~amd64
