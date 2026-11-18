@@ -17,3 +17,4 @@ dev-util/difftastic ~amd64
 dev-python/anthropic ~amd64
 dev-python/docstring-parser ~amd64
 dev-python/pydantic-settings ~amd64
+dev-python/tqdm ~amd64
