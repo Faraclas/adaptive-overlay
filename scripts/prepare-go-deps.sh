@@ -1,6 +1,7 @@
 #!/bin/bash
-# Prepare D2's go-module dependency archive, never on the host.
-# Usage: scripts/prepare-go-deps.sh media-gfx/d2 --version VERSION --output DIR
+# Prepare a Go package's go-module dependency archive, never on the host.
+# Usage: scripts/prepare-go-deps.sh <cat/pkg> --version VERSION --output DIR
+# Supported packages: media-gfx/d2, dev-util/gitleaks.
 # Optional: --image IMAGE (otherwise prefer the local headless Rust image).
 # GO_DEPS_RUNTIME=podman|docker overrides runtime selection (CI uses Docker).
 # DIR must be inside this repository or /home/elias/tmp. Nothing is published.
@@ -36,8 +37,24 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
-[[ "${PACKAGE}" == media-gfx/d2 ]] || fail "only media-gfx/d2 is supported"
-[[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "--version must be an exact stable D2 version (X.Y.Z)"
+case "${PACKAGE}" in
+    media-gfx/d2)
+        UPSTREAM_REPO="d2lang/d2"
+        MODULE_PATH="github.com/d2lang/d2"
+        ARCHIVE_PREFIX="d2"
+        PKG_LABEL="D2"
+        ;;
+    dev-util/gitleaks)
+        UPSTREAM_REPO="gitleaks/gitleaks"
+        MODULE_PATH="github.com/zricethezav/gitleaks/v8"
+        ARCHIVE_PREFIX="gitleaks"
+        PKG_LABEL="gitleaks"
+        ;;
+    *)
+        fail "unsupported Go package: ${PACKAGE}"
+        ;;
+esac
+[[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "--version must be an exact stable ${PKG_LABEL} version (X.Y.Z)"
 [[ -n "${OUTPUT}" ]] || fail "--output DIR is required"
 
 if [[ "${IN_CONTAINER}" -eq 0 ]]; then
@@ -76,7 +93,7 @@ if [[ "${IN_CONTAINER}" -eq 0 ]]; then
         -e ADAPTIVE_GO_DEPS_CONTAINER=1 \
         -v "${ROOT}:/overlay:ro" -v "${OUTPUT}:/output" \
         --entrypoint /bin/bash "${IMAGE}" \
-        /overlay/scripts/prepare-go-deps.sh --in-container media-gfx/d2 \
+        /overlay/scripts/prepare-go-deps.sh --in-container "${PACKAGE}" \
         --version "${VERSION}" --output /output
 fi
 
@@ -100,15 +117,15 @@ mkdir -p "${HOME}" "${GOMODCACHE}"
 
 git init -q "${WORK}/source"
 git -C "${WORK}/source" fetch -q --depth=1 \
-    https://github.com/d2lang/d2.git "refs/tags/v${VERSION}"
+    "https://github.com/${UPSTREAM_REPO}.git" "refs/tags/v${VERSION}"
 git -C "${WORK}/source" -c advice.detachedHead=false checkout -q --detach FETCH_HEAD
 cd "${WORK}/source"
 SOURCE_COMMIT=$(git rev-parse HEAD)
 [[ -f go.mod && -f go.sum ]] || fail "tag must contain go.mod and go.sum"
-[[ $(sed -n 's/^module //p' go.mod) == github.com/d2lang/d2 ]] || fail "unexpected D2 module path"
+[[ $(sed -n 's/^module //p' go.mod) == "${MODULE_PATH}" ]] || fail "unexpected ${PKG_LABEL} module path"
 GO_MIN=$(sed -n 's/^go //p' go.mod)
 [[ "${GO_MIN}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "cannot read Go minimum"
-echo "==> D2 v${VERSION} (${SOURCE_COMMIT}), requires Go ${GO_MIN}"
+echo "==> ${PKG_LABEL} v${VERSION} (${SOURCE_COMMIT}), requires Go ${GO_MIN}"
 go version
 check_pinned_modules() {
     if [[ -n $(git status --porcelain -- go.mod go.sum) ]]; then
@@ -133,8 +150,8 @@ check_pinned_modules "offline root package/test resolution"
 rm -rf "${GOMODCACHE}/cache/download/sumdb"
 find "${GOMODCACHE}/cache/download" -type f -name '*.lock' -delete
 find "${GOMODCACHE}/cache/download" -type f -name list -exec sort -u -o '{}' '{}' \;
-NAME="d2-${VERSION}-go-deps.tar.xz"
-META="d2-${VERSION}-go-deps.json"
+NAME="${ARCHIVE_PREFIX}-${VERSION}-go-deps.tar.xz"
+META="${ARCHIVE_PREFIX}-${VERSION}-go-deps.json"
 # Epoch zero is policy, not the generation time. Fix xz's thread count too,
 # since parallel compression can change bytes depending on runner CPU count.
 tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
@@ -144,10 +161,10 @@ xz --test "${WORK}/${NAME}"
 SHA256=$(sha256sum "${WORK}/${NAME}"); SHA256="${SHA256%% *}"
 MOD_SHA=$(sha256sum go.mod); MOD_SHA="${MOD_SHA%% *}"
 SUM_SHA=$(sha256sum go.sum); SUM_SHA="${SUM_SHA%% *}"
-jq -n --arg version "${VERSION}" --arg commit "${SOURCE_COMMIT}" \
+jq -n --arg upstream "${UPSTREAM_REPO}" --arg version "${VERSION}" --arg commit "${SOURCE_COMMIT}" \
     --arg minimum "${GO_MIN}" --arg mod "${MOD_SHA}" --arg sum "${SUM_SHA}" \
     --arg archive "${NAME}" --arg sha256 "${SHA256}" \
-    '{schema: 1, upstream: "d2lang/d2", tag: ("v" + $version),
+    '{schema: 1, upstream: $upstream, tag: ("v" + $version),
       source_commit: $commit, go_min_version: $minimum,
       go_mod_sha256: $mod, go_sum_sha256: $sum, archive: $archive,
       sha256: $sha256, archive_epoch: 0}' > "${WORK}/${META}"

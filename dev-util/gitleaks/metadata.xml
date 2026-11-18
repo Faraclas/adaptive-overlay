@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    Gitleaks is a SAST tool for detecting and preventing hardcoded secrets
+    like passwords, API keys, and tokens in git repos, files, and stdin.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">gitleaks/gitleaks</remote-id>
+  </upstream>
+</pkgmetadata>

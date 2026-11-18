@@ -1,16 +1,26 @@
-name: Prepare D2 Go Dependencies
+name: Prepare Go Dependencies
 
 on:
   workflow_dispatch:
     inputs:
+      package:
+        description: "Package (media-gfx/d2 or dev-util/gitleaks)"
+        required: false
+        type: string
+        default: "media-gfx/d2"
       version:
-        description: "Exact stable D2 version, without v (e.g. 0.9.0)"
+        description: "Exact stable version, without v (e.g. 0.9.0)"
         required: true
         type: string
   workflow_call:
     inputs:
+      package:
+        description: "Package (media-gfx/d2 or dev-util/gitleaks)"
+        required: false
+        type: string
+        default: "media-gfx/d2"
       version:
-        description: "Exact stable D2 version, without v"
+        description: "Exact stable version, without v"
         required: true
         type: string
     outputs:
@@ -23,7 +33,7 @@ permissions:
 
 # Serialize local/manual/upgrade callers for the same release. Never clobber.
 concurrency:
-  group: d2-deps-${{ inputs.version }}
+  group: go-deps-${{ inputs.package || 'media-gfx/d2' }}-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
@@ -99,11 +109,12 @@ jobs:
 
       - name: Generate and verify dependency sources in the headless Rust image
         env:
+          PACKAGE: ${{ inputs.package || 'media-gfx/d2' }}
           VERSION: ${{ inputs.version }}
           GO_DEPS_RUNTIME: docker
           GO_DEPS_IMAGE: ${{ steps.image.outputs.image }}
         run: |
-          bash scripts/prepare-go-deps.sh media-gfx/d2 --version "${VERSION}" \
+          bash scripts/prepare-go-deps.sh "${PACKAGE}" --version "${VERSION}" \
             --output "${GITHUB_WORKSPACE}/.go-deps-output" \
             --image "${GO_DEPS_IMAGE}"
 
@@ -111,6 +122,7 @@ jobs:
         id: publish
         uses: actions/github-script@v8
         env:
+          PACKAGE: ${{ inputs.package || 'media-gfx/d2' }}
           VERSION: ${{ inputs.version }}
         with:
           script: |
@@ -118,16 +130,25 @@ jobs:
             const path = require('path');
             const crypto = require('crypto');
             const { owner, repo } = context.repo;
+            const pkg = process.env.PACKAGE || 'media-gfx/d2';
             const version = process.env.VERSION;
-            const tag = `d2-deps-${version}`;
-            const name = `d2-${version}-go-deps.tar.xz`;
-            const metaName = `d2-${version}-go-deps.json`;
+            const specs = {
+              'media-gfx/d2': { prefix: 'd2', upstream: 'd2lang/d2', label: 'D2' },
+              'dev-util/gitleaks': { prefix: 'gitleaks', upstream: 'gitleaks/gitleaks', label: 'gitleaks' }
+            };
+            const spec = specs[pkg];
+            if (!spec) {
+              throw new Error(`Unsupported Go package: ${pkg}`);
+            }
+            const tag = `${spec.prefix}-deps-${version}`;
+            const name = `${spec.prefix}-${version}-go-deps.tar.xz`;
+            const metaName = `${spec.prefix}-${version}-go-deps.json`;
             const dir = path.join(process.env.GITHUB_WORKSPACE, '.go-deps-output');
             const metadata = JSON.parse(fs.readFileSync(path.join(dir, metaName)));
             const digest = data => crypto.createHash('sha256').update(data).digest('hex');
             const archive = fs.readFileSync(path.join(dir, name));
             if (metadata.tag !== `v${version}` || metadata.archive !== name ||
-                metadata.upstream !== 'd2lang/d2' || metadata.sha256 !== digest(archive)) {
+                metadata.upstream !== spec.upstream || metadata.sha256 !== digest(archive)) {
               throw new Error('Generated archive/provenance mismatch');
             }
             let release;
@@ -147,8 +168,8 @@ jobs:
               // GitHub releases when the repository enables that setting.
               release = (await github.rest.repos.createRelease({
                 owner, repo, tag_name: tag, target_commitish: context.sha,
-                name: `D2 ${version} Go dependency sources`, draft: true,
-                body: `Prepared from https://github.com/d2lang/d2/releases/tag/v${version}\n\n` +
+                name: `${spec.label} ${version} Go dependency sources`, draft: true,
+                body: `Prepared from https://github.com/${spec.upstream}/releases/tag/v${version}\n\n` +
                   `Source commit: ${metadata.source_commit}\n\n` +
                   `SHA256 (${name}): ${metadata.sha256}\n\n` +
                   'go-module cache rooted at go-mod/. See the JSON asset for provenance.\n\n' +
