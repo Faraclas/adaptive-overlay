@@ -90,7 +90,7 @@ declare -A GIT_CRATES=(
 LLVM_COMPAT=( 22 )
 RUST_MIN_VER="1.95.0"
 RUST_NEEDS_LLVM=1
-WEBRTC_COMMIT="sys/v0.3.55"
+WEBRTC_COMMIT="0001d84-4"
 
 inherit cargo check-reqs desktop flag-o-matic llvm-r2 xdg
 
