@@ -156,12 +156,12 @@ PATCHES=(
 	# cua-driver otherwise breaks every later call until restart), and add
 	# action="release" to end this session's desktop connection cleanly, and
 	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
-	"${FILESDIR}/${PN}-0.22.2-computer-use-release-reconnect.patch"
+	"${FILESDIR}/${PN}-0.23.2-computer-use-release-reconnect.patch"
 	# Find install-stamp.json in hermes_cli/, where python_install puts it.
 	"${FILESDIR}/${PN}-0.22.5-install-stamp-path.patch"
 	# Live catalog for a plan host (api.business.githubcopilot.com) in
 	# model.base_url instead of the static fallback list.
-	"${FILESDIR}/${PN}-0.22.7-copilot-plan-host-catalog.patch"
+	"${FILESDIR}/${PN}-0.23.2-copilot-plan-host-catalog.patch"
 	# The bundled github-copilot plugin counts as installed: no "Copilot is
 	# off" notice and no catalog fetch of a second copy on every start.
 	"${FILESDIR}/${PN}-0.22.7-bundled-left-core-plugin.patch"
