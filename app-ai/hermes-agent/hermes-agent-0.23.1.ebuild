@@ -25,7 +25,7 @@ if [[ ${PV} == 9999 ]]; then
 	EGIT_REPO_URI="https://github.com/NousResearch/hermes-agent.git"
 else
 	SRC_URI="https://github.com/NousResearch/hermes-agent/archive/v${PV}.tar.gz -> ${P}.tar.gz"
-	KEYWORDS=""
+	KEYWORDS="~amd64"
 fi
 SRC_URI+="
 	https://registry.npmjs.org/pnpm/-/pnpm-${HERMES_PNPM_PV}.tgz
