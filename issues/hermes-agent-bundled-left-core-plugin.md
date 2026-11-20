@@ -2,9 +2,9 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.22.7-bundled-left-core-plugin.patch` (used
-  by 0.22.7 and 0.23.0)
+  by 0.23.1 and 0.23.2)
 - Upstream: none filed
-- Status: unfiled (checked 2026-11-08; applies to v0.23.0)
+- Status: unfiled (checked 2026-11-19; applies to v0.23.1 and v0.23.2)
 - Drop when: upstream lets a packaged install ship a left-core plugin
   (`hermes_cli/left_core_migration.py` `plugin_present()` sees it), or we
   stop shipping the github-copilot plugin in core's bundled dir.

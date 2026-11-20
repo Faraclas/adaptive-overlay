@@ -2,9 +2,9 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.22.5-install-stamp-path.patch` (used by
-  0.22.7 and 0.23.0)
+  0.23.1 and 0.23.2)
 - Upstream: none filed
-- Status: local (checked 2026-11-08; applies to v0.23.0)
+- Status: local (checked 2026-11-19; applies to v0.23.1 and v0.23.2)
 - Drop when: upstream finds a stamp inside the installed package for
   wheel installs.
 

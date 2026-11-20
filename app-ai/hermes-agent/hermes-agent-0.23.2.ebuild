@@ -11,12 +11,14 @@ inherit distutils-r1 systemd
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
-# Tag v0.23.0 commit for install-stamp.json provenance
-HERMES_COMMIT="2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19"
+# Tag v0.23.2 commit for install-stamp.json provenance
+HERMES_COMMIT="ae2a81ccc00e9b7c06301523e5bb09608397149c"
 # github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
-HERMES_COPILOT_COMMIT="346cfe972f72b6a966e84c1004cf8742554b193d"
+HERMES_COPILOT_COMMIT="df8f1321941125d45dde71ab20196fbeea093191"
 HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
+# Pinned pnpm version from pm/lock.json for building ui-tui and web frontends.
+HERMES_PNPM_PV="12.15.0"
 
 if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
@@ -26,6 +28,8 @@ else
 	KEYWORDS="~amd64"
 fi
 SRC_URI+="
+	https://registry.npmjs.org/pnpm/-/pnpm-${HERMES_PNPM_PV}.tgz
+		-> hermes-pnpm-${HERMES_PNPM_PV}.tgz
 	copilot? (
 		https://github.com/NousResearch/hermes-labs-plugins/archive/${HERMES_COPILOT_COMMIT}.tar.gz
 			-> hermes-labs-plugins-${HERMES_COPILOT_COMMIT}.tar.gz
@@ -111,7 +115,7 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
-	net-libs/nodejs[npm]
+	net-libs/nodejs
 "
 
 EPYTEST_PLUGINS=()
@@ -129,15 +133,10 @@ hermes_agent_prepare_node_deps() {
 	if use dashboard; then
 		workspaces+=( --workspace web )
 	fi
-	npm_config_cache="${T}/.npm" npm ci \
-		--engine-strict=false \
-		--ignore-scripts \
-		--no-audit \
-		--no-fund \
-		--include=dev \
-		--include=optional \
-		--include-workspace-root=true \
-		"${workspaces[@]}" || die
+	PATH="${WORKDIR}/package:${PATH}" \
+	PNPM_HOME="${T}/pnpm" \
+	npm_config_store_dir="${T}/pnpm-store" \
+		node scripts/build/node-deps.mjs --source . "${workspaces[@]}" || die
 }
 
 hermes_agent_build_tui() {
@@ -157,12 +156,12 @@ PATCHES=(
 	# cua-driver otherwise breaks every later call until restart), and add
 	# action="release" to end this session's desktop connection cleanly, and
 	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
-	"${FILESDIR}/${PN}-0.22.2-computer-use-release-reconnect.patch"
+	"${FILESDIR}/${PN}-0.23.2-computer-use-release-reconnect.patch"
 	# Find install-stamp.json in hermes_cli/, where python_install puts it.
 	"${FILESDIR}/${PN}-0.22.5-install-stamp-path.patch"
 	# Live catalog for a plan host (api.business.githubcopilot.com) in
 	# model.base_url instead of the static fallback list.
-	"${FILESDIR}/${PN}-0.22.7-copilot-plan-host-catalog.patch"
+	"${FILESDIR}/${PN}-0.23.2-copilot-plan-host-catalog.patch"
 	# The bundled github-copilot plugin counts as installed: no "Copilot is
 	# off" notice and no catalog fetch of a second copy on every start.
 	"${FILESDIR}/${PN}-0.22.7-bundled-left-core-plugin.patch"

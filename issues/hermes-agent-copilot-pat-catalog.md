@@ -2,19 +2,19 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
-  (against the github-copilot plugin, used by 0.22.7 and 0.23.0 with
+  (against the github-copilot plugin, used by 0.23.1 and 0.23.2 with
   USE=copilot). The core patch (`hermes-agent-copilot-pat-discovery.patch`)
   went with the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); bug 1:
   https://github.com/NousResearch/hermes-labs-plugins/issues/63, fix PR
-  https://github.com/NousResearch/hermes-labs-plugins/pull/69 (opened
-  2026-11-08 by a third party)
-- Status: open (checked 2026-11-08: #63 and #69 open; v0.23.0's
-  `plugin-catalog/github-copilot.yaml` still pins `346cfe9`, plugin `main`
-  has one newer `github-copilot/` commit, `2ce59cf`, raw pool tokens for
-  the catalog)
+  https://github.com/NousResearch/hermes-labs-plugins/pull/69 (closed
+  unmerged); follow-up PR
+  https://github.com/NousResearch/hermes-labs-plugins/pull/88 (open)
+- Status: open (checked 2026-11-19: #63 is open, #69 closed unmerged, and
+  #88 open; v0.23.2 pins plugin `df8f132`, whose
+  `copilot_request_headers()` still hardcodes `vscode-chat`)
 - Drop when: the plugin sha core's `plugin-catalog/github-copilot.yaml`
   pins sends a PAT-compatible integration id.
 
@@ -138,3 +138,10 @@ unmerged, so no plugin sha we could pin contains it; keep our patch.
 When a fix lands in plugin `main` and core's catalog pins a sha with it,
 run `tests/test_copilot_pat_integration_id.py` against that sha without
 our patch, then drop the patch.
+
+## 0.23.2 (2026-11-19)
+
+The core's catalog pins plugin `df8f132`, whose request header builder still
+uses `vscode-chat`; the local patch applies to this revision and remains
+necessary. The new fix PR #88 is open but not merged, so no upstream fix is
+included in this release.
