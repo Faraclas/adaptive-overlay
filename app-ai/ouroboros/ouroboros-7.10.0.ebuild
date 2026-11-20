@@ -24,6 +24,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
+IUSE="computer-use"
 # Upstream hermetic test suite expects a live Git repository checkout and runs
 # inside the ouroboros-home container (scripts/ouroboros-home.sh test).
 RESTRICT="test"
@@ -48,6 +49,7 @@ RDEPEND="
 	dev-python/croniter[${PYTHON_USEDEP}]
 	dev-python/ddgs[${PYTHON_USEDEP}]
 	dev-python/dulwich[${PYTHON_USEDEP}]
+	>=dev-python/gigachat-0.2.1[${PYTHON_USEDEP}]
 	>=dev-python/httptools-0.8.0[${PYTHON_USEDEP}]
 	dev-python/httpx2[${PYTHON_USEDEP}]
 	>=dev-python/jsonschema-4.0[${PYTHON_USEDEP}]
@@ -65,6 +67,7 @@ RDEPEND="
 	dev-python/requests[${PYTHON_USEDEP}]
 	dev-python/socksio[${PYTHON_USEDEP}]
 	dev-python/starlette[${PYTHON_USEDEP}]
+	dev-python/tqdm[${PYTHON_USEDEP}]
 	>=dev-python/tree-sitter-0.23.2[${PYTHON_USEDEP}]
 	>=dev-python/tree-sitter-language-pack-0.9.1[${PYTHON_USEDEP}]
 	>=dev-python/typing-extensions-4.5.0[${PYTHON_USEDEP}]
@@ -73,16 +76,22 @@ RDEPEND="
 	>=dev-python/uvloop-0.15.1[${PYTHON_USEDEP}]
 	>=dev-python/watchfiles-0.20[${PYTHON_USEDEP}]
 	dev-python/websockets[${PYTHON_USEDEP}]
+	computer-use? (
+		media-gfx/scrot
+		x11-base/xorg-server[xvfb]
+		x11-misc/cua-driver
+		x11-misc/xdotool
+		x11-wm/openbox
+	)
 "
 DEPEND="${RDEPEND}"
 
 src_prepare() {
-	# 1. Strip unused lazy-only gigachat and huggingface_hub dependencies.
+	# 1. Strip unused lazy-only huggingface_hub dependency.
 	# 2. Relax mcp and tree-sitter upper bounds for adaptive-overlay/::gentoo.
 	sed -i \
-		-e '/"gigachat>=/d' \
 		-e '/"huggingface_hub",/d' \
-		-e 's/"mcp>=1.10,<2.0"/"mcp>=1.10"/' \
+		-e 's/"mcp>=[^"]*"/"mcp>=1.29"/' \
 		-e 's/"tree-sitter>=0.23.2,<0.25"/"tree-sitter>=0.23.2"/' \
 		pyproject.toml || die
 
