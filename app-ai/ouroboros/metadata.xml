@@ -8,4 +8,7 @@
 	<upstream>
 		<remote-id type="github">razzant/ouroboros</remote-id>
 	</upstream>
+	<use>
+		<flag name="computer-use">Enable computer-use and headless X11 GUI automation via <pkg>x11-misc/cua-driver</pkg>, <pkg>x11-base/xorg-server</pkg> (Xvfb), <pkg>x11-wm/openbox</pkg>, <pkg>x11-misc/xdotool</pkg>, and <pkg>media-gfx/scrot</pkg></flag>
+	</use>
 </pkgmetadata>
