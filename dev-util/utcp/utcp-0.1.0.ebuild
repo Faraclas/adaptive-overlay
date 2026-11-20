@@ -1,0 +1,518 @@
+# Copyright 2026 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=8
+
+RUST_MIN_VER="1.91.0"
+
+CRATES="
+	adler2@2.0.1
+	aead@0.5.2
+	aes-gcm@0.10.3
+	aes@0.8.4
+	ahash@0.8.12
+	aho-corasick@1.1.5
+	alloc-no-stdlib@3.0.0
+	alloc-stdlib@0.3.0
+	allocator-api2@0.2.21
+	android_system_properties@0.1.6
+	anstream@1.0.0
+	anstyle-parse@1.0.0
+	anstyle-query@1.1.5
+	anstyle-wincon@3.0.11
+	anstyle@1.0.14
+	anyhow@1.0.104
+	arc-swap@1.9.5
+	asn1-rs-derive@0.5.1
+	asn1-rs-impl@0.2.0
+	asn1-rs@0.6.2
+	async-compression@0.4.52
+	async-stream-impl@0.3.6
+	async-stream@0.3.6
+	async-trait@0.1.92
+	atomic-waker@1.1.2
+	autocfg@1.5.1
+	axum-core@0.3.4
+	axum-core@0.4.5
+	axum@0.6.20
+	axum@0.7.9
+	base16ct@0.2.0
+	base64@0.21.7
+	base64@0.22.1
+	base64@0.23.1
+	base64ct@1.8.3
+	bincode@1.3.3
+	bitflags@1.3.2
+	bitflags@2.13.2
+	block-buffer@0.10.4
+	block-padding@0.3.3
+	brotli-decompressor@6.3.1
+	brotli@9.1.1
+	bumpalo@3.20.4
+	byteorder@1.5.0
+	bytes@1.12.1
+	cassowary@0.3.0
+	castaway@0.2.4
+	cbc@0.1.2
+	cc@1.11.2
+	ccm@0.5.0
+	cfg-if@1.0.5
+	cfg_aliases@0.2.2
+	chacha20@0.10.2
+	chacha20@0.9.1
+	chacha20poly1305@0.10.1
+	chrono@0.4.45
+	cipher@0.4.4
+	clap@4.6.7
+	clap_builder@4.6.7
+	clap_derive@4.6.7
+	clap_lex@1.1.1
+	colorchoice@1.0.5
+	compact_str@0.10.0
+	compact_str@0.8.2
+	compression-codecs@0.4.47
+	compression-core@0.4.34
+	const-oid@0.9.6
+	const-random-macro@0.1.16
+	const-random@0.1.18
+	core-foundation-sys@0.8.7
+	core-foundation@0.10.1
+	cpufeatures@0.2.17
+	cpufeatures@0.3.1
+	crc-catalog@2.5.0
+	crc32fast@1.5.5
+	crc@3.4.0
+	crossterm@0.28.1
+	crossterm_winapi@0.9.1
+	crunchy@0.2.4
+	crypto-bigint@0.5.5
+	crypto-common@0.1.7
+	ctr@0.9.2
+	curve25519-dalek-derive@0.1.1
+	curve25519-dalek@4.1.3
+	darling@0.24.1
+	darling_core@0.24.1
+	darling_macro@0.24.1
+	data-encoding@2.11.1
+	der-parser@9.0.0
+	der@0.7.10
+	deranged@0.5.9
+	digest@0.10.7
+	directories@5.0.1
+	dirs-sys@0.4.1
+	displaydoc@0.2.7
+	dotenvy@0.15.7
+	dtls@0.13.0
+	ecdsa@0.16.9
+	either@1.19.0
+	elliptic-curve@0.13.8
+	equivalent@1.0.3
+	errno@0.3.15
+	eventsource-stream@0.2.3
+	fastrand@2.5.0
+	ff@0.13.1
+	fiat-crypto@0.2.9
+	find-msvc-tools@0.1.15
+	flate2@1.1.11
+	fnv@1.0.7
+	foldhash@0.1.5
+	form_urlencoded@1.2.2
+	fs2@0.4.3
+	futures-channel@0.3.34
+	futures-core@0.3.34
+	futures-executor@0.3.34
+	futures-io@0.3.34
+	futures-macro@0.3.34
+	futures-sink@0.3.34
+	futures-task@0.3.34
+	futures-util@0.3.34
+	futures@0.3.34
+	generic-array@0.14.7
+	getrandom@0.2.17
+	getrandom@0.3.4
+	getrandom@0.4.3
+	ghash@0.5.1
+	group@0.13.0
+	h2@0.3.27
+	h2@0.4.20
+	hashbrown@0.12.3
+	hashbrown@0.15.5
+	hashbrown@0.17.1
+	heck@0.5.0
+	hex@0.4.3
+	hkdf@0.12.4
+	hmac@0.12.1
+	http-body-util@0.1.5
+	http-body@0.4.6
+	http-body@1.1.0
+	http@0.2.12
+	http@1.5.0
+	httparse@1.10.1
+	httpdate@1.0.3
+	hyper-rustls@0.27.10
+	hyper-timeout@0.4.1
+	hyper-util@0.1.21
+	hyper@0.14.32
+	hyper@1.12.0
+	iana-time-zone-haiku@0.1.2
+	iana-time-zone@0.1.65
+	icu_collections@2.4.0
+	icu_locale_core@2.4.0
+	icu_normalizer@2.4.0
+	icu_normalizer_data@2.4.0
+	icu_properties@2.4.0
+	icu_properties_data@2.4.0
+	icu_provider@2.4.0
+	ident_case@1.0.1
+	idna@1.1.0
+	idna_adapter@1.2.2
+	indexmap@1.9.3
+	indexmap@2.14.2
+	indoc@2.0.8
+	inotify-sys@0.1.8
+	inotify@0.11.5
+	inout@0.1.4
+	instability@0.3.14
+	interceptor@0.15.0
+	ipnet@2.12.2
+	is_terminal_polyfill@1.70.2
+	itertools@0.12.1
+	itertools@0.13.0
+	itoa@1.0.19
+	js-sys@0.3.107
+	kqueue-sys@1.1.2
+	kqueue@1.2.1
+	lazy_static@1.5.1
+	libc@0.2.191
+	libredox@0.1.25
+	linux-raw-sys@0.12.1
+	linux-raw-sys@0.4.15
+	litemap@0.8.3
+	lock_api@0.4.14
+	log@0.4.35
+	lru-slab@0.1.3
+	lru@0.12.5
+	matchit@0.7.3
+	md-5@0.10.6
+	memchr@2.8.3
+	memoffset@0.7.1
+	mime@0.3.18
+	minimal-lexical@0.2.1
+	miniz_oxide@0.9.1
+	mio@1.2.5
+	nix@0.26.4
+	nom@7.1.3
+	notify-types@2.3.1
+	notify@8.2.2
+	num-bigint@0.4.8
+	num-conv@0.2.2
+	num-integer@0.1.47
+	num-traits@0.2.19
+	objc2-core-foundation@0.3.2
+	objc2-core-services@0.3.2
+	oid-registry@0.7.1
+	once_cell@1.21.4
+	once_cell_polyfill@1.70.2
+	opaque-debug@0.3.1
+	openssl-probe@0.2.2
+	option-ext@0.2.0
+	p256@0.13.2
+	p384@0.13.1
+	parking_lot@0.12.5
+	parking_lot_core@0.9.12
+	paste@1.0.15
+	pem-rfc7468@0.7.0
+	pem@3.0.6
+	percent-encoding@2.3.2
+	pin-project-internal@1.1.13
+	pin-project-lite@0.2.17
+	pin-project@1.1.13
+	pin-utils@0.1.1
+	pkcs8@0.10.2
+	poly1305@0.8.0
+	polyval@0.6.2
+	portable-atomic@1.15.0
+	potential_utf@0.1.6
+	powerfmt@0.2.1
+	ppv-lite86@0.2.21
+	primeorder@0.13.6
+	proc-macro2@1.0.107
+	prost-derive@0.12.6
+	prost-types@0.12.6
+	prost@0.12.6
+	quinn-proto@0.11.19
+	quinn-udp@0.5.16
+	quinn@0.11.12
+	quote@1.0.47
+	r-efi@5.3.0
+	r-efi@6.0.0
+	rand@0.10.3
+	rand@0.8.8
+	rand@0.9.5
+	rand_chacha@0.3.1
+	rand_chacha@0.9.0
+	rand_core@0.10.1
+	rand_core@0.6.4
+	rand_core@0.9.5
+	rand_pcg@0.10.2
+	ratatui@0.29.0
+	rcgen@0.13.2
+	redox_syscall@0.5.18
+	redox_users@0.4.6
+	regex-automata@0.4.18
+	regex-syntax@0.8.11
+	regex@1.13.1
+	reqwest@0.12.28
+	rfc6979@0.4.0
+	rhai@1.27.0
+	rhai_codegen@3.3.0
+	ring@0.17.14
+	rtcp@0.14.0
+	rtp@0.14.0
+	rustc-hash@2.1.3
+	rustc_version@0.4.1
+	rusticata-macros@4.1.0
+	rustix@0.38.44
+	rustix@1.1.6
+	rustls-native-certs@0.8.5
+	rustls-pemfile@2.2.0
+	rustls-pki-types@1.16.0
+	rustls-webpki@0.102.8
+	rustls-webpki@0.103.17
+	rustls@0.22.4
+	rustls@0.23.46
+	rustversion@1.0.23
+	ryu@1.0.23
+	same-file@1.0.6
+	schannel@0.1.30
+	scopeguard@1.2.0
+	sdp@0.10.0
+	sec1@0.7.3
+	security-framework-sys@2.17.0
+	security-framework@3.7.0
+	semver@1.0.28
+	serde@1.0.229
+	serde_core@1.0.229
+	serde_derive@1.0.229
+	serde_json@1.0.154
+	serde_norway@0.9.42
+	serde_path_to_error@0.1.20
+	serde_spanned@0.6.9
+	serde_urlencoded@0.7.1
+	sha1@0.10.7
+	sha2@0.10.9
+	shlex@2.0.1
+	signal-hook-mio@0.2.5
+	signal-hook-registry@1.4.8
+	signal-hook@0.3.18
+	signature@2.2.0
+	simd-adler32@0.3.10
+	slab@0.4.12
+	smallvec@1.16.5
+	smartstring@1.0.1
+	smol_str@0.2.2
+	socket2@0.5.10
+	socket2@0.6.5
+	spki@0.7.3
+	stable_deref_trait@1.2.1
+	static_assertions@1.1.0
+	strsim@0.11.1
+	strum@0.26.3
+	strum_macros@0.26.4
+	stun@0.9.0
+	substring@1.4.5
+	subtle@2.6.1
+	syn@2.0.119
+	syn@3.0.10
+	sync_wrapper@0.1.2
+	sync_wrapper@1.0.2
+	synstructure@0.13.2
+	synstructure@0.14.0
+	tempfile@3.27.0
+	thin-vec@0.2.21
+	thiserror-impl@1.0.69
+	thiserror-impl@2.0.21
+	thiserror@1.0.69
+	thiserror@2.0.21
+	time-core@0.1.9
+	time-macros@0.2.32
+	time@0.3.55
+	tiny-keccak@2.0.2
+	tinystr@0.8.5
+	tinyvec@1.13.3
+	tokio-io-timeout@1.2.1
+	tokio-macros@2.7.2
+	tokio-rustls@0.25.0
+	tokio-rustls@0.26.6
+	tokio-stream@0.1.19
+	tokio-tungstenite@0.24.0
+	tokio-util@0.7.20
+	tokio@1.54.1
+	toml@0.8.23
+	toml_datetime@0.6.11
+	toml_edit@0.22.27
+	toml_write@0.1.2
+	tonic@0.11.0
+	tower-http@0.6.11
+	tower-layer@0.3.3
+	tower-service@0.3.3
+	tower@0.4.13
+	tower@0.5.3
+	tracing-attributes@0.1.31
+	tracing-core@0.1.36
+	tracing@0.1.44
+	try-lock@0.2.5
+	tungstenite@0.24.0
+	turn@0.11.0
+	typenum@1.20.1
+	unicase@2.10.0
+	unicode-ident@1.0.27
+	unicode-segmentation@1.13.3
+	unicode-truncate@1.1.0
+	unicode-width@0.1.14
+	unicode-width@0.2.0
+	universal-hash@0.5.1
+	unsafe-libyaml-norway@0.2.15
+	untrusted@0.9.0
+	url@2.5.8
+	urlencoding@2.1.3
+	utf-8@0.7.6
+	utf8_iter@1.1.0
+	utf8parse@0.2.2
+	utf_types@1.0.0
+	uuid@1.29.2
+	version_check@0.9.5
+	waitgroup@0.1.2
+	walkdir@2.5.0
+	want@0.3.2
+	wasi@0.11.1+wasi-snapshot-preview1
+	wasip2@1.0.4+wasi-0.2.12
+	wasm-bindgen-futures@0.4.80
+	wasm-bindgen-macro-support@0.2.130
+	wasm-bindgen-macro@0.2.130
+	wasm-bindgen-shared@0.2.130
+	wasm-bindgen@0.2.130
+	wasm-streams@0.4.2
+	web-sys@0.3.107
+	web-time@1.1.0
+	webrtc-data@0.12.0
+	webrtc-ice@0.14.0
+	webrtc-mdns@0.10.0
+	webrtc-media@0.11.0
+	webrtc-sctp@0.13.0
+	webrtc-srtp@0.16.0
+	webrtc-util@0.12.0
+	webrtc@0.14.0
+	winapi-i686-pc-windows-gnu@0.4.0
+	winapi-util@0.1.11
+	winapi-x86_64-pc-windows-gnu@0.4.0
+	winapi@0.3.9
+	windows-core@0.62.2
+	windows-implement@0.60.2
+	windows-interface@0.59.3
+	windows-link@0.2.1
+	windows-result@0.4.1
+	windows-strings@0.5.1
+	windows-sys@0.48.0
+	windows-sys@0.52.0
+	windows-sys@0.59.0
+	windows-sys@0.61.2
+	windows-targets@0.48.5
+	windows-targets@0.52.6
+	windows_aarch64_gnullvm@0.48.5
+	windows_aarch64_gnullvm@0.52.6
+	windows_aarch64_msvc@0.48.5
+	windows_aarch64_msvc@0.52.6
+	windows_i686_gnu@0.48.5
+	windows_i686_gnu@0.52.6
+	windows_i686_gnullvm@0.52.6
+	windows_i686_msvc@0.48.5
+	windows_i686_msvc@0.52.6
+	windows_x86_64_gnu@0.48.5
+	windows_x86_64_gnu@0.52.6
+	windows_x86_64_gnullvm@0.48.5
+	windows_x86_64_gnullvm@0.52.6
+	windows_x86_64_msvc@0.48.5
+	windows_x86_64_msvc@0.52.6
+	winnow@0.7.15
+	wit-bindgen@0.57.1
+	writeable@0.6.4
+	x25519-dalek@2.0.1
+	x509-parser@0.16.0
+	yasna@0.5.2
+	yoke-derive@0.8.4
+	yoke@0.8.4
+	zerocopy-derive@0.8.63
+	zerocopy@0.8.63
+	zerofrom-derive@0.1.8
+	zerofrom@0.1.8
+	zeroize@1.9.1
+	zeroize_derive@1.5.0
+	zerotrie@0.2.5
+	zerovec-derive@0.11.7
+	zerovec@0.11.9
+	zlib-rs@0.6.8
+	zmij@1.0.23
+"
+
+inherit cargo systemd
+
+DESCRIPTION="CLI, daemon, and TUI for searching and calling UTCP and MCP tool manuals"
+HOMEPAGE="https://github.com/Faraclas/agent-misc"
+
+MY_TAG="utcp-rs-v${PV}"
+SRC_URI="
+	https://github.com/Faraclas/agent-misc/archive/refs/tags/${MY_TAG}.tar.gz -> ${P}.tar.gz
+	${CARGO_CRATE_URIS}
+"
+S="${WORKDIR}/agent-misc-${MY_TAG}/utcp-rs"
+
+LICENSE="MIT"
+# Dependent crate licenses
+LICENSE+="
+	Apache-2.0 BSD BSD-2 CC0-1.0 ISC MIT MPL-2.0 Unicode-3.0 ZLIB
+"
+SLOT="0"
+KEYWORDS="~amd64"
+IUSE="test"
+RESTRICT="!test? ( test )"
+
+RDEPEND="
+	app-misc/ca-certificates
+"
+BDEPEND="
+	test? ( net-libs/nodejs )
+"
+
+QA_FLAGS_IGNORED="usr/bin/utcp"
+
+src_compile() {
+	cargo_src_compile -p utcp-cli
+}
+
+src_test() {
+	cargo_src_test --workspace
+}
+
+src_install() {
+	dobin "$(cargo_target_dir)/utcp"
+
+	# User unit; ExecStart=/usr/bin/utcp daemon run. Maintained upstream.
+	systemd_douserunit packaging/systemd/utcp-daemon.service
+
+	# Linux-rendered utcp-tools skill. With an empty HOME it renders the
+	# generic version and writes nothing.
+	mkdir -p "${T}/skillhome" || die
+	HOME="${T}/skillhome" "$(cargo_target_dir)/utcp" sync-ides --print-skill > "${T}/SKILL.md" || die
+	insinto /usr/share/utcp
+	doins "${T}/SKILL.md"
+
+	dodoc README.md NOTICE docs/operating.md
+	dodoc ../LICENSE crates/utcp-core/LICENSE-UPSTREAM-RS-UTCP
+}
+
+pkg_postinst() {
+	elog "To start the per-user daemon:     systemctl --user enable --now utcp-daemon"
+	elog "To install the agent skills:       utcp sync-ides --global"
+	elog "Docs: /usr/share/doc/${PF}/operating.md*"
+}

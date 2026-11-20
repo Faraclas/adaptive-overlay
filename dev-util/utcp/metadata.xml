@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    UTCP CLI, optional per-user daemon, and TUI for searching and calling
+    tools from registered OpenAPI/REST, CLI, WebSocket, and imported MCP
+    server manuals.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">Faraclas/agent-misc</remote-id>
+  </upstream>
+</pkgmetadata>

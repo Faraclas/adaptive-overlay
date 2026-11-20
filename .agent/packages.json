@@ -376,5 +376,17 @@
     "repackage": false,
     "auto_upgrade": true,
     "notes": "CLI tool for code structural search, lint, and rewrite. Regenerate CRATES on bumps."
+  },
+  {
+    "category": "dev-util",
+    "name": "utcp",
+    "upstream_repo": "Faraclas/agent-misc",
+    "upstream_type": "github-release",
+    "version_pattern": "utcp-rs-v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "cargo",
+    "cargo_subdir": "utcp-rs",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "First-party repo (Faraclas/agent-misc, utcp-rs/). Intentionally excluded from scheduled auto_upgrade; update alongside upstream releases or trigger upgrade-ebuild.yml directly via workflow_dispatch from agent-misc's release workflow."
   }
 ]
