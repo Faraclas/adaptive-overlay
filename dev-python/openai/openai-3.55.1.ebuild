@@ -18,7 +18,7 @@ S="${WORKDIR}/openai-python-${PV}"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS=""
+KEYWORDS="~amd64"
 
 RDEPEND="
 	>=dev-python/anyio-4.10.0[${PYTHON_USEDEP}]
