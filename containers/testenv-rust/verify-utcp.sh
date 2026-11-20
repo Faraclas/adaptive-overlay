@@ -56,5 +56,10 @@ require(len(skill_lines) >= 2 and skill_lines[0] == "---"
 unit = image / "usr/lib/systemd/user/utcp-daemon.service"
 require(unit.is_file(), f"Missing systemd user unit: {unit}")
 
+ver_tuple = tuple(int(x) for x in version.split("."))
+if ver_tuple >= (0, 1, 1):
+    example = image / f"usr/share/doc/{package}/examples/secret-source.sh"
+    require(example.is_file(), f"Missing uncompressed example script: {example}")
+
 print(f"utcp {version} verification passed")
 PY
