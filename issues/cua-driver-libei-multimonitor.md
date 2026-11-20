@@ -4,7 +4,7 @@
 - Patch: none (the last ebuild needing it, 0.38.0-r1, was removed)
 - Upstream: issue https://github.com/trycua/cua/issues/5808 (ours, filed
   2026-10-24); PR https://github.com/trycua/cua/pull/5853
-- Status: resolved (0.43.2; checked 2026-11-15)
+- Status: resolved (0.43.2; checked 2026-11-19)
 - Drop when: fixed in 0.43.2; patch removed with 0.38.0-r1.
 
 ## Problem

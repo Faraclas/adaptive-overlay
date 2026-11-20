@@ -214,6 +214,8 @@ CRATES="
 	idna@1.1.0
 	idna_adapter@1.2.2
 	image@0.25.10
+	include_dir@0.7.4
+	include_dir_macros@0.7.4
 	indexmap@2.14.0
 	inout@0.1.4
 	inout@0.2.2
@@ -226,6 +228,7 @@ CRATES="
 	itoa@1.0.18
 	jobserver@0.1.35
 	js-sys@0.3.98
+	jsonc-parser@0.33.2
 	jsonschema-regex@0.46.10
 	jsonschema@0.46.10
 	keyring-core@1.0.0
@@ -647,16 +650,16 @@ SLOT="0"
 KEYWORDS="~amd64"
 IUSE="gnome +portal"
 
-# X11/Xlib FFI (MPX drags, XTest) is always linked; portal input adds
-# libei (via the pure-Rust reis crate) and libxkbcommon.
+# X11/Xlib FFI (MPX drags, XTest) is always linked; Wayland typing needs
+# libxkbcommon, and portal input adds libei (via the pure-Rust reis crate).
 DEPEND="
 	x11-libs/libX11
 	x11-libs/libXext
 	x11-libs/libXi
 	x11-libs/libXtst
+	>=x11-libs/libxkbcommon-1.0
 	portal? (
 		dev-libs/libei
-		x11-libs/libxkbcommon
 	)
 "
 # gdbus (dev-libs/glib) is used at runtime to reach the WinRects helper;
@@ -674,7 +677,7 @@ BDEPEND="
 PATCHES=(
 	# Treat /usr/bin/cua-driver as package-managed so `cua-driver update
 	# --apply` and channel switching never replace Portage-owned files.
-	"${FILESDIR}"/${PN}-0.28.3-portage-managed.patch
+	"${FILESDIR}"/${PN}-0.51.5-portage-managed.patch
 )
 
 QA_FLAGS_IGNORED="usr/bin/.*"
