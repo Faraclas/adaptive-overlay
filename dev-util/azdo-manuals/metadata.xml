@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    Command-line tool that fetches Microsoft's pinned, archived Azure DevOps
+    OpenAPI specifications into a per-user cache, builds ready-to-use UTCP
+    HTTP manuals for an organization, and registers them with dev-util/utcp.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">Faraclas/agent-misc</remote-id>
+  </upstream>
+</pkgmetadata>

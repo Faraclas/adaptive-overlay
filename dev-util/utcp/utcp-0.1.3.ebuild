@@ -474,11 +474,14 @@ LICENSE+="
 "
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="test"
+IUSE="azdo-manuals test"
 RESTRICT="!test? ( test )"
 
 RDEPEND="
 	app-misc/ca-certificates
+"
+PDEPEND="
+	azdo-manuals? ( dev-util/azdo-manuals )
 "
 BDEPEND="
 	test? ( net-libs/nodejs )
@@ -509,10 +512,19 @@ src_install() {
 
 	dodoc README.md NOTICE docs/operating.md
 	dodoc ../LICENSE crates/utcp-core/LICENSE-UPSTREAM-RS-UTCP
+
+	docinto examples
+	dodoc examples/secret-source.sh
+	docompress -x "/usr/share/doc/${PF}/examples"
 }
 
 pkg_postinst() {
 	elog "To start the per-user daemon:     systemctl --user enable --now utcp-daemon"
 	elog "To install the agent skills:       utcp sync-ides --global"
 	elog "Docs: /usr/share/doc/${PF}/operating.md*"
+	elog "For API tokens at daemon startup, see \"The Secrets Command\" in operating.md (section 3)"
+	elog "and /usr/share/doc/${PF}/examples/secret-source.sh"
+	if use azdo-manuals; then
+		elog "To generate Azure DevOps manuals:  azdo-manuals generate --org <org> --register"
+	fi
 }
