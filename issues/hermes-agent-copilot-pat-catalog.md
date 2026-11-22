@@ -2,21 +2,29 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
-  (against the github-copilot plugin, used by 0.23.1 and 0.23.2 with
+  (against the github-copilot plugin, used by 0.23.2 and 0.23.3 with
   USE=copilot). The core patch (`hermes-agent-copilot-pat-discovery.patch`)
   went with the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); bug 1:
   https://github.com/NousResearch/hermes-labs-plugins/issues/63, fix PR
-  https://github.com/NousResearch/hermes-labs-plugins/pull/69 (closed
-  unmerged); follow-up PR
-  https://github.com/NousResearch/hermes-labs-plugins/pull/88 (open)
-- Status: open (checked 2026-11-19: #63 is open, #69 closed unmerged, and
-  #88 open; v0.23.2 pins plugin `df8f132`, whose
-  `copilot_request_headers()` still hardcodes `vscode-chat`)
+  https://github.com/NousResearch/hermes-labs-plugins/pull/69 and
+  follow-up PR https://github.com/NousResearch/hermes-labs-plugins/pull/88
+  (both closed unmerged). Fixed in the plugin by commit `244d3f9`
+  (catalog request, client and image headers; skips the token exchange
+  for PATs). Related, OAuth logins only (not our PAT):
+  https://github.com/NousResearch/hermes-labs-plugins/pull/77 (draft),
+  core PR https://github.com/NousResearch/hermes-agent/pull/154360.
+- Status: fixed upstream, not yet released (checked 2026-11-22: #63
+  closed by `244d3f9`; v0.23.2 and v0.23.3 both pin plugin `df8f132`,
+  which predates it and still hardcodes `vscode-chat` in
+  `copilot_request_headers()`; Hermes `main` pins `f9fd3a3`, which
+  includes it. Expect the fix in the next release, likely v0.24.0)
 - Drop when: the plugin sha core's `plugin-catalog/github-copilot.yaml`
-  pins sends a PAT-compatible integration id.
+  pins includes `244d3f9` and `tests/test_copilot_pat_integration_id.py`
+  passes without this patch. That also retires
+  `issues/hermes-agent-copilot-image-headers.md`.
 
 ## Problem
 

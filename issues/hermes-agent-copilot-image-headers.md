@@ -9,7 +9,8 @@
   plugin side filed with the PAT catalog bug as
   https://github.com/NousResearch/hermes-labs-plugins/issues/63
 - Status: resolved (v0.22.7 core; checked 2026-11-08). The plugin side is
-  open in `hermes-agent-copilot-pat-catalog.md`
+  fixed by plugin commit `244d3f9` but not in a release yet (v0.23.3 pins
+  `df8f132`; checked 2026-11-22); see `hermes-agent-copilot-pat-catalog.md`
 - Drop when: delete this file when the PAT catalog issue is resolved.
 
 ## Problem
