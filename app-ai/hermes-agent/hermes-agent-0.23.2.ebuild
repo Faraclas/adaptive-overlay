@@ -39,7 +39,7 @@ SRC_URI+="
 LICENSE="MIT"
 SLOT="0"
 IUSE="browser computer-use +copilot +dashboard discord +mcp +websearch"
-# Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
+# Google Chrome providers are glibc-only. The elibc_glibc guard in
 # RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
 # when solving deps on musl profiles.
 REQUIRED_USE="
@@ -95,7 +95,6 @@ RDEPEND="
 			|| (
 				www-client/google-chrome
 				www-client/google-chrome-beta
-				www-client/chromium
 			)
 		)
 	)

@@ -11,11 +11,11 @@ inherit distutils-r1 systemd
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
-# Tag v0.23.1 commit for install-stamp.json provenance
-HERMES_COMMIT="3b421578588243f920886e6fe79a6faa87ea026e"
+# Tag v0.23.3 commit for install-stamp.json provenance
+HERMES_COMMIT="caafe5389ae585ef77387a962aee05b1bcf17029"
 # github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
-HERMES_COPILOT_COMMIT="4987918a068fcf4b3efbb584db5dd05e5f57c669"
+HERMES_COPILOT_COMMIT="df8f1321941125d45dde71ab20196fbeea093191"
 HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
 # Pinned pnpm version from pm/lock.json for building ui-tui and web frontends.
 HERMES_PNPM_PV="12.15.0"
@@ -39,7 +39,7 @@ SRC_URI+="
 LICENSE="MIT"
 SLOT="0"
 IUSE="browser computer-use +copilot +dashboard discord +mcp +websearch"
-# Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
+# Google Chrome providers are glibc-only. The elibc_glibc guard in
 # RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
 # when solving deps on musl profiles.
 REQUIRED_USE="
@@ -95,7 +95,6 @@ RDEPEND="
 			|| (
 				www-client/google-chrome
 				www-client/google-chrome-beta
-				www-client/chromium
 			)
 		)
 	)
@@ -156,12 +155,12 @@ PATCHES=(
 	# cua-driver otherwise breaks every later call until restart), and add
 	# action="release" to end this session's desktop connection cleanly, and
 	# revive a dead private (yolo/bounded) cua-driver daemon on reconnect.
-	"${FILESDIR}/${PN}-0.22.2-computer-use-release-reconnect.patch"
+	"${FILESDIR}/${PN}-0.23.2-computer-use-release-reconnect.patch"
 	# Find install-stamp.json in hermes_cli/, where python_install puts it.
 	"${FILESDIR}/${PN}-0.22.5-install-stamp-path.patch"
 	# Live catalog for a plan host (api.business.githubcopilot.com) in
 	# model.base_url instead of the static fallback list.
-	"${FILESDIR}/${PN}-0.22.7-copilot-plan-host-catalog.patch"
+	"${FILESDIR}/${PN}-0.23.2-copilot-plan-host-catalog.patch"
 	# The bundled github-copilot plugin counts as installed: no "Copilot is
 	# off" notice and no catalog fetch of a second copy on every start.
 	"${FILESDIR}/${PN}-0.22.7-bundled-left-core-plugin.patch"

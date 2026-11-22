@@ -1,16 +1,14 @@
 # hermes-agent: Copilot plan host in base_url hides the live model catalog
 
 - Package: `app-ai/hermes-agent`
-- Patches (same change, context differs):
-  - `files/hermes-agent-0.22.7-copilot-plan-host-catalog.patch`
-    (used by 0.23.1)
-  - `files/hermes-agent-0.23.2-copilot-plan-host-catalog.patch`
-    (used by 0.23.2; 0.23.2 added an import above the first hunk)
+- Patch: `files/hermes-agent-0.23.2-copilot-plan-host-catalog.patch`
+  (used by 0.23.2 and 0.23.3). Rebuilt from the 0.22.7 patch, removed
+  with the 0.23.1 ebuild: 0.23.2 added an import above the first hunk.
   The 0.22.5 backport went with the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/142480,
   PR https://github.com/NousResearch/hermes-agent/pull/142481
-- Status: open (re-checked 2026-11-19: #142481 open, head `a9ed776`, not in
-  v0.23.2; the patches apply to v0.23.1 and v0.23.2)
+- Status: open (re-checked 2026-11-22: #142480 and #142481 open, not in
+  v0.23.3; the patch applies to v0.23.2 and v0.23.3)
 - Drop when: a packaged release contains #142481 (or another fix for
   #142480) and the picker lists the live catalog with
   `base_url: https://api.business.githubcopilot.com`.
@@ -64,7 +62,8 @@ only changes the catalog request headers.
 
 ## Our patch
 
-0.22.7: `hermes-agent-0.22.7-copilot-plan-host-catalog.patch` is the PR's
+0.22.7: `hermes-agent-0.22.7-copilot-plan-host-catalog.patch` (removed
+with the 0.23.1 ebuild) is the PR's
 diff at head `a9ed776`, unchanged (it applies cleanly to v0.22.7). The
 claim comes from the github-copilot plugin's profile `hostnames`
 (`githubcopilot.com`, `models.github.ai`) through `profile_for_host`, so
