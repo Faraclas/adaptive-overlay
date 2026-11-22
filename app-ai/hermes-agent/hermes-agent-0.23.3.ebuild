@@ -11,8 +11,8 @@ inherit distutils-r1 systemd
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
-# Tag v0.23.2 commit for install-stamp.json provenance
-HERMES_COMMIT="ae2a81ccc00e9b7c06301523e5bb09608397149c"
+# Tag v0.23.3 commit for install-stamp.json provenance
+HERMES_COMMIT="caafe5389ae585ef77387a962aee05b1bcf17029"
 # github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
 HERMES_COPILOT_COMMIT="df8f1321941125d45dde71ab20196fbeea093191"
@@ -39,7 +39,7 @@ SRC_URI+="
 LICENSE="MIT"
 SLOT="0"
 IUSE="browser computer-use +copilot +dashboard discord +mcp +websearch"
-# Chrome and Chromium providers are glibc-only. The elibc_glibc guard in
+# Google Chrome providers are glibc-only. The elibc_glibc guard in
 # RDEPEND is also needed: pkgcheck does not apply REQUIRED_USE elibc logic
 # when solving deps on musl profiles.
 REQUIRED_USE="
@@ -95,7 +95,6 @@ RDEPEND="
 			|| (
 				www-client/google-chrome
 				www-client/google-chrome-beta
-				www-client/chromium
 			)
 		)
 	)
