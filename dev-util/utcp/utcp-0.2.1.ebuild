@@ -503,10 +503,11 @@ src_install() {
 	# User unit; ExecStart=/usr/bin/utcp daemon run. Maintained upstream.
 	systemd_douserunit packaging/systemd/utcp-daemon.service
 
-	# Linux-rendered utcp-tools skill. With an empty HOME it renders the
-	# generic version and writes nothing.
-	mkdir -p "${T}/skillhome" || die
-	HOME="${T}/skillhome" "$(cargo_target_dir)/utcp" sync-ides --print-skill > "${T}/SKILL.md" || die
+	# Linux-rendered utcp-tools skill. With an empty HOME/XDG_CONFIG_HOME it
+	# renders the generic version and keeps any generated settings.toml in ${T}.
+	mkdir -p "${T}/skillhome/.config" || die
+	HOME="${T}/skillhome" XDG_CONFIG_HOME="${T}/skillhome/.config" \
+		"$(cargo_target_dir)/utcp" sync-ides --print-skill > "${T}/SKILL.md" || die
 	insinto /usr/share/utcp
 	doins "${T}/SKILL.md"
 
@@ -521,10 +522,16 @@ src_install() {
 pkg_postinst() {
 	elog "To start the per-user daemon:     systemctl --user enable --now utcp-daemon"
 	elog "To install the agent skills:       utcp sync-ides --global"
+	elog "To check the setup:                utcp doctor"
 	elog "Docs: /usr/share/doc/${PF}/operating.md*"
 	elog "For API tokens at daemon startup, see \"The Secrets Command\" in operating.md (section 3)"
 	elog "and /usr/share/doc/${PF}/examples/secret-source.sh"
+	elog "The first utcp command creates ~/.config/utcp/settings.toml (all settings, commented); after an"
+	elog "upgrade it adds new settings and keeps a copy as settings.toml.bak."
 	if use azdo-manuals; then
-		elog "To generate Azure DevOps manuals:  azdo-manuals generate --org <org> --register"
+		elog "To generate Azure DevOps manuals:  azdo-manuals generate --org <org> --stage"
+	fi
+	if [[ -n ${REPLACING_VERSIONS} ]]; then
+		elog "After upgrading: systemctl --user restart utcp-daemon, then utcp sync-ides --global"
 	fi
 }
