@@ -291,7 +291,10 @@ pkg_postinst() {
 	elog "  OpenRC (system service, runs as user hermesagent):"
 	elog "    1. rc-update add hermesagent default"
 	elog "    2. rc-service hermesagent start"
-	elog "  After every Hermes upgrade: hermes gateway restart"
+	elog "  After every Hermes upgrade, restart the service (the old gateway"
+	elog "  can hang in 'hermes gateway restart' on the new version's files):"
+	elog "    systemd: systemctl --user restart hermes-gateway"
+	elog "    OpenRC:  rc-service hermesagent restart"
 
 	if use dashboard; then
 		elog " "
