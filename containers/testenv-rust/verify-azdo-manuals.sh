@@ -48,6 +48,7 @@ require("libssl" not in ldd_out and "libcrypto" not in ldd_out,
 
 doc_dir = image / f"usr/share/doc/{package}"
 require(any(doc_dir.glob("README.md*")), f"Missing README.md in {doc_dir}")
+require(any(doc_dir.glob("operating.md*")), f"Missing operating.md in {doc_dir}")
 
 print(f"azdo-manuals {version} verification passed")
 PY

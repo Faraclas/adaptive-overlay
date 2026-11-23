@@ -174,10 +174,10 @@ RESTRICT="!test? ( test )"
 
 RDEPEND="
 	app-misc/ca-certificates
-	>=dev-util/utcp-0.1.3
+	>=dev-util/utcp-0.2.0
 "
 BDEPEND="
-	test? ( >=dev-util/utcp-0.1.3 )
+	test? ( >=dev-util/utcp-0.2.0 )
 "
 
 QA_FLAGS_IGNORED="usr/bin/azdo-manuals"
@@ -192,14 +192,14 @@ src_test() {
 
 src_install() {
 	dobin "$(cargo_target_dir)/azdo-manuals"
-	dodoc README.md NOTICE ../LICENSE
+	dodoc README.md docs/operating.md docs/azdo-manuals-spec.md NOTICE ../LICENSE
 }
 
 pkg_postinst() {
-	elog "Generate and register the manuals for your Azure DevOps organization (per user, needs network):"
-	elog "    azdo-manuals generate --org <org> --register"
-	elog "Run the same command again after upgrading azdo-manuals."
-	elog "utcp reads the PAT from AZURE_DEVOPS_EXT_PAT: add that name to your utcp secrets command's allowlist"
-	elog "(see /usr/share/doc/utcp-*/examples/secret-source.sh), then: systemctl --user restart utcp-daemon"
-	elog "PAT scopes and details: /usr/share/doc/${PF}/README.md*"
+	elog "Generate and stage the manuals for your Azure DevOps organization (per user, needs network):"
+	elog "    azdo-manuals generate --org <org> --stage"
+	elog "It prints the PAT permissions and the next steps: give utcp the PAT as AZURE_DEVOPS_EXT_PAT,"
+	elog "check with utcp doctor, review with utcp diff, test with azdo-manuals read-test, then utcp promote."
+	elog "After upgrading azdo-manuals, run generate --stage again, then utcp diff and utcp promote."
+	elog "Docs: /usr/share/doc/${PF}/operating.md* and README.md*"
 }
