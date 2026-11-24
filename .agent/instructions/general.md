@@ -41,7 +41,7 @@ deployed.
 | Skills / workflows | `.agent/skills/` (if present) |
 | Upstream issues behind local patches | `issues/` (see `issues/README.md`) |
 | CI scripts | `scripts/` |
-| Container sources | `containers/` (`testenv*` published by CI; `hermes-lab` and `ouroboros-home` local only) |
+| Container sources | `containers/` (`testenv*` published by CI; `hermes-lab` local only; `ouroboros-home` moved to `ouroboros-extras`) |
 
 ---
 
@@ -125,28 +125,11 @@ if pip/uv left unowned files in the system site-packages,
 site-packages has content. It is read-only and runs on a host in a few
 seconds (`bash containers/hermes-lab/lab-check-system`).
 
-### Ouroboros habitat container — `scripts/ouroboros-home.sh`
+### Ouroboros habitat container
 
-For the persistent self-evolving `app-ai/ouroboros` habitat (`ouroboros-home`):
-
-```/dev/null/example.sh#L1-6
-scripts/ouroboros-home.sh build          # standalone stage3 + znver5 source build
-scripts/ouroboros-home.sh up             # container "ouroboros-home" (--cpus=8)
-scripts/ouroboros-home.sh start-server   # Web UI/API on 127.0.0.1:8765
-scripts/ouroboros-home.sh check          # verify Portage/Python hygiene
-scripts/ouroboros-home.sh snapshot <tag> # save rootfs state
-scripts/ouroboros-home.sh reset [tag]    # recreate rootfs, keep volumes
-```
-
-Unlike the ephemeral CI `testenv*` containers (which use `getbinpkg` and
-generic `x86-64` flags for fast validation in GitHub Actions),
-`containers/ouroboros-home/Containerfile` starts directly from
-`docker.io/gentoo/stage3:amd64-desktop-systemd` + `gentoo/portage:latest`,
-disables binary packages (`-getbinpkg`), and compiles the toolchain
-(`binutils`, `gcc[lto]`, `glibc`), base `@world`, and Ouroboros's runtime stack
-from source with Panther's native `znver5` flags (`-march=native`, AVX-512
-`CPU_FLAGS_X86`, `RUSTFLAGS="-C target-cpu=native"`), capped at 8 CPU cores
-(`MAKEOPTS="-j8"`, `--cpus=8`).
+The persistent `ouroboros-home` habitat (`Containerfile`, `home-check-system`, and `ouroboros-home` CLI) was extracted to
+`Faraclas/ouroboros-extras` (`bin/ouroboros-home`, `containers/ouroboros-home/`). This repository (`adaptive-overlay`)
+retains only the Gentoo ebuilds (`app-ai/ouroboros`, etc.).
 
 ### Linting
 
