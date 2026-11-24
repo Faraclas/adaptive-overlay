@@ -400,5 +400,17 @@
     "repackage": false,
     "auto_upgrade": false,
     "notes": "First-party repo (Faraclas/agent-misc, azdo-manuals/). Intentionally excluded from scheduled auto_upgrade; update alongside upstream releases."
+  },
+  {
+    "category": "dev-util",
+    "name": "github-manuals",
+    "upstream_repo": "Faraclas/agent-misc",
+    "upstream_type": "github-release",
+    "version_pattern": "github-manuals-v([0-9]+\\.[0-9]+\\.[0-9]+)",
+    "build_system": "cargo",
+    "cargo_subdir": "github-manuals",
+    "repackage": false,
+    "auto_upgrade": false,
+    "notes": "First-party repo (Faraclas/agent-misc, github-manuals/). Intentionally excluded from scheduled auto_upgrade; update alongside upstream releases."
   }
 ]

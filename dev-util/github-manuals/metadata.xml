@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <longdescription>
+    Command-line tool that downloads GitHub's pinned OpenAPI description of
+    the REST API into a per-user cache, verifies it, builds seven UTCP HTTP
+    manuals from it, and stages them in dev-util/utcp.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">Faraclas/agent-misc</remote-id>
+  </upstream>
+</pkgmetadata>
