@@ -2,11 +2,13 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: none
-- Upstream: https://github.com/NousResearch/hermes-agent/issues/159067
-- Status: watching (checked 2026-11-22)
-- Drop when: a release logs a failed `stop()` on the restart path and
-  keeps the shutdown watchdog armed; then the install message can go
-  back to recommending `hermes gateway restart`.
+- Upstream: https://github.com/NousResearch/hermes-agent/issues/158360
+  (ours: #159067, a duplicate), fix PR
+  https://github.com/NousResearch/hermes-agent/pull/158399
+- Status: open (checked 2026-11-23)
+- Drop when: a release contains #158399 or an equivalent fix (a failed
+  `stop()` is logged and the shutdown watchdog stays armed); then the
+  install message can go back to recommending `hermes gateway restart`.
 
 ## Problem
 
@@ -21,21 +23,34 @@ Result: an exception in `stop()` is never logged, the gateway stays
 alive with its adapters connected in `gateway_state: draining`, and
 `hermes gateway restart` waits its whole budget (about 31 minutes).
 
+A later `SIGTERM` does not help: `stop()` keeps the failed task in
+`self._stop_task` and only awaits it again, so teardown never re-runs and
+no new watchdog is armed. Only the supervisor's kill ends the process.
+
 How we hit it: after a Portage upgrade, the old gateway is still running
-while the new version's files are on disk. The stop path imports modules
-lazily. On Panther (2026-11-22, 0.23.2 -> 0.23.3), the 0.23.2 gateway
-needed `hermes_state_runtime`, which 0.23.3 moved into `persistence/`.
-It stopped after `Shutdown phase: drain done` with no error anywhere. A
-`SIGUSR2` faulthandler dump showed no watchdog thread. The exact
-exception was lost, so the missing module is an inference.
+while the new version's files are on disk, and the stop path imports
+modules lazily. On Panther (2026-11-22, 0.23.2 -> 0.23.3) the restart
+stopped after `Shutdown phase: drain done` with nothing logged; a
+`SIGUSR2` faulthandler dump showed no watchdog thread. The `SIGTERM`
+from `systemctl --user restart` then surfaced the lost exception:
+
+```text
+ERROR asyncio: Task exception was never retrieved ... GatewayShutdownMixin.stop() ...
+ImportError: cannot import name 'authority_persistence' from 'gateway.session_persistence'
+```
+
+The 0.23.2 process had its own `gateway.session_persistence` loaded
+(0.23.2 has no `authority_persistence`), and a module first imported
+during `stop()` came from the 0.23.3 files and imports the new name. Any
+in-place upgrade under a running gateway can mix versions like this.
 
 ## Workaround
 
 After every upgrade, restart through the service manager instead of
 `hermes gateway restart`:
 
-- systemd: `systemctl --user restart hermes-gateway`. The `SIGTERM` stop
-  can wedge the same way. systemd then kills it at `TimeoutStopSec`
+- systemd: `systemctl --user restart hermes-gateway`. If the stop fails
+  the same way, systemd kills it at `TimeoutStopSec`
   (70 s in the unit `hermes gateway install` writes) and starts the new
   version. Expect up to about a minute of waiting.
 - OpenRC: `rc-service hermesagent restart`. `files/hermesagent.initd`
@@ -46,13 +61,25 @@ The `pkg_postinst` message of 0.23.2 and 0.23.3 says this.
 
 ## Upstream
 
-- 2026-11-22: filed #159067 with the faulthandler dump. Unchanged on
+- 2026-11-20: #158360 filed by someone else (same root cause, not
+  upgrade-specific); fix PR #158399 opened the same day.
+- 2026-11-22: we filed #159067 with the faulthandler dump. Unchanged on
   `main` at 0f602c5f the same day.
+- 2026-11-23: on #159067, a contributor traced the `SIGTERM` path and
+  reproduced it; another reported the same pattern on macOS after
+  in-place `git rebase` upgrades. Triage labelled it P2 and pointed to
+  #158360 / #158399. We commented with the confirmed `ImportError` and
+  agreed to close ours as a duplicate. #158399 is open, not reviewed.
 
 ## Notes
 
 - Recovery leaves a `Previous gateway life ... exited UNCLEANLY` warning
   on the next start. That is the kill, not an OOM.
+- The lost exception only reaches the logs once the stop task is
+  dropped: look for `Task exception was never retrieved` in
+  `~/.hermes/logs/errors.log` or the journal after the `SIGTERM`.
+  Traceback frames are read from the replaced files, so they can point at
+  the wrong code.
 - Diagnose a stuck gateway with `kill -USR2 <pid>`. It writes stacks to
   `~/.hermes/logs/gateway_faulthandler.log` and does not stop the
   process.
