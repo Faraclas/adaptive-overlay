@@ -151,10 +151,10 @@ RESTRICT="!test? ( test )"
 
 RDEPEND="
 	app-misc/ca-certificates
-	>=dev-util/utcp-0.2.3
+	>=dev-util/utcp-0.2.4
 "
 BDEPEND="
-	test? ( >=dev-util/utcp-0.2.3 )
+	test? ( >=dev-util/utcp-0.2.4 )
 "
 
 QA_FLAGS_IGNORED="usr/bin/github-manuals"
