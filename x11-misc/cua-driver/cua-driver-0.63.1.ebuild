@@ -124,6 +124,7 @@ CRATES="
 	ctutils@0.4.2
 	data-encoding@2.11.0
 	deranged@0.5.8
+	des@0.8.1
 	digest@0.10.7
 	dirs-sys@0.4.1
 	dirs@5.0.1
@@ -523,22 +524,17 @@ CRATES="
 	winapi-x86_64-pc-windows-gnu@0.4.0
 	winapi@0.3.9
 	windows-collections@0.2.0
-	windows-core@0.58.0
 	windows-core@0.59.0
 	windows-core@0.61.2
 	windows-future@0.2.1
-	windows-implement@0.58.0
 	windows-implement@0.59.0
 	windows-implement@0.60.2
-	windows-interface@0.58.0
 	windows-interface@0.59.3
 	windows-link@0.1.3
 	windows-link@0.2.1
 	windows-native-keyring-store@1.1.0
 	windows-numerics@0.2.0
-	windows-result@0.2.0
 	windows-result@0.3.4
-	windows-strings@0.1.0
 	windows-strings@0.3.1
 	windows-strings@0.4.2
 	windows-sys@0.48.0
@@ -549,7 +545,6 @@ CRATES="
 	windows-targets@0.53.5
 	windows-threading@0.1.0
 	windows-win@3.0.0
-	windows@0.58.0
 	windows@0.59.0
 	windows@0.61.3
 	windows_aarch64_gnullvm@0.48.5

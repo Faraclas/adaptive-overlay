@@ -1,9 +1,9 @@
 # cua-driver: self-updater must defer to Portage
 
 - Package: `x11-misc/cua-driver`
-- Patch: `files/cua-driver-0.51.5-portage-managed.patch` (0.54.0, 0.58.1)
+- Patch: `files/cua-driver-0.51.5-portage-managed.patch` (0.58.1, 0.63.1)
 - Upstream: none filed
-- Status: local (checked 2026-11-22)
+- Status: local (checked 2026-11-26)
 - Drop when: upstream offers a generic "managed by the system package
   manager" switch we can set at build time.
 
