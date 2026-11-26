@@ -10,7 +10,7 @@ declare -A GIT_CRATES=(
 	[async-pipe]='https://github.com/zed-industries/async-pipe-rs;82d00a04211cf4e1236029aa03e6b6ce2a74c553;async-pipe-rs-%commit%'
 	[async-tar]='https://github.com/zed-industries/async-tar;bd3ad6f89df9a9da7a8535958756d6bf465936a0;async-tar-%commit%'
 	[async-process]='https://github.com/zed-industries/async-process;0b6d6713570af61806e1e5cb40e0f757cb93fd9d;async-process-%commit%'
-	[async-task]='https://github.com/zed-industries/async-task;015845a19fc31752c02367567d3b8900a406f9da;async-task-%commit%'
+	[async-task]='https://github.com/smol-rs/async-task;41fd3359c75e221bd8b187a8ee361aa309c1714c;async-task-%commit%'
 	[calloop]='https://github.com/zed-industries/calloop;3759371fee14c40066d64777e2a36b6ffcc22590;calloop-%commit%'
 	[candle-core]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-core'
 	[candle-nn]='https://github.com/zed-industries/candle;724d75eb3deebefe83f2a7381a45d4fac6eda383;candle-%commit%/candle-nn'
@@ -207,8 +207,8 @@ src_prepare() {
 	local ASYNC_PROCESS_GIT="async-process = { git = \"https://github.com/zed-industries/async-process.git\", rev = \"${ASYNC_PROCESS_COMMIT}\" }"
 	local ASYNC_PROCESS_PATH="async-process = { path = \"${WORKDIR}/async-process-${ASYNC_PROCESS_COMMIT}\" }"
 
-	local ASYNC_TASK_COMMIT="015845a19fc31752c02367567d3b8900a406f9da"
-	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/zed-industries/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
+	local ASYNC_TASK_COMMIT="41fd3359c75e221bd8b187a8ee361aa309c1714c"
+	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
 	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
 
 	local CPAL_COMMIT="e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7"
