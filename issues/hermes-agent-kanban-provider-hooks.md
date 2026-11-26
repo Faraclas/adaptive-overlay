@@ -3,7 +3,9 @@
 - Package: `app-ai/hermes-agent`
 - Patch: none
 - Upstream: issues #116452, #134517, #122703; PR #86633
-- Status: watching (checked 2026-10-25)
+- Status: watching (checked 2026-11-26: #116452, #134517, #122703 and
+  #86633 remain open; #116608, #116663, #122716 and #122893 are closed;
+  v0.23.4 has no pre-claim provider hook)
 - Drop when: n/a (no patch). Close when a release lets the kanban
   dispatcher check or rewrite a task's provider/model before claiming it.
 

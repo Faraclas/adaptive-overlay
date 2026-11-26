@@ -2,9 +2,10 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-copilot-plugin-pat-integration-id.patch`
-  (against the github-copilot plugin, used by 0.23.2 and 0.23.3 with
-  USE=copilot). The core patch (`hermes-agent-copilot-pat-discovery.patch`)
-  went with the 0.22.5 ebuild (removed 2026-11-08).
+  (against the github-copilot plugin, used by 0.23.3 with USE=copilot;
+  0.23.4's plugin pin includes the fix).
+  The core patch (`hermes-agent-copilot-pat-discovery.patch`) went with
+  the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: PRs https://github.com/NousResearch/hermes-agent/pull/51411
   and https://github.com/NousResearch/hermes-agent/pull/32723 (both closed
   unmerged 2026-10-26); bug 1:
@@ -16,15 +17,11 @@
   for PATs). Related, OAuth logins only (not our PAT):
   https://github.com/NousResearch/hermes-labs-plugins/pull/77 (draft),
   core PR https://github.com/NousResearch/hermes-agent/pull/154360.
-- Status: fixed upstream, not yet released (checked 2026-11-22: #63
-  closed by `244d3f9`; v0.23.2 and v0.23.3 both pin plugin `df8f132`,
-  which predates it and still hardcodes `vscode-chat` in
-  `copilot_request_headers()`; Hermes `main` pins `f9fd3a3`, which
-  includes it. Expect the fix in the next release, likely v0.24.0)
-- Drop when: the plugin sha core's `plugin-catalog/github-copilot.yaml`
-  pins includes `244d3f9` and `tests/test_copilot_pat_integration_id.py`
-  passes without this patch. That also retires
-  `issues/hermes-agent-copilot-image-headers.md`.
+- Status: resolved (v0.23.4; checked 2026-11-26: the release pins
+  `f9fd3a3`, whose `copilot_request_headers()` selects the integration
+  ID from the token; #63 is closed)
+- Drop when: delete the patch after the last retained ebuild using the
+  older plugin pin is removed.
 
 ## Problem
 
@@ -153,3 +150,11 @@ The core's catalog pins plugin `df8f132`, whose request header builder still
 uses `vscode-chat`; the local patch applies to this revision and remains
 necessary. The new fix PR #88 is open but not merged, so no upstream fix is
 included in this release.
+
+## 0.23.4 (2026-11-26)
+
+The core's catalog pins plugin `f9fd3a3`, whose `copilot_request_headers()`
+selects `copilot-developer-cli` for fine-grained PATs and passes the token
+through both catalog and client header paths. The issue is fixed in the
+release source, so the 0.23.4 ebuild no longer applies the local patch.
+The retained 0.23.3 ebuild still pins the older plugin and uses the patch.

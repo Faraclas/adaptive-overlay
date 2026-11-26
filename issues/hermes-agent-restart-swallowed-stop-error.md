@@ -5,8 +5,8 @@
 - Upstream: https://github.com/NousResearch/hermes-agent/issues/158360
   (ours: #159067, a duplicate), fix PR
   https://github.com/NousResearch/hermes-agent/pull/158399
-- Status: fixed upstream, not yet released (checked 2026-11-25: #158399
-  merged on `main` at `fa4ed19da3`, not in `v0.23.4`)
+- Status: fixed upstream, not yet released (checked 2026-11-26: #158399
+  is merged on `main` at `fa4ed19da3`, but the fix is not in `v0.23.4`)
 - Drop when: a release contains #158399 (`fa4ed19da3`) or an equivalent
   fix and running gateways have cycled onto it; until then, an already
   running `0.23.2`/`0.23.3`/`0.23.4` gateway keeps the old stop code in
@@ -59,7 +59,7 @@ After every upgrade, restart through the service manager instead of
   sets no `retry`, so it is not verified that a wedged stop gets killed.
   If it hangs, stop the service and kill the leftover process.
 
-The `pkg_postinst` message of 0.23.2 and 0.23.3 says this.
+The `pkg_postinst` message of 0.23.2, 0.23.3 and 0.23.4 says this.
 
 ## Upstream
 
