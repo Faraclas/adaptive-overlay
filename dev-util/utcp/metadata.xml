@@ -8,6 +8,7 @@
   </longdescription>
   <use>
     <flag name="azdo-manuals">Install <pkg>dev-util/azdo-manuals</pkg> to generate utcp manuals for Azure DevOps</flag>
+    <flag name="github-manuals">Install <pkg>dev-util/github-manuals</pkg> to generate utcp manuals for GitHub</flag>
   </use>
   <upstream>
     <remote-id type="github">Faraclas/agent-misc</remote-id>

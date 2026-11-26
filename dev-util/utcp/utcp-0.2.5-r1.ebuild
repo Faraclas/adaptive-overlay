@@ -474,7 +474,7 @@ LICENSE+="
 "
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="azdo-manuals test"
+IUSE="azdo-manuals github-manuals test"
 RESTRICT="!test? ( test )"
 
 RDEPEND="
@@ -482,6 +482,7 @@ RDEPEND="
 "
 PDEPEND="
 	azdo-manuals? ( dev-util/azdo-manuals )
+	github-manuals? ( dev-util/github-manuals )
 "
 BDEPEND="
 	test? ( net-libs/nodejs )
@@ -530,6 +531,9 @@ pkg_postinst() {
 	elog "upgrade it adds new settings and keeps a copy as settings.toml.bak."
 	if use azdo-manuals; then
 		elog "To generate Azure DevOps manuals:  azdo-manuals generate --org <org> --stage"
+	fi
+	if use github-manuals; then
+		elog "To generate GitHub manuals:        github-manuals generate --stage"
 	fi
 	if [[ -n ${REPLACING_VERSIONS} ]]; then
 		elog "After upgrading: systemctl --user restart utcp-daemon, then utcp sync-ides --global"
