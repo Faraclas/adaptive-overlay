@@ -5,10 +5,12 @@
 - Upstream: https://github.com/NousResearch/hermes-agent/issues/158360
   (ours: #159067, a duplicate), fix PR
   https://github.com/NousResearch/hermes-agent/pull/158399
-- Status: open (checked 2026-11-23)
-- Drop when: a release contains #158399 or an equivalent fix (a failed
-  `stop()` is logged and the shutdown watchdog stays armed); then the
-  install message can go back to recommending `hermes gateway restart`.
+- Status: fixed upstream, not yet released (checked 2026-11-25: #158399
+  merged on `main` at `fa4ed19da3`, not in `v0.23.4`)
+- Drop when: a release contains #158399 (`fa4ed19da3`) or an equivalent
+  fix and running gateways have cycled onto it; until then, an already
+  running `0.23.2`/`0.23.3`/`0.23.4` gateway keeps the old stop code in
+  memory, so keep recommending service-manager restarts in `pkg_postinst`.
 
 ## Problem
 
@@ -70,6 +72,15 @@ The `pkg_postinst` message of 0.23.2 and 0.23.3 says this.
   in-place `git rebase` upgrades. Triage labelled it P2 and pointed to
   #158360 / #158399. We commented with the confirmed `ImportError` and
   agreed to close ours as a duplicate. #158399 is open, not reviewed.
+- 2026-11-25: #158399 merged into `main` (`fa4ed19da3468434d00d4bbc216f0790d57ea40c`),
+  and both #158360 and #159067 were closed as fixed. It replaces
+  `try/finally: _watchdog_done.set()` with `disarm_after_teardown()` (logs
+  a failed or cancelled stop and keeps the watchdog armed to exit `1` on
+  its ~60 s leash) and moves `session_acp_lifecycle` import inside
+  `settle_gateway_runtime`'s `try/except` so the mixed-version
+  `ImportError` logs a warning without aborting `stop()`. `v0.23.4` was
+  published before the merge, so the fix awaits a later release; pre-fix
+  gateways still need a service-manager restart to move onto it.
 
 ## Notes
 
