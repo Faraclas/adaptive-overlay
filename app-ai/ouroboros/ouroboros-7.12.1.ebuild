@@ -53,9 +53,9 @@ RDEPEND="
 	>=dev-python/httptools-0.8.0[${PYTHON_USEDEP}]
 	dev-python/httpx2[${PYTHON_USEDEP}]
 	>=dev-python/jsonschema-4.0[${PYTHON_USEDEP}]
-	>=dev-python/mcp-1.29[${PYTHON_USEDEP}]
+	>=dev-python/mcp-1.30[${PYTHON_USEDEP}]
 	>=dev-python/openai-1.66.0[${PYTHON_USEDEP}]
-	>=dev-python/pillow-10.0[${PYTHON_USEDEP}]
+	>=dev-python/pillow-13.0.0[${PYTHON_USEDEP}]
 	dev-python/pip[${PYTHON_USEDEP}]
 	>=dev-python/pypdf-7.0[${PYTHON_USEDEP}]
 	>=dev-python/pytest-7.0[${PYTHON_USEDEP}]
@@ -91,7 +91,7 @@ src_prepare() {
 	# 2. Relax mcp and tree-sitter upper bounds for adaptive-overlay/::gentoo.
 	sed -i \
 		-e '/"huggingface_hub",/d' \
-		-e 's/"mcp>=[^"]*"/"mcp>=1.29"/' \
+		-e 's/"mcp>=[^"]*"/"mcp>=1.30"/' \
 		-e 's/"tree-sitter>=0.23.2,<0.25"/"tree-sitter>=0.23.2"/' \
 		pyproject.toml || die
 
