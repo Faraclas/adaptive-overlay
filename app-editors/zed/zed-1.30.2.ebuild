@@ -208,7 +208,7 @@ src_prepare() {
 	local ASYNC_PROCESS_PATH="async-process = { path = \"${WORKDIR}/async-process-${ASYNC_PROCESS_COMMIT}\" }"
 
 	local ASYNC_TASK_COMMIT="41fd3359c75e221bd8b187a8ee361aa309c1714c"
-	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task.git\", rev = \"${ASYNC_TASK_COMMIT}\" }"
+	local ASYNC_TASK_GIT="async-task = { git = \"https://github.com/smol-rs/async-task\", rev = \"${ASYNC_TASK_COMMIT}\" }"
 	local ASYNC_TASK_PATH="async-task = { path = \"${WORKDIR}/async-task-${ASYNC_TASK_COMMIT}\" }"
 
 	local CPAL_COMMIT="e1612d5d98152f8dc2a62e1b51ef7cbf4f7f26b7"
