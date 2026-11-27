@@ -11,11 +11,11 @@ inherit distutils-r1 systemd
 DESCRIPTION="The agent that grows with you"
 HOMEPAGE="https://github.com/NousResearch/hermes-agent"
 
-# Tag v0.23.2 commit for install-stamp.json provenance
-HERMES_COMMIT="ae2a81ccc00e9b7c06301523e5bb09608397149c"
+# Tag v0.23.4 commit for install-stamp.json provenance
+HERMES_COMMIT="8fc0374447313e276f6b9a2764bfc750190c966a"
 # github-copilot plugin (Copilot left core in 0.22.6): the sha the core's
 # plugin-catalog/github-copilot.yaml pins. Bump together with that file.
-HERMES_COPILOT_COMMIT="df8f1321941125d45dde71ab20196fbeea093191"
+HERMES_COPILOT_COMMIT="f9fd3a3f3990369e7a8b01eccc7fd2eba9f10bc7"
 HERMES_COPILOT_S="${WORKDIR}/hermes-labs-plugins-${HERMES_COPILOT_COMMIT}/github-copilot"
 # Pinned pnpm version from pm/lock.json for building ui-tui and web frontends.
 HERMES_PNPM_PV="12.15.0"
@@ -169,13 +169,6 @@ PATCHES=(
 src_prepare() {
 	sed -i -e "s/version = \"0.0.0\"/version = \"${PV}\"/" pyproject.toml || die
 	export HERMES_NIX_BUILD=1
-
-	if use copilot; then
-		pushd "${HERMES_COPILOT_S}" >/dev/null || die
-		# A fine-grained PAT needs the copilot-developer-cli integration id.
-		eapply "${FILESDIR}/${PN}-copilot-plugin-pat-integration-id.patch"
-		popd >/dev/null || die
-	fi
 
 	cat >> hermes_bootstrap.py <<- 'EOF' || die
 

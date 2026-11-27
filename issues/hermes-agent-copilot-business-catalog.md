@@ -2,13 +2,13 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.23.2-copilot-plan-host-catalog.patch`
-  (used by 0.23.2 and 0.23.3). Rebuilt from the 0.22.7 patch, removed
+  (used by 0.23.3 and 0.23.4). Rebuilt from the 0.22.7 patch, removed
   with the 0.23.1 ebuild: 0.23.2 added an import above the first hunk.
   The 0.22.5 backport went with the 0.22.5 ebuild (removed 2026-11-08).
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/142480,
   PR https://github.com/NousResearch/hermes-agent/pull/142481
-- Status: open (re-checked 2026-11-22: #142480 and #142481 open, not in
-  v0.23.3; the patch applies to v0.23.2 and v0.23.3)
+- Status: open (re-checked 2026-11-26: #142480 and #142481 remain open;
+  not fixed in v0.23.4)
 - Drop when: a packaged release contains #142481 (or another fix for
   #142480) and the picker lists the live catalog with
   `base_url: https://api.business.githubcopilot.com`.

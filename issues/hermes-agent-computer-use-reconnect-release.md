@@ -2,13 +2,13 @@
 
 - Package: `app-ai/hermes-agent`
 - Patch: `files/hermes-agent-0.23.2-computer-use-release-reconnect.patch`
-  (used by 0.23.2 and 0.23.3). Rebuilt from the 0.22.2 patch, removed
+  (used by 0.23.3 and 0.23.4). Rebuilt from the 0.22.2 patch, removed
   with the 0.23.1 ebuild: 0.23.2 dropped `_capability_version` from a
   context line.
 - Upstream: issue https://github.com/NousResearch/hermes-agent/issues/108215;
   PRs #108222, #115064, #118979
-- Status: open (re-checked 2026-11-22; all three PRs open; applies to
-  v0.23.2 and v0.23.3)
+- Status: open (re-checked 2026-11-26; issue and all three PRs remain
+  open; not fixed in v0.23.4)
 - Drop when: a release contains #108222 (drops parts 1 and 2) and a
   release action is upstream (drops part 3). Split the patch if only part
   of it lands.
