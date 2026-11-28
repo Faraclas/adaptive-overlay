@@ -11,13 +11,8 @@
 FROM ghcr.io/faraclas/adaptive-overlay/testenv:latest
 
 # -----------------------------------------------------------------------
-# Portage: accept ~amd64 keywords for rust-bin if we need a specific version
+# Portage: keep rust-bin on stable (~amd64 would pull 1.100.0+; panther is on 1.99.1)
 # -----------------------------------------------------------------------
-RUN mkdir -p /etc/portage/package.accept_keywords && \
-    printf '# rust-bin: accept ~amd64 if needed\n' \
-        > /etc/portage/package.accept_keywords/rust && \
-    printf 'dev-lang/rust-bin ~amd64\n' \
-        >> /etc/portage/package.accept_keywords/rust
 
 # -----------------------------------------------------------------------
 # Portage: disable nvidia kernel modules globally

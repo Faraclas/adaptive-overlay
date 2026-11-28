@@ -100,6 +100,7 @@ RUN emerge --oneshot --quiet-build \
     media-fonts/dejavu \
     sys-apps/lsb-release \
     app-eselect/eselect-rust \
+    dev-lang/rust-bin:1.98.1 \
     virtual/libelf \
     dev-python/docutils \
     dev-python/pillow \
